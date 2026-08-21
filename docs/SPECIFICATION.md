@@ -1,10 +1,15 @@
 # cavet — Design Specification
 
-**Status:** High-level specification, complete. Nothing built yet.
+**Status:** Specification revised against measured scanner behaviour. Nothing built yet.
 **Name:** `cavet` — from *caveat*, "let him beware". A warning, not a prohibition.
 **Licence:** MIT
 **Language:** Go
-**Date:** 2026-08-17 (revised 2026-08-18)
+**Date:** 2026-08-17 (revised 2026-08-18, 2026-08-21)
+
+The revisions of 2026-08-21 follow from `spike-2026-08-21-scanner-baseline.md`, which
+captured real output and timings from Opengrep 1.27.1, Gitleaks 8.30.1 and Trivy
+0.74.0. Where this document previously asserted something the measurements
+contradict, the measurement wins and the section says so.
 
 ---
 
@@ -156,7 +161,7 @@ an answer.
 | `detected` | A scanner reported a finding for the first time (one per fingerprint, not per scan — re-observations update `last_seen` in `state/`, not the log) |
 | `triaged` | Assessed — `confirmed` \| `dismissed`, with reason and confidence |
 | `surfaced` | Presented to the operator |
-| `remediated` | Code changed; finding no longer reproduces. Emitted only when the finding's file was in the scan's scope and the finding is absent — absence from a `--staged` scan that did not cover the file is not remediation |
+| `remediated` | Code changed; finding no longer reproduces. Emitted only when the finding's originating **scanner ran in this scan** and the finding's path was in scope, and the finding is absent. Absence from a scan that did not cover the file, or did not run the scanner that found it, is not remediation (§5.2) |
 | `suppressed` | Deliberately silenced, with reason |
 | `deferred` | Acknowledged, not now |
 | `raised` | An open item created — a design concern or a verification request (`kind` discriminates) |
@@ -170,7 +175,7 @@ the `events` package:
 
 | Event | `data` fields |
 |---|---|
-| `detected` | `rule`, `severity`, `path`, `line`, `description`, `scanner` |
+| `detected` | `rule`, `severity`, `path`, `line`, `description`, `scanner`, `also_detected_by[]` |
 | `triaged` | `verdict` (`confirmed` \| `dismissed`), `confidence`, `reason`, `sources[]` |
 | `surfaced` | `context` |
 | `remediated` | `reason` |
@@ -225,6 +230,26 @@ and everything gets re-triaged forever.
 - Changing the code changes the fingerprint — a dismissal does not survive a rewrite
   of the code it was about. Correct behaviour, not a bug.
 
+**The originating scanner is recorded per fingerprint** in `state/findings.json`, not
+only in the `detected` event. `remediated` cannot be decided without it (§3.1), since
+a scan that did not run a given scanner proves nothing about that scanner's findings.
+
+**Cross-scanner duplicates.** Gitleaks and Trivy's secret scanner overlap, and both
+run on the fast path (§5.2). Measured against the same repository, both reported the
+same Slack token under different rule ids — `slack-bot-token` and
+`slack-access-token` — and neither carried a CWE, so `rule_key` falls back to the
+scanner's rule id and the fingerprints diverge. Two findings for one secret means two
+triage decisions for one judgement, which is exactly what §3.3 exists to prevent.
+
+Secrets are therefore collapsed **before** fingerprinting, on
+`sha256(normalised_matched_span + path)`. The first scanner's rule id is kept, the
+other is recorded in `also_detected_by[]`, and one fingerprint is produced. Both
+attributions survive in the log; only one triage is ever asked for.
+
+This applies to secret findings specifically. SAST and SCA findings do not overlap
+across the default scanner set, and inventing a general cross-scanner identity for
+them would be speculative — revisit if a second SAST engine is ever enabled.
+
 ### 3.4 Determinism of the delta
 
 If scanner rules or vulnerability databases drift between runs, the delta becomes
@@ -247,8 +272,18 @@ Findings data is close to a worst case for agent context: SARIF is deeply nested
 enormously repetitive, and its location objects are often longer than the findings
 they describe.
 
+Measured, this is worse than it sounds. An Opengrep run producing **7 findings**
+emitted 889,143 bytes of `tool.driver.rules` metadata against 5,555 bytes of actual
+`results` — **99.4% of the document describes rules that did not match**. Gitleaks
+emits ~50KB and 222 rule descriptors for a single finding. A full-corpus run reached
+2.6MB for 10 findings.
+
 **Raw SARIF never reaches the model.** It is written to `reports/` for CI and code
 scanning. The agent sees a compact projection.
+
+The projection reads `results[]` and consults `tool.driver.rules` only to resolve the
+matched `ruleId`. Nothing else in the document is loaded, and the size of the
+unmatched-rule metadata is therefore irrelevant to context cost.
 
 **Output format: GitHub-flavoured markdown tables.** Readable by agents and humans
 without a rendering step, pasteable into an issue or a PR comment unchanged, and
@@ -274,7 +309,7 @@ or execution error.
 ### 4.1 Reference output
 
 ```
-scan: staged · phase: build · engine: cavet-engine@sha256:4f2a…
+scan: staged · scanners: gitleaks,trivy · phase: build · engine: cavet-engine@sha256:4f2a…
 2 confirmed (1 high, 1 medium) · 14 dismissed · 0 new suppressions · baseline 347
 
 | id     | sev    | rule                 | location            | description                          |
@@ -287,6 +322,11 @@ next:
   cavet log --fingerprint 7b1e04
 ```
 
+**The header names the scanners that actually ran.** Because the scanner set varies
+with scope (§5.2), a clean result is ambiguous without it — an agent must be able to
+distinguish "nothing was found" from "SAST did not run". This is the empty-state
+principle applied to coverage rather than to findings.
+
 ---
 
 ## 5. CLI surface
@@ -294,7 +334,7 @@ next:
 ```
 cavet                               # posture home view
 cavet init [--hooks]                # scaffold .cavet/, pull engine, baseline debt
-cavet scan [--staged|--diff <ref>|--full] [--phase <phase>]
+cavet scan [--staged|--diff <ref>|--full] [--deep] [--phase <phase>]
 cavet finding <id> [--full]
 cavet triage <id> (--confirm|--dismiss) --reason "..." [--confidence high|low]
 cavet suppress <id> --reason "..."
@@ -334,28 +374,69 @@ initialised. 347 existing findings recorded as baseline.
 run `cavet debt` when you want to work through them.
 ```
 
+**The baseline scan is always a full-tier scan** (§5.2), regardless of how long it
+takes. A baseline built from the fast tier would omit every SAST finding, and each
+one would then arrive as a spurious `detected` event on the operator's first
+`--full` — presented as new work when it is pre-existing debt. Getting this wrong
+inverts the entire purpose of §5.1.
+
 Day one shows the operator **only what happens next**. Pre-existing debt is available
 on demand and never dominates a scan result. A wall of 347 findings on first run is
 how this tool gets uninstalled in week one.
 
-### 5.2 Latency budget
+### 5.2 Scan tiers and latency
 
-- `--staged` / `--diff`: **≤ 10 seconds** target, measured warm, on the default
-  scanner set (Opengrep, Gitleaks, Trivy). Checkov is Python and costs several seconds
-  of interpreter startup alone, which is one reason it is opt-in (§7.2).
-- `--full`: no budget, and not attached to a trigger by default.
+**SAST is not on the fast path.** An earlier draft budgeted ≤ 10 seconds for a staged
+scan across all three scanners. Measurement showed that to be unreachable: Opengrep's
+cost is rule *parsing*, paid on every invocation and almost independent of how many
+files are scanned.
 
-Meeting the staged budget is why the engine container is long-lived (§7.1). The other
-variable is the bind mount: Docker Desktop file sharing on macOS and Windows is
-markedly slower than native, and a repository on the Windows filesystem accessed from
-the WSL2 backend is the worst case. Measure on Windows on day one, and document that
-repositories living inside the WSL2 filesystem scan considerably faster.
+| Rules loaded | Files scanned | Time |
+|---|---|---|
+| 2 | 3 | 2.9s |
+| 368 (one language) | 1 | 10.8s |
+| 368 (one language) | 5 | 12.6s |
+| 962 (all languages) | 1 | 48.4s |
+| 962 (all languages) | 5 | 49.1s |
+
+One file costs what five files cost. A warm container does not help — repeated
+`docker exec` measured 11.5s then 11.2s. The floor is ~2.2s of Opengrep's own startup;
+above that, roughly 26–48ms per rule, degrading superlinearly.
+
+Rather than curate the ruleset down to fit a budget — trading coverage for a number,
+and taking on permanent curation work — the budget moves to where it is actually
+achievable, and SAST becomes an explicit operation.
+
+**Scope implies the scanner set:**
+
+| Invocation | Scanners | Warm cost |
+|---|---|---|
+| `scan --staged`, `scan --diff <ref>` | Gitleaks + Trivy | **~1.8s** |
+| `scan --full` | Gitleaks + Trivy + Opengrep | ~50s |
+| `scan --staged --deep` | all three | ~50s |
+
+`--deep` is the single override, for the operator who wants SAST on a staged scan and
+will wait for it; `config.yaml` can make that the default per repository. There is no
+`--fast` and no `--no-deep` — `--full` is already how you ask for everything.
+
+The fast tier is comfortably better than the 10 seconds originally budgeted, which
+makes the §9 pre-commit trigger genuinely unnoticeable. Deep scans belong to `--full`,
+to CI, and to explicit request.
+
+**Consequences elsewhere.** The scanner set is printed in the result header (§4.1), so
+a clean result is never ambiguous about coverage. `remediated` is gated on the
+originating scanner having run (§3.1, §3.3). The baseline is always built deep (§5.1).
 
 **Staged means the index, not the working tree.** Scanners read files on disk, and the
 working-tree version of a staged file may differ from what is staged. The CLI runs
 `git checkout-index` for the staged paths into a temporary directory inside the
 container and scans that, so the result describes what will actually be committed.
 Paths are translated back to repository-relative locations in the output.
+
+**The bind mount is the other variable.** Docker Desktop file sharing on macOS and
+Windows is markedly slower than native, and a repository on the Windows filesystem
+accessed from the WSL2 backend is the worst case. Measure on Windows on day one, and
+document that repositories living inside the WSL2 filesystem scan considerably faster.
 
 ### 5.3 Lookup
 
@@ -404,8 +485,8 @@ and expire after **one week** — long enough that ordinary triage is cache-serv
 short enough that a newly-published fix or a change in known-exploited status is picked
 up while it still matters.
 
-**Enrichment at scan time** draws from cache only, so the staged-scan budget (§5.2) is
-never spent on network I/O. Uncached identifiers are marked as such and resolved on
+**Enrichment at scan time** draws from cache only, so the fast tier (§5.2) is never
+spent on network I/O. Uncached identifiers are marked as such and resolved on
 demand.
 
 **Degradation.** No network, an unreachable source, or a rate limit produces an
@@ -473,24 +554,37 @@ control.
 
 ### 7.1 Lifecycle
 
-**One long-lived container per repository**, not one per scan. Cold `docker run` costs
-roughly 0.5–2s before a scanner starts, which would consume the entire staged-scan
-budget on process startup.
+**One long-lived container per repository**, not one per scan.
+
+The justification is Trivy, and it is larger than the container-startup cost this
+section originally cited. Measured across repeated `docker exec` into one warm
+container:
+
+| Scanner | First run | Subsequent |
+|---|---|---|
+| Trivy | 24.0s | **1.2s** |
+| Gitleaks | 0.7s | 0.6s |
+| Opengrep | 11.5s | 11.2s |
+
+Trivy improves 20× once its caches are warm, and Trivy is on the fast path (§5.2), so
+the long-lived container is what makes the fast path fast. Gitleaks was never slow.
+Opengrep gains nothing — its cost is per-invocation rule parsing, not process or cache
+warm-up — which is a further reason SAST does not belong on the fast path.
 
 - `cavet init` starts it, workspace mounted.
 - Each scan is a `docker exec` into the running container — marginal cost near zero.
 - The CLI health-checks before each scan and restarts transparently if the container
   has stopped.
 - `cavet engine stop` tears it down. There is no idle timeout: an idle container
-  holds some memory and effectively no CPU, and stopping it would reintroduce the cold
-  start that §5.2 exists to avoid. Operators on constrained machines can bound it with
-  ordinary Docker resource limits.
+  holds some memory and effectively no CPU, and stopping it would reintroduce the 24s
+  Trivy cold start the fast tier (§5.2) depends on avoiding. Operators on
+  constrained machines can bound it with ordinary Docker resource limits.
 
 ### 7.2 Contents
 
 | Capability | Tool | Licence | Notes |
 |---|---|---|---|
-| SAST | **Opengrep** | LGPL-2.1 | Default engine |
+| SAST | **Opengrep** | Engine LGPL-2.1; **rules LGPL-2.1 + Commons Clause** | Default engine, deep tier only (§5.2) |
 | Secrets | **Gitleaks** | MIT | Requires git history |
 | SCA, IaC, containers | **Trivy** | Apache-2.0 | One binary, one startup. Container image scanning is a separate opt-in (§7.6) |
 | IaC *(optional, off by default)* | **Checkov** | Apache-2.0 | Enabled per repository in `config.yaml`; broader IaC coverage than Trivy at a real startup cost |
@@ -498,15 +592,37 @@ budget on process startup.
 
 **Three default scanners, not five.** Trivy covers dependency scanning, IaC
 misconfiguration and container images from one Go binary with one process start, which
-is what makes the staged budget (§5.2) achievable. It replaces OSV-Scanner outright.
+is what makes the fast tier (§5.2) achievable. It replaces OSV-Scanner outright.
 Checkov stays in the image for operators who want its wider IaC rule set — it is a
 `config.yaml` switch, off by default, and its cost is paid only by those who choose it.
 
-**Opengrep over Semgrep CE by default.** The engines are comparable and
-rule-format-compatible, but Semgrep's registry rules sit under a licence restricting
-use in commercial and competing products. Opengrep's consortium governance and LGPL
-rules are the safer foundation for an MIT project. Semgrep CE remains a configurable
-alternative for operators who prefer it.
+**Opengrep's rules are not LGPL, and an earlier draft of this document was wrong to
+say so.** `opengrep-rules/LICENSE` reads:
+
+```
+"Commons Clause" License Condition v1.0
+... the License does not grant to you, the right to Sell the Software.
+Software: semgrep-rules (https://github.com/semgrep/semgrep-rules)
+License: LGPL 2.1        Licensor: Semgrep, Inc.
+```
+
+It is the same semgrep-rules corpus under the same restriction. The *engine* is
+genuinely LGPL-2.1 and unencumbered; the *rules* carry a Commons Clause forbidding
+sale of a product or service whose value derives substantially from them.
+
+**Opengrep over Semgrep CE therefore rests on governance, not licensing.** The engines
+are comparable and rule-format-compatible. Opengrep is consortium-governed with no
+paid tier above it, which is the safer dependency for a project that does not want its
+default scanner's roadmap set by a vendor selling a competing product. The rule
+licensing is identical either way, so it is not a differentiator and must not be cited
+as one. Semgrep CE remains a configurable alternative for operators who prefer it.
+
+**Consequences for an MIT project.** Distributing the rules inside the engine image is
+permitted and unaffected. Selling a hosted `cavet` whose value derives substantially
+from those rules is not. This is stated in the README and in the image's licence
+notice rather than left for a downstream user to discover. An operator who needs a
+wholly permissive stack can disable Opengrep in `config.yaml` and keep the fast tier,
+which is entirely MIT and Apache-2.0.
 
 Scanners are invoked directly inside the image. No intermediate orchestration layer —
 the image provides the tool isolation that `awslabs/automated-security-helper` would
@@ -525,8 +641,27 @@ It also keeps the default path fully offline (§7.5), which a first-run download
 would break — a proxied environment hanging on scanner downloads is precisely the
 "conclude the tool is broken" failure this design avoids.
 
-The image is not small, and that is accepted. The pull happens once and Docker caches
-it. To keep incremental cost low, **layers are ordered by change frequency**:
+The image is not small, and that is accepted. Measured on a first build with
+everything baked in, it was **4.49GB**:
+
+| Layer | Size |
+|---|---|
+| Trivy java-db | 1.5GB |
+| Trivy vulnerability db | 1.3GB |
+| Trivy binary | 168MB |
+| Opengrep binary | 104MB |
+| Base OS + system deps | ~120MB |
+| Gitleaks binary | 22MB |
+| Opengrep rules (curated) | 20MB |
+
+**The java-db is excluded by default.** It is 1.5GB — a third of the image — and is
+only consulted when scanning JAR or WAR files that lack a resolvable `pom.xml`. That
+is a narrow case to charge every operator 1.5GB for. Excluding it brings the image to
+roughly 3.0GB. Operators scanning built Java artefacts enable it in `config.yaml`,
+which selects the `full` variant tag.
+
+The pull happens once and Docker caches it. To keep incremental cost low, **layers are
+ordered by change frequency**:
 
 1. Base OS and system dependencies — changes rarely.
 2. Scanner binaries — changes on version bumps.
@@ -534,9 +669,29 @@ it. To keep incremental cost low, **layers are ordered by change frequency**:
 4. Bundled vulnerability data.
 
 A rules refresh therefore re-pulls a small top layer rather than the whole image.
-Multi-stage builds drop build toolchains from the final image. If container scanning
-proves to be a size outlier, `core` and `full` variant tags are the answer — each
-still a single digest.
+Multi-stage builds drop build toolchains from the final image. `core` and `full`
+variant tags carry the java-db distinction above — each still a single digest.
+
+**Build-time requirements discovered by measurement.** Each of these is a hard
+requirement, not a refinement; the image does not work without them.
+
+- **A UTF-8 locale must be set.** Opengrep aborts with
+  `UnicodeDecodeError: 'ascii' codec can't decode byte 0xc2` while reading its own
+  rule files unless `LANG` and `LC_ALL` specify one. The failure surfaces as a Python
+  traceback from inside the packaged binary and is thoroughly confusing cold.
+- **The rule bundle must be curated at build time.** Pointing `--config` at a clone of
+  `opengrep-rules` fails outright: the repository ships its own
+  `.pre-commit-config.yaml` and `*.test.yaml` fixtures, Opengrep parses them as rule
+  definitions, and the scan aborts with `invalid configuration file found`. The build
+  copies the language directories only and strips test fixtures — 2031 YAML files
+  reduce to 1818. This is mechanical filtering, not rule selection.
+- **Trivy's misconfiguration policy bundle should be baked.** Without it Trivy logs
+  `failed to check cache: cache does not exist at "/opt/trivy-cache/policy/content"`
+  and falls back to embedded checks. Findings were unaffected in measurement, but the
+  fallback is a network-dependent code path on a supposedly offline image.
+- **Multi-architecture is a build-matrix concern only.** All three scanners publish
+  prebuilt linux `x86_64` and `arm64` binaries, so §7's claim that architecture
+  support is not a per-tool porting problem holds.
 
 ### 7.3 Git in the container
 
@@ -568,8 +723,34 @@ Handled programmatically by the CLI; no agent involvement:
 Vulnerability databases want to phone home. A first run behind a corporate proxy
 hanging for ninety seconds is how people conclude the tool is broken.
 
+**Baking the database in is not sufficient — Trivy must be told not to update it.**
+With networking disabled and default flags, Trivy does not fall back to the baked
+database. It fails outright:
+
+```
+FATAL run error: init error: DB error: failed to download vulnerability DB
+```
+
+Trivy is invoked with **`--skip-db-update --skip-check-update --offline-scan`**, which
+are mandatory. So invoked, the same scan completes offline in 1.8s and reports all 39
+findings from the measurement fixture.
+
+**The first reason for these flags is determinism, not offline support.** §3.4 rests
+on the engine digest pinning one exact set of scanner binaries, rule sets *and
+vulnerability data*. A Trivy that silently refreshes its database at runtime breaks
+that guarantee without any visible symptom: the digest is unchanged, the delta is not
+reproducible, and nothing in the output says so. The flags are what make the digest
+mean what §3.4 claims it means.
+
+Consequently the vulnerability data is refreshed by **rebuilding and re-digesting the
+image**, which is a reviewable change to `engine/digest.txt`, and never by a scanner
+updating itself mid-scan. Data staleness is bounded by image release cadence and is
+visible; `cavet engine status` reports the baked database's build date.
+
 - Vulnerability data is baked into the image where the tool supports it, so the
   default path needs no network at all.
+- Gitleaks and Opengrep were verified to run correctly with networking disabled and
+  need no equivalent flags.
 - Proxy configuration and offline database paths are first-class `config.yaml`
   options, passed through to the container.
 
@@ -692,6 +873,13 @@ A git `pre-commit` hook that runs `cavet scan --staged`. It does not invoke a mo
 git hook is a subprocess with no channel into a running agent session. It runs the
 deterministic scan, prints the compact result, and **exits 0 regardless** unless the
 operator configures otherwise.
+
+`--staged` is the fast tier (§5.2): Gitleaks and Trivy, ~1.8s warm. A hook is the one
+place where latency is not negotiable — it sits between the operator and every commit
+they make — and 1.8s is comfortably below the threshold at which people start passing
+`--no-verify` out of habit. SAST is deliberately absent here; catching a secret or a
+vulnerable dependency at commit time is worth 1.8s, and catching a SAST finding is not
+worth 50.
 
 The mechanism that makes this useful: when the agent runs `git commit` through its own
 shell tool, the hook's output lands in the agent's context automatically. No IPC, no
@@ -868,8 +1056,8 @@ the project.
 | Phase | Skills | Deterministic tools | Artefacts written |
 |---|---|---|---|
 | **Design** | `cavet-design` (conversational), `cavet-design-review` (checkpoint) | — | `design/threat-model.md`, `design/decisions/`, `raised`/`resolved` events |
-| **Build** | `cavet-triage`, `cavet-secure-coding`, `cavet-supply-chain` | SAST, secrets, SCA | findings events, `reports/` |
-| **Test** | `cavet-triage` | Full-tree SAST, SCA | findings events |
+| **Build** | `cavet-triage`, `cavet-secure-coding`, `cavet-supply-chain` | Fast tier: secrets, SCA, IaC | findings events, `reports/` |
+| **Test** | `cavet-triage` | Deep tier: full-tree SAST, secrets, SCA | findings events |
 | **Deploy** | `cavet-deployment` | IaC, container, secrets | findings events, `reports/` |
 
 Every phase writes to the same log and the same state files. Design items and code

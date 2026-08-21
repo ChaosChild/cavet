@@ -21,7 +21,7 @@ Skills go as loose directories under the harness's skills path, flat namespace,
 
 ## Subagent
 
-`subagent/cavet-security.md` → the harness's subagent format. Tool allowlist:
+`subagents/cavet-security.md` → the harness's subagent format. Tool allowlist:
 Read + shell scoped to `cavet`. Nothing else.
 
 ## Trigger
@@ -48,7 +48,10 @@ Command names only. If any of these change, grep the skills for the name.
 Behavioural assumptions:
 - CLI output is markdown tables with an aggregate line and `next:` hints (§4).
 - `engine shell` refuses without a TTY (§5), so `cavet *` is a safe allowlist.
-- Default scanners: Opengrep, Gitleaks, Trivy; Checkov opt-in (§7.2).
+- Scan tiers (§5.2): `--staged` / `--diff` run Gitleaks + Trivy (~1.8s); `--full` and
+  `--deep` add Opengrep (~50s). The result header names which scanners ran, and
+  `cavet-triage` is written to read it — a clean fast scan is not a clean SAST scan.
+- Checkov opt-in, java-db opt-in (§7.2, §7.2.1).
 - The CLI de-duplicates already-triaged fingerprints; skills never re-triage.
 
 ## What to revisit after real use

@@ -1,0 +1,5 @@
+/cavet
+/cavet.exe
+/dist/
+*.test
+coverage.out

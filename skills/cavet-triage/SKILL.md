@@ -17,7 +17,15 @@ you are the subagent — read that section only.
 hook output has landed in your context (a hook result *is* a scan result — treat it
 as one, do not re-run it). Not after every keystroke.
 
-**Dispatch.** Send the security subagent (definition: `subagent/cavet-security.md`)
+**Read the coverage, not just the findings.** The result header names the scanners
+that actually ran, and a staged scan runs secrets and dependency checks only — SAST
+is not on that path. A clean staged result means "no secrets, no vulnerable
+dependencies", never "no vulnerabilities". Say which of the two you mean. When the
+change is the kind SAST would catch — parsing untrusted input, building queries or
+commands, handling auth — ask for a deep scan rather than reporting the fast one as
+clean.
+
+**Dispatch.** Send the security subagent (definition: `subagents/cavet-security.md`)
 with three things: scope (staged / diff / full / path), phase (build / test / deploy),
 and any parent context that bears on reconciliation — files the operator said not to
 touch, prior decisions, current intent. Keep that context to a few lines.
