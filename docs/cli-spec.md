@@ -13,8 +13,8 @@ of record; it pins it.
 
 ## 1. Identity and distribution
 
-- Module path: `github.com/cavet-cli/cavet` (placeholder pending the org decision of
-  spec §13.1; single rename at birth).
+- Module path: `github.com/ChaosChild/cavet` (org decision of spec §13.1 settled
+  2026-08-25; repository private until v0.1 stabilises).
 - Binary name: `cavet`. One static binary per platform: windows/amd64, linux/amd64,
   linux/arm64, darwin/amd64, darwin/arm64 via GitHub Releases (spec §10.1).
 - Version string embedded at build (`-ldflags "-X main.version=…"`), reported by
@@ -379,7 +379,7 @@ malformed result drops one row with a stderr warning naming the scanner.
 
 Name: `cavet-<first 12 hex of sha256(abs repo root)>` — stable across sessions,
 unique per repository, trivially greppable in `docker ps`. Image:
-`ghcr.io/<org>/cavet-engine` with variant tag and pinned digest from
+`ghcr.io/chaoschild/cavet-engine` with variant tag and pinned digest from
 `config.engine.digest`.
 
 ### 10.2 Lifecycle
@@ -451,7 +451,7 @@ version-exact.
   "cavet_version": "0.1.0",
   "log_schema_version": 1,
   "engine": {
-    "image": "ghcr.io/cavet/cavet-engine",
+    "image": "ghcr.io/chaoschild/cavet-engine",
     "variant": "core",
     "digest": "sha256:…"
   },

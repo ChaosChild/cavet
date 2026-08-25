@@ -17,7 +17,7 @@
 - Commit messages follow conventional commits (`feat:`, `test:`, `chore:`, `docs:`).
 - Every package lives under `internal/`; nothing outside `cmd/cavet` imports `main`.
 - When a step says *Run* and gives expected output, actually run it and compare.
-- Module path: `github.com/cavet-cli/cavet` (rename once if org decision changes).
+- Module path: `github.com/ChaosChild/cavet` (settled 2026-08-25; repo private until v0.1 stabilises).
 
 ## File structure map
 
@@ -59,7 +59,7 @@ Phases are independently shippable: P1–P6 are pure libraries with no Docker de
 - [ ] **Step 1: Init module**
 
 ```pwsh
-go mod init github.com/cavet-cli/cavet
+go mod init github.com/ChaosChild/cavet
 go get github.com/spf13/cobra@latest
 go get github.com/docker/docker@latest
 go get gopkg.in/yaml.v3@latest
@@ -1209,7 +1209,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cavet-cli/cavet/internal/events"
+	"github.com/ChaosChild/cavet/internal/events"
 )
 
 type ParseError struct {
@@ -1517,7 +1517,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/cavet-cli/cavet/internal/events"
+	"github.com/ChaosChild/cavet/internal/events"
 )
 
 func (s *Store) Rebuild() (*State, error) {

@@ -15,7 +15,7 @@ ran these exact tools and recorded the failure modes this build exists to preven
 
 | Property | Value |
 |---|---|
-| Name | `ghcr.io/<org>/cavet-engine` |
+| Name | `ghcr.io/chaoschild/cavet-engine` |
 | Variants | `core` (default), `full` — differ only in Trivy's java-db layer |
 | Tags | `core`, `full`, plus `core-<digest8>` / `full-<digest8>` retags at publish |
 | Architectures | linux/amd64, linux/arm64 (build matrix; all scanners ship prebuilt binaries for both — spike §6) |

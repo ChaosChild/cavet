@@ -1,3 +1,3 @@
-module github.com/cavet-cli/cavet
+module github.com/ChaosChild/cavet
 
-go 1.22
+go 1.26

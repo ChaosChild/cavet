@@ -148,7 +148,7 @@ an answer.
   "fingerprint": "a3f9c2...",
   "actor": "agent",
   "phase": "build",
-  "engine": "ghcr.io/<org>/cavet-engine@sha256:...",
+  "engine": "ghcr.io/chaoschild/cavet-engine@sha256:...",
   "data": { "verdict": "dismissed", "confidence": "high",
             "reason": "test fixture, not reachable from production code" }
 }
@@ -1083,6 +1083,10 @@ The package name is clear everywhere it matters and the binary name is unaffecte
 the GitHub *organisation* is unavailable — publish under a different org or a personal
 account with the repository named `cavet`, which is what install and documentation URLs
 will reference anyway. No trademark conflicts surfaced.
+
+**Settled 2026-08-25:** the repository lives at `github.com/ChaosChild/cavet` (personal
+account, private until v0.1 stabilises); the module path is `github.com/ChaosChild/cavet`
+and the engine image `ghcr.io/chaoschild/cavet-engine`.
 
 ### 13.2 Deferred: evaluation fixtures
 

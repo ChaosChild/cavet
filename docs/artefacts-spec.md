@@ -81,7 +81,7 @@ lexicographic order, which is chronological order.
   "fingerprint": "a3f9c2e41b77d0c8...",
   "actor": "agent",
   "phase": "build",
-  "engine": "ghcr.io/cavet/cavet-engine@sha256:4f2a…",
+  "engine": "ghcr.io/chaoschild/cavet-engine@sha256:4f2a…",
   "data": { }
 }
 ```
@@ -474,7 +474,7 @@ Open items only; resolution removes the entry (§6.2). `kind` mirrors the event'
 
 ```json
 {
-  "engine_digest": "ghcr.io/cavet/cavet-engine@sha256:4f2a…",
+  "engine_digest": "ghcr.io/chaoschild/cavet-engine@sha256:4f2a…",
   "created_at": "2026-08-17T09:20:00Z",
   "fingerprints": ["a3f9c2e41b77d0c8…"]
 }
