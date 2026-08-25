@@ -53,7 +53,8 @@ gotchas are one level down:
 - `references/python.md` — Django, Flask/FastAPI, subprocess, pickle/yaml, crypto libs
 - `references/javascript.md` — Node, Express/Next, browser, npm ecosystem specifics
 - `references/go.md` — database/sql, os/exec, net/http, crypto, templates
-- Others: add a file when you first work in that stack; keep the same shape.
+- Working in a stack with no file here? Propose the addition to the operator
+  instead — new stacks arrive as reviewed contributions, keeping the same shape.
 
 ## Relationship to the scanners
 
