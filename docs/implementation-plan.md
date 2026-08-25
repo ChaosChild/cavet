@@ -273,7 +273,7 @@ git commit -m "feat(fingerprint): rule keys, secret identity, pinned normalisati
 - Create: `internal/events/events.go`, `payloads.go`, `canonical.go`
 - Test: `internal/events/events_test.go`
 
-- [ ] **Step 1: Failing test — canonical form is deterministic and shaped like artefacts §2.1**
+- [x] **Step 1: Failing test — canonical form is deterministic and shaped like artefacts §2.1**
 
 ```go
 package events
@@ -313,9 +313,9 @@ func TestTriagedCanonicalShape(t *testing.T) {
 func fp64() string { return "a3f9c2e41b77d0c8a3f9c2e41b77d0c8a3f9c2e41b77d0c8a3f9c2e41b77d0c8" }
 ```
 
-- [ ] **Step 2: Run → FAIL** (`go test ./internal/events/ -v`)
+- [x] **Step 2: Run → FAIL** (`go test ./internal/events/ -v`)
 
-- [ ] **Step 3: Implement `events.go`**
+- [x] **Step 3: Implement `events.go`**
 
 ```go
 package events
@@ -387,7 +387,7 @@ type Event struct {
 }
 ```
 
-- [ ] **Step 4: Implement `payloads.go`** — closed set of nine payloads:
+- [x] **Step 4: Implement `payloads.go`** — closed set of nine payloads:
 
 ```go
 package events
@@ -451,7 +451,7 @@ func (RebaselinedData) dataKind() Kind { return Rebaselined }
 var _ = json.Marshal // silence import if unused by linters during early commits
 ```
 
-- [ ] **Step 5: Implement constructors + canonical in `constructors.go` / `canonical.go`**
+- [x] **Step 5: Implement constructors + canonical in `constructors.go` / `canonical.go`**
 
 ```go
 package events
@@ -641,7 +641,7 @@ var _ = bytes.MinRead
 
 Note: drop the two `var _ =` silencer lines if unused after wiring imports properly — they exist only so intermediate commits compile; remove them in the same task's final pass.
 
-- [ ] **Step 6: Add validation-table test** covering one rejection per constructor:
+- [x] **Step 6: Add validation-table test** covering one rejection per constructor:
 
 ```go
 func TestConstructorRejections(t *testing.T) {
@@ -667,7 +667,7 @@ func TestConstructorRejections(t *testing.T) {
 }
 ```
 
-- [ ] **Step 7: Run → PASS**, then tidy the two silencers away, rerun, commit:
+- [x] **Step 7: Run → PASS**, then tidy the two silencers away, rerun, commit:
 
 ```pwsh
 go test ./internal/events/ -v
