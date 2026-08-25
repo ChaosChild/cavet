@@ -244,17 +244,19 @@ binaries exist for both) and expensive to retrofit after someone depends on arm6
 ## 9. Build and publish flow
 
 1. PR touching `engine/` → matrix build amd64+arm64, gates §8.1 on both.
-2. Merge to main → nightly scheduled build catches upstream drift (new CVE data, rule
-   corpus changes) without human cadence.
+2. Merge to main → scheduled build catches upstream drift (new CVE data, rule corpus
+   changes) without human cadence. **v0.1 cadence: on-demand** — a tag triggers the
+   build and publish; no schedule runs until adoption justifies the CI cost (§10.5).
 3. Publish: multi-arch manifest pushed as `core`/`full`; digest recorded into
-   `docs/engine/digest.txt` (one line, reviewable diff — spec §7.5); release notes
+   `engine/digest.txt` (one line, reviewable diff — spec §7.5); release notes
    list scanner version deltas and rule-count movement.
 4. Consumers adopt via `cavet engine pull` + `cavet rebaseline` — never by editing
    `config.yaml` by hand (cli-spec §5).
 
-The nightly build publishing automatically is deliberate: staleness bounded by image
+Scheduled publishing is deliberate for the mature project: staleness bounded by image
 release cadence is spec §7.5's stated model, and a human bottleneck guarantees the
-cadence dies.
+cadence dies. Before v0.1 there are no consumers to bound staleness for, so the
+schedule stays off and the tag carries the cadence.
 
 ---
 
@@ -269,3 +271,6 @@ cadence dies.
    and kill the property in practice.
 4. **Gitleaks stub config baked** (§3.1) — forward accommodation, zero behaviour
    today; noted so its presence is not mysterious later.
+5. **v0.1 publishes on demand** (§9) — decided 2026-08-25. The nightly schedule is
+   deferred until there are consumers; the tag triggers the build. Also corrects the
+   digest location to `engine/digest.txt`, matching the implementation plan's file map.

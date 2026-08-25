@@ -428,6 +428,7 @@ type RaisedData struct {
 	Fingerprint string   `json:"fingerprint,omitempty"`
 }
 type ResolvedData struct {
+	Item    string   `json:"item"` // open-item id being closed (it-xxxxxxxx)
 	Answer  string   `json:"answer"`
 	Sources []Source `json:"sources,omitempty"`
 }
@@ -580,6 +581,9 @@ func NewRaised(ts time.Time, a Actor, p Phase, e string, d RaisedData) (Event, e
 }
 
 func NewResolved(ts time.Time, a Actor, p Phase, e string, d ResolvedData) (Event, error) {
+	if !validItemID(d.Item) {
+		return Event{}, fmt.Errorf("resolved: item id required (it-xxxxxxxx)")
+	}
 	if d.Answer == "" {
 		return Event{}, fmt.Errorf("resolved: answer required")
 	}
@@ -652,6 +656,7 @@ func TestConstructorRejections(t *testing.T) {
 		{"raised verification without fp", func() error { _, err := NewRaised(ts, a, p, e, RaisedData{Kind: ItemVerification, Question: "q?"}); return err }},
 		{"deferred empty reason", func() error { _, err := NewDeferred(ts, a, p, e, f, ""); return err }},
 		{"rebaselined missing digest", func() error { _, err := NewRebaselined(ts, a, p, e, RebaselinedData{FromDigest: "x", ToDigest: "", Reason: "r"}); return err }},
+		{"resolved empty item", func() error { _, err := NewResolved(ts, a, p, e, ResolvedData{Answer: "a"}); return err }},
 		{"bad engine empty", func() error { _, err := NewDeferred(ts, a, p, "", f, "r"); return err }},
 	}
 	for _, c := range cases {
@@ -1081,7 +1086,8 @@ func stale(path string) bool {
 func itoa(n int) string { return strconv.Itoa(n) } // helper; import strconv instead in final pass
 ```
 
-`lock_windows.go`:
+`lock_windows.go` — access-denied means the process exists but is protected; treat it
+as alive so a live holder's lock is never stolen:
 
 ```go
 //go:build windows
@@ -1089,15 +1095,16 @@ func itoa(n int) string { return strconv.Itoa(n) } // helper; import strconv ins
 package store
 
 import (
+	"errors"
+
 	"golang.org/x/sys/windows"
-	"syscall"
 )
 
 func processAlive(pid int) bool {
 	const SYNCHRONIZE = 0x00100000
 	h, err := windows.OpenProcess(SYNCHRONIZE, false, uint32(pid))
 	if err != nil {
-		return false
+		return errors.Is(err, windows.ERROR_ACCESS_DENIED) // protected but alive
 	}
 	windows.CloseHandle(h)
 	return true
@@ -1622,11 +1629,11 @@ func (s *Store) Rebuild() (*State, error) {
 			st.itemsByID[id] = len(st.Items) - 1
 
 		case events.Resolved:
-			idx, ok := st.itemsByID[itemIDFromAnswer(en)]
-			_ = idx
+			d := en.Payload().(events.ResolvedData)
+			idx, ok := st.itemsByID[d.Item]
 			if !ok {
 				return nil, &ParseError{File: en.File, Line: -1,
-					Err: fmt.Errorf("resolved references unknown item (correlation via raised event required)")}
+					Err: fmt.Errorf("resolved references unknown item %q", d.Item)}
 			}
 			removeItem(st, idx)
 
@@ -1648,7 +1655,7 @@ func (s *Store) Rebuild() (*State, error) {
 ```
 
 Notes to resolve while implementing (they are decisions, not gaps):
-- `resolved` correlation: the CLI's `resolve <item-id>` looks up the open item, finds its `raised` event's canonical bytes, and stores `answer` plus that id inside the `resolved` event's answer prefix (`id:<it-xxx>|<answer>`). Decode in `itemIDFromAnswer`. This keeps resolution addressable under content-derived ids without a tenth event type.
+- `resolved` correlation: the `resolved` payload carries `item`, the id of the open item being closed (decided 2026-08-25; artefacts §14.7 supersedes the earlier answer-prefix draft). `cavet resolve <item-id>` validates the id against open items and records it in the event.
 - Confirmed findings keep `status:"open"` with a verdict block — status enum tracks lifecycle (open/dismissed/deferred/suppressed), verdict records judgement. This matches §9.1's table semantics.
 
 `writeState` marshals State (minus private maps via custom MarshalJSON omitting them), writes `findings.json`+`items.json`+`baseline.json` atomically.
@@ -1838,7 +1845,7 @@ Offline gate (§8.1.3): disconnect network (`--network none`), mount fixture rep
 
 Each command task follows the same loop: wire flags exactly as cli-spec §5 table; behaviour calls into the packages above; verify with built binary against a scratch repo; commit.
 
-- [ ] **Task 15: root + init + posture view** — root prints posture (exit 0 always); init runs scaffold→pull→start→full baseline scan→detected events→baseline.json→exact two-line output (cli-spec §5); refuses re-init; `--hooks` delegates to Task 17's installer.
+- [ ] **Task 15: root + init + posture view** — root prints posture (exit 0 always); init runs scaffold→pull→start→full baseline scan→detected events→baseline.json→exact two-line output (cli-spec §5), with stderr progress during pull/start/baseline (cli-spec §5 step 5, deviation §16.8); refuses re-init; `--hooks` delegates to Task 17's installer.
 - [ ] **Task 16: scan + finding + triage/suppress/defer** — scan flags `--staged|--diff|--full|--deep|--phase|--context`, exit codes 0/1/2 per §4.1; triage requires `--reason` AND `--confidence` (no defaults, cli-spec §16.1); suppress/defer require reasons; all take the lock.
 - [ ] **Task 17: raise/resolve/items/log/debt/rebuild/rebaseline** — raise prints `it-xxxxxxxx`; resolve correlates item id (§ Task 8 note); rebaseline interactive-confirm unless `--yes`; rebuild prints counts line.
 - [ ] **Task 18: engine group + hook installation** — status/start/stop/pull/shell (shell TTY-gated before Docker contact); `init --hooks` sets `core.hooksPath=.cavet/hooks`, writes POSIX shim per cli-spec §13 + Windows `.cmd` fallback calling the exe directly.
@@ -1878,7 +1885,7 @@ Each ends with: `go build ./... && ./cavet <cmd> --help` shows exact flags; comm
 
 **Files:** Create `installers/{claude-code,codex,opencode,pi,hermes}.ps1` (+ `.sh` mirrors); Modify `README.md`
 
-- [ ] Each installer: copy six skill dirs → harness skills path (table of paths per harness documented in-file), translate `subagents/cavet-security.md` into harness format, append instruction snippet to agent instruction file (idempotently — check-before-append). Claude Code installer implemented first as reference; remaining four follow its structure with harness-specific targets.
+- [ ] Each installer: copy six skill dirs → harness skills path (table of paths per harness documented in-file), translate `subagents/cavet-security.md` into harness format, append instruction snippet to agent instruction file (idempotently — check-before-append). Claude Code installer implemented first as reference; remaining four follow its structure with harness-specific targets. Harness set (decided 2026-08-25, usage-ranked via OpenRouter coding rankings): Claude Code, Codex, Hermes, pi, OpenCode — the pi installer also covers the omp family.
 - [ ] README: replace "nothing built" status block; add quick-start (install → `cavet init` → skills snippet); keep licence section unchanged. Commit `feat(installers): five harness installers; readme quick-start`.
 
 ### Task 23: Tag release

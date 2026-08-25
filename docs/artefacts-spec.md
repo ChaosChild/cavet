@@ -110,7 +110,7 @@ known payload are ignored on read (§10).
 | `suppressed` | `reason` | |
 | `deferred` | `reason` | |
 | `raised` | `kind`, `question`, `fingerprint?` | `kind`: `design`\|`verification`; `fingerprint` present iff `kind` is `verification` |
-| `resolved` | `answer`, `sources[]` | |
+| `resolved` | `item`, `answer`, `sources[]` | `item` is the id of the open item being closed (`it-xxxxxxxx`); unknown ids are a replay error (§6.2) |
 | `rebaselined` | `from_digest`, `to_digest`, `reason` | |
 
 `sources[]` elements are `{"id": "CVE-2021-44228", "url": "https://…"}` — identifier
@@ -321,7 +321,7 @@ is stable because canonical encoding is byte-deterministic (§3).
 | `remediated` | Remove the finding |
 | `suppressed`, `deferred` | Set status accordingly |
 | `raised` | Insert item; `items[].id` = `"it-" + first 8 hex of sha256(canonical(event))` — **content-derived**, because replay order is not stable enough to derive ids from sequence positions |
-| `resolved` | Remove the item; error if unknown |
+| `resolved` | Remove the item named by `data.item`; error if unknown |
 | `rebaselined` | See §6.3 |
 
 Output is written atomically (temp file + rename, §7.3) after the whole replay succeeds.
@@ -563,3 +563,7 @@ imports downward from the CLI annex's packages except through these four.
    order non-authoritative; the spec is silent on item identity.
 6. **`display_id` collision extension** (§5) — spec shows 6-hex ids without specifying
    collision behaviour.
+7. **`resolved` carries `data.item`** (§2.2, §6.2) — decided 2026-08-25. The
+   implementation plan's draft correlated resolutions by encoding the item id into the
+   answer string; an explicit field is cleaner, keeps answer text untouched, and is
+   additive in schema v1. Spec §3.1's `resolved` row gains the field at next revision.

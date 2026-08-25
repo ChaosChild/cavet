@@ -118,6 +118,12 @@ open-item count, baseline size. Exit 0 always — posture is a view, not a verdi
 4. Run one **full-tier** baseline scan (spec §5.1 pins this regardless of duration).
 5. Emit `detected` events for everything found; write `baseline.json`;
    emit `rebaselined` with `from_digest` empty (initial).
+
+   The long operations — image pull, container start, baseline scan — print progress
+   to **stderr** as they advance (pull bytes and percentage, scan status), so a
+   multi-minute first run is never silent. stdout stays clean; the final block below
+   is the only stdout output.
+
 6. Print exactly:
 
    ```
@@ -131,7 +137,7 @@ additionally installs the pre-commit trigger (§13).
 ### `cavet scan [--staged|--diff <ref>|--full] [--deep] [--phase <phase>] [--context <ctx>]`
 
 Exactly one scope flag; default is `--staged` when the index is non-empty, else
-`--full` with a printed note. Full pipeline in §7. Emits `detected` / `remediated` /
+`--full` with a printed note. `--phase` defaults to `build` (§16). Full pipeline in §7. Emits `detected` / `remediated` /
 `surfaced` events under the lock, rewrites `state/findings.json`, writes
 `reports/latest.sarif`, prints the §9 result block. `--context` records the surfaced
 payload (`pre-commit` used by the hook; default `dispatch`).
@@ -547,3 +553,8 @@ other. Event appends remain conflict-free because only lock holders append.
    wording elsewhere is superseded here.
 6. **`describe` refuses without `--json`** (§5) — spec names only the JSON contract;
    this annex declines to invent a second, human format that would drift.
+7. **`--phase` defaults to `build`** (§5) — decided 2026-08-25. The spec requires a
+   phase on every event but names no default for scan; `build` is the common case.
+8. **`init` prints progress to stderr** (§5) — decided 2026-08-25. Spec §5.1 pins the
+   two-line final output; nothing pins what precedes it, and minutes of silence during
+   a 3 GB pull is how first runs die.
