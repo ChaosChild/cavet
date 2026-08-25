@@ -3,3 +3,5 @@
 /dist/
 *.test
 coverage.out
+.env
+.lavish/
