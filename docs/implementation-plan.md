@@ -56,7 +56,7 @@ Phases are independently shippable: P1–P6 are pure libraries with no Docker de
 **Files:**
 - Create: `go.mod`, `.golangci.yml`, `.github/workflows/ci.yml`, `.gitignore`
 
-- [ ] **Step 1: Init module**
+- [x] **Step 1: Init module**
 
 ```pwsh
 go mod init github.com/ChaosChild/cavet
@@ -69,7 +69,7 @@ go mod tidy
 
 Expected: `go.mod` lists the four direct deps.
 
-- [ ] **Step 2: `.gitignore`**
+- [x] **Step 2: `.gitignore`**
 
 ```gitignore
 cavet
@@ -79,7 +79,7 @@ dist/
 
 (Note: repo-root gitignore; `.cavet/` ignores are created by `cavet init` itself.)
 
-- [ ] **Step 3: `.golangci.yml`**
+- [x] **Step 3: `.golangci.yml`**
 
 ```yaml
 linters:
@@ -90,7 +90,7 @@ issues:
       linters: [errcheck]
 ```
 
-- [ ] **Step 4: `.github/workflows/ci.yml`**
+- [x] **Step 4: `.github/workflows/ci.yml`**
 
 ```yaml
 name: ci
@@ -111,7 +111,7 @@ jobs:
         with: { args: --timeout=5m }
 ```
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `go build ./... && go vet ./...`
 Expected: no output, exit 0.
@@ -131,7 +131,7 @@ git commit -m "chore: scaffold Go module, lint config, CI"
 - Create: `internal/fingerprint/fingerprint.go`
 - Test: `internal/fingerprint/fingerprint_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```go
 package fingerprint
@@ -173,12 +173,12 @@ func TestNormaliseCRLFAndInvalidUTF8(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `go test ./internal/fingerprint/ -v`
 Expected: FAIL (undefined: Normalise).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```go
 package fingerprint
@@ -243,12 +243,12 @@ func Normalise(src []byte, matchLine int) (string, error) {
 }
 ```
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `go test ./internal/fingerprint/ -v`
 Expected: PASS.
 
-- [ ] **Step 5: Cross-check hash vector against coreutils**
+- [x] **Step 5: Cross-check hash vector against coreutils**
 
 ```pwsh
 "go on`0ctx" | Out-File -NoNewline /tmp/v.bin; sha256sum /tmp/v.bin   # WSL or Git Bash
@@ -256,7 +256,7 @@ Expected: PASS.
 
 Then in a scratch Go test assert `Of("go","ctx")` equals that hex. Delete the scratch test afterwards.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```pwsh
 git add internal/fingerprint

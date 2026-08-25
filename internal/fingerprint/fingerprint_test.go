@@ -36,6 +36,15 @@ func TestNormaliseCRLFAndInvalidUTF8(t *testing.T) {
 	}
 }
 
+func TestOfMatchesKnownVector(t *testing.T) {
+	// sha256("go" + \x00 + "ctx"), cross-checked against the platform SHA-256;
+	// pins the byte layout of artefacts §5.
+	want := "b8b212b890751fbd7f7688599fdf19c4c962b15009fc5e165c13624ecd07eb2a"
+	if got := Of("go", "ctx"); got != want {
+		t.Fatalf("got %s want %s", got, want)
+	}
+}
+
 func TestKeysSeparateFields(t *testing.T) {
 	if Of("ab", "") == Of("a", "b") {
 		t.Fatal("Of must separate rule key from context")
