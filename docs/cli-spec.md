@@ -558,3 +558,10 @@ other. Event appends remain conflict-free because only lock holders append.
 8. **`init` prints progress to stderr** (§5) — decided 2026-08-25. Spec §5.1 pins the
    two-line final output; nothing pins what precedes it, and minutes of silence during
    a 3 GB pull is how first runs die.
+9. **Digest shown as 4 hex + ellipsis** (§9) — spec §4.1's instance zero prints
+   `sha256:4f2a…`; that beats this section's `<8>` shorthand, which was illustrative.
+10. **Aggregate line carries `N new suppressions`** (§9) — present in spec §4.1's
+    instance zero, absent from the grammar above; the grammar is extended to match the
+    instance rather than the other way round.
+11. **Table columns pad to max cell width** (§9) — spec §4.1's hand-set widths are
+    normalised to one consistent rule; cell content and order are unchanged.

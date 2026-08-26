@@ -1671,9 +1671,9 @@ Notes to resolve while implementing (they are decisions, not gaps):
 
 **Files:** Create `internal/output/render.go`; Test `render_test.go` + golden `testdata/golden/reference.md`
 
-- [ ] **Step 1: Golden file** — exact contents of spec §4.1 reference block (header line through `next:` hints), saved as `testdata/golden/reference.md`.
+- [x] **Step 1: Golden file** — exact contents of spec §4.1 reference block (header line through `next:` hints), saved as `testdata/golden/reference.md`.
 
-- [ ] **Step 2: Failing test**
+- [x] **Step 2: Failing test**
 
 ```go
 package output
@@ -1706,9 +1706,9 @@ func TestEmptyStates(t *testing.T) {
 
 (`assertGolden` compares against file; `-update` flag regenerates goldens.)
 
-- [ ] **Step 3: Run → FAIL**, implement renderer exactly per cli-spec §9 rules (fixed columns, sort sev→path→line, truncate desc 60 chars, ≤3 hints). Straightforward string building — ~90 lines.
+- [x] **Step 3: Run → FAIL**, implement renderer exactly per cli-spec §9 rules (fixed columns, sort sev→path→line, truncate desc 60 chars, ≤3 hints). Straightforward string building — ~90 lines.
 
-- [ ] **Step 4: Run → PASS. Commit** `feat(output): normative result rendering with golden tests`
+- [x] **Step 4: Run → PASS. Commit** `feat(output): normative result rendering with golden tests`
 
 ---
 
