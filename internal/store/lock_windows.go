@@ -17,6 +17,6 @@ func processAlive(pid int) bool {
 	if err != nil {
 		return errors.Is(err, windows.ERROR_ACCESS_DENIED)
 	}
-	windows.CloseHandle(h)
+	_ = windows.CloseHandle(h) // nothing sensible to do if this fails
 	return true
 }
