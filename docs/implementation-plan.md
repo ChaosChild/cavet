@@ -810,7 +810,7 @@ Remove the unused `raw` field before committing (it was scaffolding for the doub
 
 **Files:** Create `internal/store/store.go`, `atomic.go`; Test `internal/store/store_test.go`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```go
 package store
@@ -866,7 +866,7 @@ func TestAtomicWrite(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run → FAIL**, implement:
+- [x] **Step 2: Run → FAIL**, implement:
 
 ```go
 // store.go
@@ -968,13 +968,13 @@ func AtomicWrite(path string, b []byte) error {
 }
 ```
 
-- [ ] **Step 3: Run → PASS. Commit** `feat(store): scaffold + atomic state writes`
+- [x] **Step 3: Run → PASS. Commit** `feat(store): scaffold + atomic state writes`
 
 ### Task 6: The lock (O_EXCL, stale takeover, cross-platform pid probe)
 
 **Files:** Create `lock.go`, `lock_windows.go`, `lock_unix.go`; Test extend `store_test.go`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```go
 func TestLockExclusiveAndRelease(t *testing.T) {
@@ -1010,7 +1010,7 @@ func TestLockStaleTakeover(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run → FAIL**, implement `lock.go`:
+- [x] **Step 2: Run → FAIL**, implement `lock.go`:
 
 ```go
 package store
@@ -1128,13 +1128,13 @@ func processAlive(pid int) bool {
 
 (Fix imports in final pass: `strconv` for itoa or inline `strconv.Itoa`; `errors` needed in unix file.)
 
-- [ ] **Step 3: Run → PASS. Commit** `feat(store): O_EXCL repo lock with stale takeover`
+- [x] **Step 3: Run → PASS. Commit** `feat(store): O_EXCL repo lock with stale takeover`
 
 ### Task 7: Append, ReadLog, corruption policy
 
 **Files:** Create `log.go`; Test extend
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```go
 func seedEv(t *testing.T, s *Store) events.Event {
@@ -1200,7 +1200,7 @@ func TestPartialTailWarnsIgnored(t *testing.T) {
 
 Helpers `globOne`, `appendString`: 5-line test utilities writing into the temp log dir.
 
-- [ ] **Step 2: Run → FAIL**, implement `log.go`:
+- [x] **Step 2: Run → FAIL**, implement `log.go`:
 
 ```go
 package store
@@ -1324,7 +1324,7 @@ func decodeEvent(line []byte) (events.Event, []byte, error) {
 }
 ```
 
-- [ ] **Step 3: Add `events.Decode`** (parse envelope + dispatch payload by kind, preserving unknown kinds):
+- [x] **Step 3: Add `events.Decode`** (parse envelope + dispatch payload by kind, preserving unknown kinds):
 
 ```go
 // events/decode.go
@@ -1401,13 +1401,13 @@ func knownPayload(k Kind) any {
 
 Also add `Payload()` accessor on Event returning the typed payload (switch on Kind, unmarshal `e.raw` lazily and cache) — replay needs values, not just bytes.
 
-- [ ] **Step 4: Run → PASS. Commit** `feat(store): append/read log with corruption policy`
+- [x] **Step 4: Run → PASS. Commit** `feat(store): append/read log with corruption policy`
 
 ### Task 8: Rebuild fold — ordering, duplicates, dangling refs, item ids
 
 **Files:** Create `rebuild.go`, `findings.go` (types shared with CLI), Test extend
 
-- [ ] **Step 1: Failing test — determinism under shuffle (the merge=union case)**
+- [x] **Step 1: Failing test — determinism under shuffle (the merge=union case)**
 
 ```go
 func TestRebuildDeterministicUnderShuffle(t *testing.T) {
@@ -1445,7 +1445,7 @@ func TestRebuildDeterministicUnderShuffle(t *testing.T) {
 
 Plus: duplicate identical `detected` events collapse to one finding; `triaged` for unknown fingerprint errors with ParseError-style message naming the problem; resolved removes item.
 
-- [ ] **Step 2: Run → FAIL**, implement state types + fold:
+- [x] **Step 2: Run → FAIL**, implement state types + fold:
 
 ```go
 // findings.go — shapes of artefacts §9
@@ -1656,11 +1656,12 @@ func (s *Store) Rebuild() (*State, error) {
 
 Notes to resolve while implementing (they are decisions, not gaps):
 - `resolved` correlation: the `resolved` payload carries `item`, the id of the open item being closed (decided 2026-08-25; artefacts §14.7 supersedes the earlier answer-prefix draft). `cavet resolve <item-id>` validates the id against open items and records it in the event.
-- Confirmed findings keep `status:"open"` with a verdict block — status enum tracks lifecycle (open/dismissed/deferred/suppressed), verdict records judgement. This matches §9.1's table semantics.
+- Confirmed findings take `status:"confirmed"` with a verdict block, per the artefacts §9.1 enum (`open|confirmed|dismissed|deferred|suppressed`). Status tracks lifecycle; the verdict block records the judgement.
+- Canonical-line dedup applies to every event kind, not only `detected`: after a `merge=union` merge any event type can appear twice, and identical lines collapse silently (artefacts §6.2).
 
 `writeState` marshals State (minus private maps via custom MarshalJSON omitting them), writes `findings.json`+`items.json`+`baseline.json` atomically.
 
-- [ ] **Step 3: Run → PASS. Commit** `feat(store): deterministic replay fold with display ids and item ids`
+- [x] **Step 3: Run → PASS. Commit** `feat(store): deterministic replay fold with display ids and item ids`
 
 ---
 
