@@ -683,7 +683,7 @@ git commit -m "feat(events): nine typed constructors, validation, canonical enco
 
 **Files:** Create `internal/config/config.go`; Test `internal/config/config_test.go`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```go
 package config
@@ -730,7 +730,7 @@ func indexOf(s, sub string) int {
 }
 ```
 
-- [ ] **Step 2: Run → FAIL**, then implement:
+- [x] **Step 2: Run → FAIL**, then implement:
 
 ```go
 package config
@@ -800,7 +800,7 @@ func Default() Config {
 
 Remove the unused `raw` field before committing (it was scaffolding for the double-decode idea; `KnownFields(true)` alone enforces strictness).
 
-- [ ] **Step 3: Run → PASS. Commit** `feat(config): strict config.yaml loader`
+- [x] **Step 3: Run → PASS. Commit** `feat(config): strict config.yaml loader`
 
 ---
 
