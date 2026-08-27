@@ -78,6 +78,8 @@ func newRoot() (*cobra.Command, error) {
 		newRebuildCmd(),
 		newRebaselineCmd(),
 		newEngineCmd(),
+		newLookupCmd(),
+		newDescribeCmd(),
 	)
 	return root, nil
 }

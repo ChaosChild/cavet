@@ -64,7 +64,9 @@ func Merge(fs []Finding) []*MergedFinding {
 		g := groups[key]
 		m := toMerged(g.winner, true)
 		for _, l := range g.losers {
-			m.AlsoDetectedBy = append(m.AlsoDetectedBy, l.Scanner)
+			// also_detected_by mirrors collapsed_with: rule ids, not scanner
+			// names (artefacts §9.1).
+			m.AlsoDetectedBy = append(m.AlsoDetectedBy, l.RuleID)
 			m.CollapsedWith = append(m.CollapsedWith, l.RuleID)
 			m.Locations = appendUniqueLoc(m.Locations, Location{Path: l.Path, Line: l.Line})
 		}
