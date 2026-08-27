@@ -25,7 +25,7 @@ of record; it pins it.
 | Dependency | Why | What it buys |
 |---|---|---|
 | `github.com/spf13/cobra` | 16 subcommands with uniform `--help` | Help text, unknown-flag-fails-loud, completions — spec §2.1 makes help quality a requirement |
-| `github.com/docker/docker` (client + api) | Container lifecycle | Official SDK per spec §7 |
+| `github.com/moby/moby/client` + `/api` | Container lifecycle | Official Docker SDK per spec §7; the SDK moved to moby/moby submodules in 2026 — same client, new module paths. `errdefs` classification comes from `github.com/containerd/errdefs`, already in the SDK's graph |
 | `gopkg.in/yaml.v3` | `config.yaml` | Boring, sufficient |
 | `golang.org/x/sys` | Windows pid liveness probe for the lock | Already in the Docker SDK's graph |
 
