@@ -106,10 +106,12 @@ func (c *Client) CopyOut(ctx context.Context, containerPath string) ([]byte, err
 	}
 }
 
-// NextScanDir allocates a fresh staging directory inside the container so
-// concurrent-ish scans never share a temp dir; dirs die with the container
-// (cli-spec §6 staged mechanics).
+// NextScanDir allocates a fresh staging directory inside the container. The
+// name mixes the clock (unique across processes — the container outlives CLI
+// invocations, so a bare counter would collide across commands) with a local
+// counter (Windows clock granularity can repeat adjacent nanoseconds —
+// measured). Dirs die with the container (cli-spec §6).
 func (c *Client) NextScanDir() string {
 	c.scans++
-	return fmt.Sprintf("/scan/%d", c.scans)
+	return fmt.Sprintf("/scan/%d-%d", time.Now().UnixNano(), c.scans)
 }

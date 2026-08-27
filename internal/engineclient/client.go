@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -34,7 +35,7 @@ type Client struct {
 	root   string // absolute host repository root
 	name   string // cavet-<12 hex of sha256(root)> (cli-spec §10.1)
 
-	scans int
+	scans int // scan-dir tiebreaker (see NextScanDir)
 }
 
 // ContainerName derives the stable per-repository container name.
@@ -186,4 +187,53 @@ func (c *Client) Remove(ctx context.Context) error {
 	}
 	_, err := c.docker.ContainerRemove(ctx, c.name, client.ContainerRemoveOptions{Force: true})
 	return err
+}
+
+// Pull streams the image from its registry. Progress reporting is the
+// caller's job; drain the reader to completion or the pull aborts.
+func (c *Client) Pull(ctx context.Context, ref string) (io.ReadCloser, error) {
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c.docker.ImagePull(ctx, ref, client.ImagePullOptions{})
+}
+
+// ImageDigest returns the image's registry digest when it has one
+// (locally built images have none) — the pin `cavet init` records.
+func (c *Client) ImageDigest(ctx context.Context, ref string) (string, error) {
+	if err := c.connect(); err != nil {
+		return "", err
+	}
+	insp, err := c.docker.ImageInspect(ctx, ref)
+	if err != nil {
+		return "", err
+	}
+	for _, rd := range insp.RepoDigests {
+		if i := strings.Index(rd, "@sha256:"); i >= 0 {
+			return rd[i+1:], nil
+		}
+	}
+	return "", nil // local-only image: nothing recordable
+}
+
+// Status reports container state without side effects. healthy means the
+// healthcheck currently passes (warm).
+func (c *Client) Status(ctx context.Context) (running, healthy bool, imageID string, err error) {
+	if err = c.connect(); err != nil {
+		return
+	}
+	res, ierr := c.docker.ContainerInspect(ctx, c.name, client.ContainerInspectOptions{})
+	if ierr != nil {
+		if errdefs.IsNotFound(ierr) {
+			return false, false, "", nil
+		}
+		return false, false, "", ierr
+	}
+	running = res.Container.State != nil && res.Container.State.Running
+	imageID = res.Container.Image
+	if running {
+		r, _ := c.Exec(ctx, []string{"cavet-healthcheck"})
+		healthy = r.Code == 0
+	}
+	return running, healthy, imageID, nil
 }

@@ -83,9 +83,12 @@ func NewResolved(ts time.Time, actor Actor, phase Phase, engine string, d Resolv
 	return build(ts, actor, phase, engine, "", d)
 }
 
+// NewRebaselined records an engine-image transition. Digests may be empty:
+// from_digest always is on the initial baseline (cli-spec §5), and to_digest
+// is when development runs an unpushed local image. The reason is mandatory.
 func NewRebaselined(ts time.Time, actor Actor, phase Phase, engine string, d RebaselinedData) (Event, error) {
-	if d.FromDigest == "" || d.ToDigest == "" || d.Reason == "" {
-		return Event{}, fmt.Errorf("rebaselined: digests and reason required")
+	if d.Reason == "" {
+		return Event{}, fmt.Errorf("rebaselined: reason required")
 	}
 	return build(ts, actor, phase, engine, "", d)
 }

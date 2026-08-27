@@ -116,9 +116,7 @@ func (s *Store) Rebuild() (*State, error) {
 			if !ok {
 				return nil, &ParseError{File: en.File, Err: fmt.Errorf("raised payload mismatch")}
 			}
-			// Content-derived id: replay order is not authoritative (artefacts §6.2).
-			sum := sha256.Sum256(events.Canonical(en.Event))
-			id := "it-" + hex.EncodeToString(sum[:])[:8]
+			id := ItemID(en.Event)
 			if _, dup := st.itemsByID[id]; dup {
 				id += "-2" // hash collision guard; identical content already collapsed above
 			}
@@ -154,6 +152,25 @@ func (s *Store) Rebuild() (*State, error) {
 	}
 	assignDisplayIDs(st.Findings)
 	return st, s.writeState(st)
+}
+
+// ItemID derives the content-based open-item id for a raised event: replay
+// order is not authoritative after merge=union merges (artefacts §6.2), so
+// identity comes from the event's canonical bytes. Shared by `cavet raise`
+// and rebuild — they can never disagree.
+func ItemID(ev events.Event) string {
+	sum := sha256.Sum256(events.Canonical(ev))
+	return "it-" + hex.EncodeToString(sum[:])[:8]
+}
+
+// WriteBaseline persists baseline.json (init and rebaseline only — artefacts
+// §9.3).
+func (s *Store) WriteBaseline(b Baseline) error {
+	out, err := json.MarshalIndent(b, "", "  ")
+	if err != nil {
+		return err
+	}
+	return AtomicWrite(filepath.Join(s.Cavet, "state", "baseline.json"), append(out, '\n'))
 }
 
 func setStatus(st *State, en Enriched, status string) error {

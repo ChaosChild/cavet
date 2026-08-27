@@ -98,8 +98,8 @@ func TestEnsureRunningExecCopyOut(t *testing.T) {
 		t.Fatalf("stderr capture wrong: %+v", res)
 	}
 
-	if d1, d2 := c.NextScanDir(), c.NextScanDir(); d1 != "/scan/1" || d2 != "/scan/2" {
-		t.Fatalf("scan dirs: %q %q", d1, d2)
+	if d1, d2 := c.NextScanDir(), c.NextScanDir(); !strings.HasPrefix(d1, "/scan/") || !strings.HasPrefix(d2, "/scan/") || d1 == d2 {
+		t.Fatalf("scan dirs must be distinct /scan/* paths: %q %q", d1, d2)
 	}
 
 	if _, err := c.Exec(ctx, []string{"sh", "-c", "printf sarif > /reports/x.sarif"}); err != nil {

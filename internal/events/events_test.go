@@ -116,8 +116,8 @@ func TestConstructorRejections(t *testing.T) {
 			_, err := NewDeferred(ts, a, p, e, f, "")
 			return err
 		}},
-		{"rebaselined missing digest", func() error {
-			_, err := NewRebaselined(ts, a, p, e, RebaselinedData{FromDigest: "x", ToDigest: "", Reason: "r"})
+		{"rebaselined missing reason", func() error {
+			_, err := NewRebaselined(ts, a, p, e, RebaselinedData{FromDigest: "x", ToDigest: "y"})
 			return err
 		}},
 		{"resolved empty item", func() error {

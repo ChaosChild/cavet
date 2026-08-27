@@ -1846,10 +1846,10 @@ Offline gate (§8.1.3): disconnect network (`--network none`), mount fixture rep
 
 Each command task follows the same loop: wire flags exactly as cli-spec §5 table; behaviour calls into the packages above; verify with built binary against a scratch repo; commit.
 
-- [ ] **Task 15: root + init + posture view** — root prints posture (exit 0 always); init runs scaffold→pull→start→full baseline scan→detected events→baseline.json→exact two-line output (cli-spec §5), with stderr progress during pull/start/baseline (cli-spec §5 step 5, deviation §16.8); refuses re-init; `--hooks` delegates to Task 17's installer.
-- [ ] **Task 16: scan + finding + triage/suppress/defer** — scan flags `--staged|--diff|--full|--deep|--phase|--context`, exit codes 0/1/2 per §4.1; triage requires `--reason` AND `--confidence` (no defaults, cli-spec §16.1); suppress/defer require reasons; all take the lock.
-- [ ] **Task 17: raise/resolve/items/log/debt/rebuild/rebaseline** — raise prints `it-xxxxxxxx`; resolve correlates item id (§ Task 8 note); rebaseline interactive-confirm unless `--yes`; rebuild prints counts line.
-- [ ] **Task 18: engine group + hook installation** — status/start/stop/pull/shell (shell TTY-gated before Docker contact); `init --hooks` sets `core.hooksPath=.cavet/hooks`, writes POSIX shim per cli-spec §13 + Windows `.cmd` fallback calling the exe directly.
+- [x] **Task 15: root + init + posture view** — root prints posture (exit 0 always); init runs scaffold→pull→start→full baseline scan→detected events→baseline.json→exact two-line output (cli-spec §5), with stderr progress during pull/start/baseline (cli-spec §5 step 5, deviation §16.8); refuses re-init; `--hooks` delegates to Task 17's installer.
+- [x] **Task 16: scan + finding + triage/suppress/defer** — scan flags `--staged|--diff|--full|--deep|--phase|--context`, exit codes 0/1/2 per §4.1; triage requires `--reason` AND `--confidence` (no defaults, cli-spec §16.1); suppress/defer require reasons; all take the lock.
+- [x] **Task 17: raise/resolve/items/log/debt/rebuild/rebaseline** — raise prints `it-xxxxxxxx`; resolve correlates item id (§ Task 8 note); rebaseline interactive-confirm unless `--yes`; rebuild prints counts line.
+- [x] **Task 18: engine group + hook installation** — status/start/stop/pull/shell (shell TTY-gated before Docker contact); `init --hooks` sets `core.hooksPath=.cavet/hooks`, writes POSIX shim per cli-spec §13 + Windows `.cmd` fallback calling the exe directly.
 
 Each ends with: `go build ./... && ./cavet <cmd> --help` shows exact flags; commit message `feat(cli): <group>`.
 

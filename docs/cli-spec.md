@@ -591,3 +591,15 @@ other. Event appends remain conflict-free because only lock holders append.
     reproduces multi-location state exactly. A known fingerprint seen at a new
     location emits one detected event for that location; known locations emit
     nothing (the once-per-fingerprint rule of spec §3.2 governs rescans).
+18. **Last-scan coverage header persists at `state/last-scan.json`** (§5) — the
+    posture view needs the last scan's scanners, phase, and engine; state had
+    nowhere to carry them. Scan-written, derived, gitignored, not
+    log-reconstructable — the `last_seen` family (artefacts §6.4).
+19. **`CAVET_ENGINE_IMAGE` overrides the engine image name** (§5) — development
+    escape hatch for locally built images (`cavet init` against
+    `cavet-engine:dev`). Production flow is unaffected; the digest pin still
+    applies when present.
+20. **`engine shell` execs the docker binary** (§5) — interactive TTY fidelity
+    (signals, resize, raw mode) is what the docker CLI does best; everything
+    non-interactive stays on the SDK (§7). The TTY gate runs before any Docker
+    contact either way, so the subagent allowlist property holds.

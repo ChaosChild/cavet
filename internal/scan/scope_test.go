@@ -98,10 +98,10 @@ func TestStagedScanStagesIndexAndScansScanDir(t *testing.T) {
 	if res.NothingStaged {
 		t.Fatal("staged content present; must scan")
 	}
-	if !r.ran("git checkout-index -z --prefix=/scan/1/") {
-		t.Fatalf("staging must checkout-index into the scan dir, cmds: %v", r.cmds)
+	if !r.ran("git checkout-index -z --prefix=/scan/") {
+		t.Fatalf("staging must checkout-index into a scan dir, cmds: %v", r.cmds)
 	}
-	if !r.ran("gitleaks dir /scan/1") || !r.ran("trivy fs") {
+	if !r.ran("gitleaks dir /scan/") || !r.ran("trivy fs") {
 		t.Fatalf("scanners must target the scan dir, cmds: %v", r.cmds)
 	}
 	if r.ran("opengrep") {

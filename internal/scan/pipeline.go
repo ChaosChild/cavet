@@ -43,6 +43,7 @@ type Row struct {
 	Rule      string
 	Path      string
 	Line      int
+	Desc      string
 }
 
 type Counts struct {
@@ -58,6 +59,47 @@ type Result struct {
 	Phase         events.Phase
 	Rows          []Row
 	Counts        Counts
+}
+
+// LastScan is the coverage header the posture view shows: the scanners,
+// phase, and engine of the most recent scan (cli-spec §5 bare). Derived,
+// scan-written, not log-reconstructable — the last_seen family (artefacts
+// §6.4, deviation cli-spec §16.18).
+type LastScan struct {
+	Scope    string   `json:"scope"`
+	Scanners []string `json:"scanners"`
+	Phase    string   `json:"phase"`
+	Engine   string   `json:"engine"`
+	At       string   `json:"at"`
+}
+
+// ResolveDefaultScope picks the default scope: staged when the index is
+// non-empty, else full with the caller printing the note (cli-spec §5).
+func ResolveDefaultScope(ctx context.Context, r Runner) (Scope, error) {
+	paths, err := stagedPaths(ctx, r)
+	if err != nil {
+		return 0, err
+	}
+	if len(paths) == 0 {
+		return ScopeFull, nil
+	}
+	return ScopeStaged, nil
+}
+
+// ReadLastScan returns the stored coverage header, or nil before any scan.
+func ReadLastScan(s *store.Store) (*LastScan, error) {
+	b, err := os.ReadFile(filepath.Join(s.Cavet, "state", "last-scan.json"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var ls LastScan
+	if err := json.Unmarshal(b, &ls); err != nil {
+		return nil, fmt.Errorf("state/last-scan.json: %w", err)
+	}
+	return &ls, nil
 }
 
 // Run performs one scan end to end.
@@ -145,6 +187,10 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	}
 	if err := writeMergedReport(s, raw); err != nil {
 		return nil, err
+	}
+	if ls, err := json.Marshal(LastScan{Scope: label, Scanners: scanners,
+		Phase: string(o.Phase), Engine: o.Engine, At: now.UTC().Format(time.RFC3339)}); err == nil {
+		_ = store.AtomicWrite(filepath.Join(s.Cavet, "state", "last-scan.json"), append(ls, '\n'))
 	}
 	return buildResult(merged, state, label, scanners, o), nil
 }
@@ -244,6 +290,7 @@ func buildResult(merged []*projection.MergedFinding, state *store.State, label s
 				FP: f.Fingerprint, DisplayID: f.DisplayID,
 				Sev: f.Severity, Rule: f.RuleID,
 				Path: m.Locations[0].Path, Line: m.Locations[0].Line,
+				Desc: f.Description,
 			})
 			res.Counts.Confirmed++
 			switch f.Severity {

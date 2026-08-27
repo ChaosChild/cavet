@@ -59,6 +59,7 @@ func Open(root string) (*Store, error) {
 
 const defaultConfigYAML = `engine:
   variant: core
+  digest: ""
 scan:
   deep_default: false
   container_images: false
