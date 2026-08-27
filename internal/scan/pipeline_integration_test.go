@@ -26,7 +26,13 @@ func TestRealEngineStagedScan(t *testing.T) {
 	c := engineclient.New("cavet-engine:dev", "", root)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	t.Cleanup(func() { _ = c.Remove(ctx) })
+	// Fresh context: the test's ctx is cancelled before cleanups run, which
+	// would turn Remove into a silent no-op and leak the container (measured).
+	t.Cleanup(func() {
+		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccancel()
+		_ = c.Remove(cctx)
+	})
 	if err := c.Ping(ctx); err != nil {
 		t.Skipf("docker daemon unreachable: %v", err)
 	}
