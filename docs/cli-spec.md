@@ -582,3 +582,12 @@ other. Event appends remain conflict-free because only lock holders append.
     construction) and rejects it with a usage dump. The staged/diff contract is
     `gitleaks dir /scan/<n> --report-format sarif --report-path /reports/gitleaks.sarif
     --exit-code 0`. The full-scan `detect` invocation is unchanged.
+16. **`surfaced` is one event per actionable finding, not one per scan** (§8.3) —
+    artefacts §2.1 requires a fingerprint on every surfaced event; a scan-level
+    event has none to carry. Per-finding surfaced events also let
+    `cavet log --fingerprint` reconstruct presentation history. Volume is bounded:
+    actionable findings only, seen this scan.
+17. **Detected events are per (fingerprint, location)** (§8.3) — so a rebuild
+    reproduces multi-location state exactly. A known fingerprint seen at a new
+    location emits one detected event for that location; known locations emit
+    nothing (the once-per-fingerprint rule of spec §3.2 governs rescans).

@@ -1816,25 +1816,25 @@ Offline gate (§8.1.3): disconnect network (`--network none`), mount fixture rep
 
 **Files:** Create `engineclient/client.go`, `exec.go`, `paths.go`; Test with mocked-free integration guard (skip when no Docker: `t.Skip` on daemon ping failure)
 
-- [ ] **Step 1: Tests** (integration-tagged): container name derivation stable (`cavet-<12hex>` of abs root); EnsureRunning starts and health-probes; ExecCapture returns stdout; CopyOut retrieves `/reports/x.sarif`; PathTranslate bidirectional incl. Windows drive case.
+- [x] **Step 1: Tests** (integration-tagged): container name derivation stable (`cavet-<12hex>` of abs root); EnsureRunning starts and health-probes; ExecCapture returns stdout; CopyOut retrieves `/reports/x.sarif`; PathTranslate bidirectional incl. Windows drive case.
 
-- [ ] **Step 2: Implement** per cli-spec §10: SDK client from env (`client.NewClientWithOpts(client.FromEnv)`), create-with-bind-mount (`/workspace`, network disabled unless proxy configured), start, probe `["/usr/local/bin/cavet-healthcheck"]` 30s cold timeout; wrong-digest → hard stop with rebaseline instruction; exec plumbing `ExecCreate+AttachOutput`; `--user uid:gid` on linux hosts; `\\?\` long-path handling for temp staging.
+- [x] **Step 2: Implement** per cli-spec §10: SDK client from env (`client.NewClientWithOpts(client.FromEnv)`), create-with-bind-mount (`/workspace`, network disabled unless proxy configured), start, probe `["/usr/local/bin/cavet-healthcheck"]` 30s cold timeout; wrong-digest → hard stop with rebaseline instruction; exec plumbing `ExecCreate+AttachOutput`; `--user uid:gid` on linux hosts; `\\?\` long-path handling for temp staging.
 
-- [ ] **Step 3: Integration run against dev image → PASS. Commit** `feat(engineclient): lifecycle, exec, copy-out, path translation`
+- [x] **Step 3: Integration run against dev image → PASS. Commit** `feat(engineclient): lifecycle, exec, copy-out, path translation`
 
 ### Task 14: Scope resolution + scan pipeline + delta
 
 **Files:** Create `internal/scan/scope.go`, `pipeline.go`, `delta.go`; Test `*_test.go` with fake engineclient (interface seam introduced here: `type runner interface { Exec(...) ; CopyOut(...) }` — one producer, justified seam)
 
-- [ ] **Step 1: Failing unit tests with fake runner**:
+- [x] **Step 1: Failing unit tests with fake runner**:
   - staged scope: `git diff --cached --name-only -z` then `git checkout-index --prefix=/scan/1/ --stdin` invoked with staged list; empty index → `nothing staged` result object, no scanner exec.
   - tier selection table (cli-spec §6) incl. config.deep_default.
   - delta fold (cli-spec §8.3): unseen→detected+insert-open; known→last_seen refresh only; remediation requires originating-scanner-ran AND all locations in-scope AND absent; regression reopen emits fresh detected.
   - surfaced emission with `--context` value; state rewritten atomically; latest.sarif merged doc.
 
-- [ ] **Step 2: Implement** — orchestrate: resolve scope → ensure container → stage target → invoke scanner contracts verbatim from cli-spec §7 (flags included) → CopyOut SARIFs → projection.Parse+Merge → delta fold under store lock (exec outside lock per cli-spec §14) → write reports/state → return ScanView to caller.
+- [x] **Step 2: Implement** — orchestrate: resolve scope → ensure container → stage target → invoke scanner contracts verbatim from cli-spec §7 (flags included) → CopyOut SARIFs → projection.Parse+Merge → delta fold under store lock (exec outside lock per cli-spec §14) → write reports/state → return ScanView to caller.
 
-- [ ] **Step 3: Unit PASS. Commit** `feat(scan): tiers, staged staging via checkout-index, delta fold with remediation gating`
+- [x] **Step 3: Unit PASS. Commit** `feat(scan): tiers, staged staging via checkout-index, delta fold with remediation gating`
 
 ---
 

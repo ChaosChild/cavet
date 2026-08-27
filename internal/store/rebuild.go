@@ -197,6 +197,16 @@ func appendUniqueLoc(locs *[]Location, loc Location) {
 	*locs = append(*locs, loc)
 }
 
+// WriteState persists findings.json and items.json atomically. Scan uses this
+// to rewrite state wholesale with fresh observations — last_seen included —
+// where a rebuild would decay it (artefacts §6.4). Baseline is never touched.
+func (s *Store) WriteState(st *State) error { return s.writeState(st) }
+
+// AssignDisplayIDs gives each finding the shortest fingerprint prefix that is
+// unique among live findings (artefacts §5). Exported for the scan pipeline,
+// which inserts findings between full rebuilds.
+func AssignDisplayIDs(fs []*Finding) { assignDisplayIDs(fs) }
+
 // assignDisplayIDs gives each finding the shortest fingerprint prefix that is
 // unique among live findings, starting at 6 hex and extending on collision
 // (artefacts §5).
