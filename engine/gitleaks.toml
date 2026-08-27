@@ -1,0 +1,11 @@
+title = "cavet gitleaks stub"
+
+# Deliberately no custom rules and no allowlists (engine-spec §3.1): this stub
+# exists so a future per-repository allowlist feature has a home. It extends
+# the default ruleset — detection is unchanged from a bare gitleaks install
+# (verified at build: the fixture's planted key is found with this config).
+#
+# ponytail: [extend] useDefault — a bare top-level `useDefault = true` is
+# silently ignored by gitleaks 8.30.1, yielding a zero-rule scan.
+[extend]
+useDefault = true

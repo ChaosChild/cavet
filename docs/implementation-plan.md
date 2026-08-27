@@ -1782,9 +1782,9 @@ func TestSeverityMaps(t *testing.T) {
 
 **Files:** Create everything under `engine/` per engine-spec §§2–7
 
-- [ ] **Step 1: `engine/Dockerfile`** — transcribe engine-spec §3 stage skeleton verbatim into a working file: base (locales, git, ca-certificates, UTF-8 ENV), scanners stage (checksum-verified pinned downloads for opengrep 1.27.1, gitleaks 8.30.1, trivy 0.74.0, checkov pip-pin), rules stage (clone pinned SHA, run `curate-rules.sh`, count assertion `[1700,2100]`), trivy-data-core/full stages (`--download-db-only`, policy bundle bake, java-db only in full), two finals copying entrypoint/healthcheck/LICENSES.md.
+- [x] **Step 1: `engine/Dockerfile`** — transcribe engine-spec §3 stage skeleton verbatim into a working file: base (locales, git, ca-certificates, UTF-8 ENV), scanners stage (checksum-verified pinned downloads for opengrep 1.27.1, gitleaks 8.30.1, trivy 0.74.0, checkov pip-pin), rules stage (clone pinned SHA, run `curate-rules.sh`, count assertion `[1700,2100]`), trivy-data-core/full stages (`--download-db-only`, policy bundle bake, java-db only in full), two finals copying entrypoint/healthcheck/LICENSES.md.
 
-- [ ] **Step 2: `engine/curate-rules.sh`** — mechanical filter per engine-spec §4.4: language dirs only, exclude `*.test.yaml`/`*.fixture.*`/dotfiles/pre-commit configs, then:
+- [x] **Step 2: `engine/curate-rules.sh`** — mechanical filter per engine-spec §4.4: language dirs only, exclude `*.test.yaml`/`*.fixture.*`/dotfiles/pre-commit configs, then:
 
 ```sh
 COUNT=$(find /opt/opengrep-rules -name '*.yaml' | wc -l)
@@ -1793,11 +1793,11 @@ if [ "$COUNT" -lt 1700 ] || [ "$COUNT" -gt 2100 ]; then
 fi
 ```
 
-- [ ] **Step 3: `entrypoint.sh` + `healthcheck`** — transcribe engine-spec §6.1/§6.2 scripts verbatim (safe.directory, /scan+/reports mkdir; five healthcheck assertions).
+- [x] **Step 3: `entrypoint.sh` + `healthcheck`** — transcribe engine-spec §6.1/§6.2 scripts verbatim (safe.directory, /scan+/reports mkdir; five healthcheck assertions).
 
-- [ ] **Step 4: `LICENSES.md`** — Commons Clause text verbatim from spike §1 quote + attributions per engine-spec §7.
+- [x] **Step 4: `LICENSES.md`** — Commons Clause text verbatim from spike §1 quote + attributions per engine-spec §7.
 
-- [ ] **Step 5: Build + acceptance gates locally**
+- [x] **Step 5: Build + acceptance gates locally**
 
 ```pwsh
 docker buildx build --platform linux/amd64 -t cavet-engine:dev -f engine/Dockerfile engine/
@@ -1806,7 +1806,7 @@ docker run --rm cavet-engine:dev cavet-healthcheck   # exit 0
 
 Offline gate (§8.1.3): disconnect network (`--network none`), mount fixture repo, run staged trivy invocation with mandatory flags — expect SARIF with planted findings.
 
-- [ ] **Step 6: Commit** `feat(engine): digest-pinned multi-stage image with curated rules and offline gates`
+- [x] **Step 6: Commit** `feat(engine): digest-pinned multi-stage image with curated rules and offline gates`
 
 ---
 

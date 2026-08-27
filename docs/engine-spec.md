@@ -274,3 +274,14 @@ schedule stays off and the tag carries the cadence.
 5. **v0.1 publishes on demand** (§9) — decided 2026-08-25. The nightly schedule is
    deferred until there are consumers; the tag triggers the build. Also corrects the
    digest location to `engine/digest.txt`, matching the implementation plan's file map.
+6. **Gitleaks stub must extend the default config** (§3.1) — measured at build:
+   a bare config at `GITLEAKS_CONFIG` silently disables every default rule (zero-rule
+   scan; the fixture's planted key goes undetected). The stub uses
+   `[extend] useDefault = true`; detection is identical to a bare install and the
+   offline gate proves it. "Stub allowing everything" in §3.1 meant this; now it says
+   so precisely.
+7. **Misconfig policy bundle baked via seeded scan** (§5) — Trivy 0.74.0 has no
+   standalone policy-download flag (checked `trivy image --help`); the bundle
+   downloads on the first misconfig scan. The build runs a seeded one-file misconfig
+   scan and asserts `policy/content` exists. No separately versioned artifact exists
+   to pin — the bundle version follows the Trivy version, which §2.1 already pins.

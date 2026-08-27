@@ -1,0 +1,10 @@
+#!/bin/sh
+# cavet-healthcheck — exit 0 = warm and complete (engine-spec §6.2). Probed by
+# the CLI before every scan (cli-spec §10.2); doubles as the image HEALTHCHECK.
+set -e
+gitleaks version >/dev/null
+trivy --version >/dev/null
+opengrep --version >/dev/null
+git --version >/dev/null
+[ -d /opt/trivy-cache/policy/content ]
+[ -d "$OPENGREP_RULES" ] && [ "$(find "$OPENGREP_RULES" -name '*.yaml' | head -1)" ]
