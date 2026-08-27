@@ -565,3 +565,15 @@ other. Event appends remain conflict-free because only lock holders append.
     instance rather than the other way round.
 11. **Table columns pad to max cell width** (§9) — spec §4.1's hand-set widths are
     normalised to one consistent rule; cell content and order are unchanged.
+12. **Projection strips the scan target prefix** (§9) — measured SARIF contradicts
+    §10.4's "already repository-relative": Opengrep emits absolute paths under the
+    scanned target (`/workspace/…`, `uriBaseId %SRCROOT%`); Gitleaks and Trivy emit
+    relative ones. `Parse` takes the target path and strips it where present.
+13. **Rule resolution by index or id** (§9) — only Trivy supplies `ruleIndex`;
+    Gitleaks and Opengrep reference rules by `ruleId`. Resolution tries the index,
+    falls back to an id map built once per document.
+14. **Fingerprint context comes from the matched region only** (§8) — SARIF carries
+    the region snippet, not surrounding lines, so spec §3.3's "surrounding context"
+    cannot be honoured at parse time. Identical matched lines in different contexts
+    merge into one finding with several locations — spec §3.3's intended reading.
+    Revisit only if the engine grows a context-fetch step.
