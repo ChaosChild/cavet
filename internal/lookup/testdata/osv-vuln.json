@@ -1,0 +1,20 @@
+{
+  "id": "GHSA-test",
+  "summary": "PyYAML: command execution through python/object/apply constructor in FullLoader",
+  "aliases": ["CVE-2019-20477"],
+  "affected": [
+    {
+      "package": { "ecosystem": "PyPI", "name": "PyYAML" },
+      "ranges": [
+        {
+          "type": "ECOSYSTEM",
+          "events": [
+            { "introduced": "0" },
+            { "fixed": "5.2" }
+          ]
+        }
+      ],
+      "database_specific": { "severity": "HIGH" }
+    }
+  ]
+}
