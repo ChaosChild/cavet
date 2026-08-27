@@ -1718,7 +1718,7 @@ func TestEmptyStates(t *testing.T) {
 
 **Files:** Create `sarif.go`, `severity.go`; Test `sarif_test.go` using spike fixtures
 
-- [ ] **Step 1: Failing tests against real fixtures**
+- [x] **Step 1: Failing tests against real fixtures**
 
 ```go
 func TestParseOpengrepFixture(t *testing.T) {
@@ -1758,21 +1758,21 @@ func TestSeverityMaps(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run → FAIL**, implement `sarif.go` structs per cli-spec §9 parsing rules (results[] iteration, memoised ruleIndex→metadata, malformed result drops row with warning) and `severity.go` mapping tables verbatim from cli-spec §7.
+- [x] **Step 2: Run → FAIL**, implement `sarif.go` structs per cli-spec §9 parsing rules (results[] iteration, memoised ruleIndex→metadata, malformed result drops row with warning) and `severity.go` mapping tables verbatim from cli-spec §7.
 
-- [ ] **Step 3: Run → PASS. Commit** `feat(projection): SARIF parse with lazy rule resolution and severity maps`
+- [x] **Step 3: Run → PASS. Commit** `feat(projection): SARIF parse with lazy rule resolution and severity maps`
 
 ### Task 11: Merge + secret collapse
 
 **Files:** Create `merge.go`; Test `merge_test.go` with hand-built pair
 
-- [ ] **Step 1: Hand-built fixture pair** (spike §7 consequence — committed as `testdata/secrets/a.sarif`, `b.sarif`): two minimal SARIF docs reporting the same synthetic high-entropy span at `config.py:9` under rule ids `generic-api-key` (gitleaks) and `stripe-secret-token` (trivy).
+- [x] **Step 1: Hand-built fixture pair** (spike §7 consequence — committed as `testdata/secrets/a.sarif`, `b.sarif`): two minimal SARIF docs reporting the same synthetic high-entropy span at `config.py:9` under rule ids `generic-api-key` (gitleaks) and `stripe-secret-token` (trivy).
 
-- [ ] **Step 2: Failing test**: parsing both + merging yields ONE finding whose `OriginatingScanner=="gitleaks"`, `CollapsedWith==["stripe-secret-token"]`, single fingerprint from `fingerprint.Secret`.
+- [x] **Step 2: Failing test**: parsing both + merging yields ONE finding whose `OriginatingScanner=="gitleaks"`, `CollapsedWith==["stripe-secret-token"]`, single fingerprint from `fingerprint.Secret`.
 
-- [ ] **Step 3: Implement `merge.go`**: group by `Secret(span,path)` for secret-category findings (gitleaks: all; trivy: rules containing "secret"/"token" per Trivy's secret-scanner id conventions — encode the predicate explicitly), else group by `Of(RuleKey(...), Normalise(...))`; multi-location dedup.
+- [x] **Step 3: Implement `merge.go`**: group by `Secret(span,path)` for secret-category findings (gitleaks: all; trivy: rules containing "secret"/"token" per Trivy's secret-scanner id conventions — encode the predicate explicitly), else group by `Of(RuleKey(...), Normalise(...))`; multi-location dedup.
 
-- [ ] **Step 4: PASS, commit** `feat(projection): cross-scanner merge with pre-fingerprint secret collapse`
+- [x] **Step 4: PASS, commit** `feat(projection): cross-scanner merge with pre-fingerprint secret collapse`
 
 ---
 
