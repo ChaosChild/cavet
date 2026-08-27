@@ -603,3 +603,8 @@ other. Event appends remain conflict-free because only lock holders append.
     (signals, resize, raw mode) is what the docker CLI does best; everything
     non-interactive stays on the SDK (§7). The TTY gate runs before any Docker
     contact either way, so the subagent allowlist property holds.
+21. **Rule catalogue extracted from scan SARIF, not by `engine pull`** (§11) —
+    opengrep's SARIF embeds metadata for every rule it loaded (spike §5), so
+    deep scans refresh `cache/advisories/rules.json` from bytes the scan
+    already holds. `engine pull` has no running container to exec into; a
+    separate extraction pass would duplicate what the scan just parsed.

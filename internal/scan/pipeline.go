@@ -14,6 +14,7 @@ import (
 
 	"github.com/ChaosChild/cavet/internal/engineclient"
 	"github.com/ChaosChild/cavet/internal/events"
+	"github.com/ChaosChild/cavet/internal/lookup"
 	"github.com/ChaosChild/cavet/internal/projection"
 	"github.com/ChaosChild/cavet/internal/store"
 )
@@ -187,6 +188,12 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	}
 	if err := writeMergedReport(s, raw); err != nil {
 		return nil, err
+	}
+	// Deep scans refresh the local rule catalogue from the opengrep SARIF we
+	// already hold — version-exact, offline (spec §5.3).
+	if b, ok := raw["opengrep"]; ok {
+		_ = lookup.WriteRuleCatalog(lookup.CatalogPath(filepath.Join(s.Cavet, "cache", "advisories")),
+			lookup.ExtractRules(b))
 	}
 	if ls, err := json.Marshal(LastScan{Scope: label, Scanners: scanners,
 		Phase: string(o.Phase), Engine: o.Engine, At: now.UTC().Format(time.RFC3339)}); err == nil {

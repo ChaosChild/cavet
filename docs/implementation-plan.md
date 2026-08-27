@@ -1861,16 +1861,16 @@ Each ends with: `go build ./... && ./cavet <cmd> --help` shows exact flags; comm
 
 **Files:** Create `internal/lookup/*` per file-structure map; Test recorded-HTTP fixtures (offline CI)
 
-- [ ] **Step 1: Cache round-trip test** — wrapper fields (identifier/fetched_at/ttl_hours=168/payload), stale+offline serves stale marker, torn file deleted-refetched (artefacts §11).
-- [ ] **Step 2: OSV adapter complete** (querybatch POST, /v1/vulns/{id}); KEV whole-feed daily cache; EPSS GET; NVD optional `NVD_API_KEY`; registry dispatch on purl type over npm/PyPI/crates/go-proxy JSON APIs. Shared helpers only (timeout 10s, one retry on 429/5xx after 1s) — no shared interface (spec §5.3).
-- [ ] **Step 3: Renderer** — compact markdown table: severity, affected range, fixed version, KEV flag, EPSS, summary, URL; degraded cells render explicit `not available`; rule-ids resolve from engine-extracted catalogue (`cache/advisories/rules-<digest8>.json` produced by `engine pull`).
-- [ ] **Step 4: PASS, commit** `feat(lookup): five thin adapters, weekly cache, degraded-cell rendering`
+- [x] **Step 1: Cache round-trip test** — wrapper fields (identifier/fetched_at/ttl_hours=168/payload), stale+offline serves stale marker, torn file deleted-refetched (artefacts §11).
+- [x] **Step 2: OSV adapter complete** (querybatch POST, /v1/vulns/{id}); KEV whole-feed daily cache; EPSS GET; NVD optional `NVD_API_KEY`; registry dispatch on purl type over npm/PyPI/crates/go-proxy JSON APIs. Shared helpers only (timeout 10s, one retry on 429/5xx after 1s) — no shared interface (spec §5.3).
+- [x] **Step 3: Renderer** — compact markdown table: severity, affected range, fixed version, KEV flag, EPSS, summary, URL; degraded cells render explicit `not available`; rule-ids resolve from engine-extracted catalogue (`cache/advisories/rules-<digest8>.json` produced by `engine pull`).
+- [x] **Step 4: PASS, commit** `feat(lookup): five thin adapters, weekly cache, degraded-cell rendering`
 
 ### Task 20: describe --json
 
 **Files:** Create `internal/describe/describe.go` + CLI wiring
 
-- [ ] Emit cli-spec §12 schema verbatim; `--skills-dir` overrides recommended_path prefix; refuses without `--json`; additive-only versioning comment at top of file. Golden-test the emitted JSON structure. Commit `feat(describe): machine contract emitter`.
+- [x] Emit cli-spec §12 schema verbatim; `--skills-dir` overrides recommended_path prefix; refuses without `--json`; additive-only versioning comment at top of file. Golden-test the emitted JSON structure. Commit `feat(describe): machine contract emitter`.
 
 ---
 
