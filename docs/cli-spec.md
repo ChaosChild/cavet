@@ -577,3 +577,8 @@ other. Event appends remain conflict-free because only lock holders append.
     cannot be honoured at parse time. Identical matched lines in different contexts
     merge into one finding with several locations — spec §3.3's intended reading.
     Revisit only if the engine grows a context-fetch step.
+15. **`--no-git` dropped from the gitleaks `dir` invocation** (§7) — measured against
+    gitleaks 8.30.1: the `dir` subcommand has no such flag (it is non-git by
+    construction) and rejects it with a usage dump. The staged/diff contract is
+    `gitleaks dir /scan/<n> --report-format sarif --report-path /reports/gitleaks.sarif
+    --exit-code 0`. The full-scan `detect` invocation is unchanged.
