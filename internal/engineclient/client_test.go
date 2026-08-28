@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/containerd/errdefs"
 )
 
 func TestContainerNameDerivation(t *testing.T) {
@@ -115,6 +117,38 @@ func TestEnsureRunningExecCopyOut(t *testing.T) {
 	b, err := c.CopyOut(ctx, "/reports/x.sarif")
 	if err != nil || string(b) != "sarif" {
 		t.Fatalf("CopyOut: %q %v", b, err)
+	}
+}
+
+func TestRemoveGenuinelyRemoves(t *testing.T) {
+	c := newClient(t)
+	requireDaemon(t, c)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	if err := c.EnsureRunning(ctx); err != nil {
+		t.Fatalf("EnsureRunning: %v", err)
+	}
+	if err := c.Remove(ctx); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+
+	// imageID=="" only on Status's inspect-NotFound path, so this proves the
+	// container is gone, not merely stopped (regression: Remove used to no-op
+	// on a nil docker connection and "stop" left the container running).
+	running, _, imageID, err := c.Status(ctx)
+	if err != nil {
+		t.Fatalf("Status after Remove: %v", err)
+	}
+	if running || imageID != "" {
+		t.Fatalf("container still present after Remove: running=%v imageID=%q", running, imageID)
+	}
+
+	// docker SDK: DELETE ?force=1 still 404s an absent container; force only
+	// kills a running one first. Idempotency is the caller's job (EnsureRunning
+	// treats NotFound as create).
+	if err := c.Remove(ctx); !errdefs.IsNotFound(err) {
+		t.Fatalf("Remove on absent container: want NotFound, got %v", err)
 	}
 }
 

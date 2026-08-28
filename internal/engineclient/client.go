@@ -182,8 +182,8 @@ func (c *Client) probe(ctx context.Context) error {
 // Remove force-removes the container; the container holds no unique state
 // (cli-spec §5 engine stop).
 func (c *Client) Remove(ctx context.Context) error {
-	if c.docker == nil {
-		return nil
+	if err := c.connect(); err != nil {
+		return err
 	}
 	_, err := c.docker.ContainerRemove(ctx, c.name, client.ContainerRemoveOptions{Force: true})
 	return err
