@@ -2,7 +2,9 @@ package engineclient
 
 import (
 	"context"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,12 +24,17 @@ func TestContainerNameDerivation(t *testing.T) {
 }
 
 func TestPathTranslation(t *testing.T) {
-	root := `C:\Development\cavet`
-	if got := HostToContainer(root, `C:\Development\cavet\api\x.py`); got != "/workspace/api/x.py" {
+	root := filepath.Join("repo", "cavet")
+	if got := HostToContainer(root, filepath.Join(root, "api", "x.py")); got != "/workspace/api/x.py" {
 		t.Fatalf("host->container: %q", got)
 	}
-	if got := HostToContainer(root, `C:\elsewhere\x.py`); got != "" {
+	if got := HostToContainer(root, filepath.Join("elsewhere", "x.py")); got != "" {
 		t.Fatalf("outside mount must map empty, got %q", got)
+	}
+	if runtime.GOOS == "windows" { // drive-letter root semantics (plan Task 13)
+		if got := HostToContainer(`C:\repo`, `C:\repo\api\x.py`); got != "/workspace/api/x.py" {
+			t.Fatalf("windows drive host->container: %q", got)
+		}
 	}
 	cases := []struct{ path, target, want string }{
 		{"/scan/1/api/x.py", "/scan/1", "api/x.py"},
