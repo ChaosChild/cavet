@@ -1886,8 +1886,8 @@ Each ends with: `go build ./... && ./cavet <cmd> --help` shows exact flags; comm
 
 **Files:** Create `installers/{claude-code,codex,opencode,pi,hermes}.ps1` (+ `.sh` mirrors); Modify `README.md`
 
-- [ ] Each installer: copy six skill dirs → harness skills path (table of paths per harness documented in-file), translate `subagents/cavet-security.md` into harness format, append instruction snippet to agent instruction file (idempotently — check-before-append). Claude Code installer implemented first as reference; remaining four follow its structure with harness-specific targets. Harness set (decided 2026-08-25, usage-ranked via OpenRouter coding rankings): Claude Code, Codex, Hermes, pi, OpenCode — the pi installer also covers the omp family.
-- [ ] README: replace "nothing built" status block; add quick-start (install → `cavet init` → skills snippet); keep licence section unchanged. Commit `feat(installers): five harness installers; readme quick-start`.
+- [x] Each installer: copy six skill dirs → harness skills path (table of paths per harness documented in-file), translate `subagents/cavet-security.md` into harness format, append instruction snippet to agent instruction file (idempotently — check-before-append). Claude Code installer implemented first as reference; remaining four follow its structure with harness-specific targets. Harness set (decided 2026-08-25, usage-ranked via OpenRouter coding rankings): Claude Code, Codex, Hermes, pi, OpenCode — the pi installer also covers the omp family.
+- [x] README: replace "nothing built" status block; add quick-start (install → `cavet init` → skills snippet); keep licence section unchanged. Commit `feat(installers): five harness installers; readme quick-start`.
 
 ### Task 23: Tag release
 

@@ -13,19 +13,42 @@ same output shape, the same audit trail, session after session.
 remediate, defer, or dismiss. Teams that need enforcement build it themselves
 around these tools.
 
-**Status: design complete, nothing built.** The CLI does not exist yet. What is in
-this repository today is the specification and the draft skill set.
+**Status:** v0.1 development. The CLI, the engine image, the harness installers,
+the end-to-end smoke script, and CI are all here and working; the specification
+remains the design of record.
+
+## Quick start
+
+```pwsh
+git clone <this repo> && cd cavet
+go build -o cavet ./cmd/cavet        # GitHub release binaries arrive with v0.1.0
+cavet init                           # in a repo you want covered; needs Docker
+```
+
+`cavet init` requires Docker and the engine image — until the published image
+lands, build it locally (`docker build -t cavet-engine ./engine`) and point the
+CLI at it with `CAVET_ENGINE_IMAGE`. Then install the skills into your harness:
+
+```pwsh
+pwsh installers/claude-code.ps1     # or codex, opencode, pi, hermes (.sh mirrors)
+```
+
+The installer places the six `cavet-*` skills, the `cavet-security` subagent,
+and the instruction snippet that makes the skills fire without prompting. See
+[`installers/README.md`](installers/README.md) for the per-harness path table.
 
 ## Layout
 
 ```
-docs/          SPECIFICATION.md — the design of record; install notes
+cmd/cavet/     the CLI entrypoint
+internal/      CLI packages: store, events, scan, projection, lookup, engineclient
+engine/        the scanner engine OCI image (Opengrep, Gitleaks, Trivy)
 skills/        the six cavet-* agent skills (SKILL.md + references/)
 subagents/     the cavet-security subagent definition, harness-agnostic
+installers/    per-harness installers (.ps1 + .sh) and their path table
+scripts/       end-to-end smoke script
+docs/          SPECIFICATION.md and annexes — the design of record
 ```
-
-The Go CLI, the engine image, and the harness installers land here as they are
-built.
 
 ## Reading order
 
