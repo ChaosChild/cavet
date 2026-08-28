@@ -13,5 +13,9 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
-      - uses: golangci/golangci-lint-action@v9
-        with: { version: v1.64.8, install-mode: goinstall, args: --timeout=5m }
+      - name: Install golangci-lint v1.64.8 (v1 config; built with repo Go)
+        shell: bash
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: golangci-lint run --timeout=5m
