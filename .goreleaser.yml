@@ -1,0 +1,33 @@
+# cavet CLI release config (implementation-plan Task 23). goreleaser v2 schema.
+# Targets: windows/amd64, linux/amd64+arm64, darwin/amd64+arm64 — the plan's
+# five; no brew/scoop/nfpm (deliberately minimal).
+version: 2
+
+project_name: cavet
+
+builds:
+  - id: cavet
+    main: ./cmd/cavet
+    binary: cavet
+    env: [CGO_ENABLED=0]
+    targets: [windows_amd64, linux_amd64, linux_arm64, darwin_amd64, darwin_arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/ChaosChild/cavet/internal/cli.version={{.Version}}
+
+archives:
+  - id: cavet
+    ids: [cavet]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: ChaosChild
+    name: cavet
