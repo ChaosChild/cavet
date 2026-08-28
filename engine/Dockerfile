@@ -121,6 +121,12 @@ COPY healthcheck     /usr/local/bin/cavet-healthcheck
 COPY gitleaks.toml   /opt/gitleaks.toml
 COPY LICENSES.md     /LICENSES.md
 RUN chmod +x /usr/local/bin/cavet-entrypoint.sh /usr/local/bin/cavet-healthcheck
+
+# engine-spec §6.3: CLI passes --user uid:gid on Linux hosts; arbitrary uids
+# need a writable HOME (git config --global) and pre-existing scratch dirs
+# (entrypoint mkdir -p must no-op, not create). Root default is unaffected.
+ENV HOME=/tmp
+RUN mkdir -p /reports /scan && chmod 0777 /reports /scan
 HEALTHCHECK CMD ["/usr/local/bin/cavet-healthcheck"]
 ENTRYPOINT ["/usr/local/bin/cavet-entrypoint.sh"]
 
@@ -131,5 +137,11 @@ COPY healthcheck     /usr/local/bin/cavet-healthcheck
 COPY gitleaks.toml   /opt/gitleaks.toml
 COPY LICENSES.md     /LICENSES.md
 RUN chmod +x /usr/local/bin/cavet-entrypoint.sh /usr/local/bin/cavet-healthcheck
+
+# engine-spec §6.3: CLI passes --user uid:gid on Linux hosts; arbitrary uids
+# need a writable HOME (git config --global) and pre-existing scratch dirs
+# (entrypoint mkdir -p must no-op, not create). Root default is unaffected.
+ENV HOME=/tmp
+RUN mkdir -p /reports /scan && chmod 0777 /reports /scan
 HEALTHCHECK CMD ["/usr/local/bin/cavet-healthcheck"]
 ENTRYPOINT ["/usr/local/bin/cavet-entrypoint.sh"]
