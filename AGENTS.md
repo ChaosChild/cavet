@@ -13,6 +13,13 @@
 - Go toolchain directive lives in `go.mod`; CI reads `go-version-file: go.mod`.
 - Phase boundary gate: `go build ./...`, `go vet ./...`, `go test ./...`,
   then `golangci-lint run --timeout=5m` (config: `.golangci.yml`, v1 format).
+- Pinned tooling — upgrade everywhere at once: golangci-lint **v1.64.8** from
+  the v1 module path
+  (`go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8`)
+  on the dev machine AND in `.github/workflows/ci.yml`; `.golangci.yml` is v1
+  format, so a v2 binary requires migrating the config in the same change,
+  and binaries built with a Go older than `go.mod`'s directive refuse to load
+  the module.
 - Windows is the primary dev platform; keep shell commands pwsh-compatible.
 - On this machine Go lives at `C:\Program Files\Go\bin` and golangci-lint at
   `%USERPROFILE%\go\bin` — prepend to `Path` in shell sessions that need them.

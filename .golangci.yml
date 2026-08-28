@@ -1,3 +1,4 @@
+# v1 format. Binary pinned to v1.64.8 (v1 module path) in CI and on dev machines — see AGENTS.md "Build and verify" before upgrading.
 linters:
   enable: [errcheck, govet, staticcheck, revive, misspell]
 issues:
