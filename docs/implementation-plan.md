@@ -1880,7 +1880,7 @@ Each ends with: `go build ./... && ./cavet <cmd> --help` shows exact flags; comm
 
 **Files:** Create `scripts/smoke.ps1`
 
-- [ ] Script: builds binary; copies `internal/finding/testdata/fixture/` to temp repo; `cavet init` (requires dev engine image); asserts baseline count ≥ planted findings; stages `api/users.py` change; `cavet scan --staged` exits 1 with secret finding present; `cavet triage <id> --dismiss --reason "fixture" --confidence high` succeeds; `cavet log --fingerprint <fp>` shows detected+triaged; `cavet items/raise/resolve` round-trip; second clean staged scan exits 0 with `0 new findings`; verifies `reports/latest.sarif` exists. Run green locally, wire into CI behind Docker-availability check. Commit `test: end-to-end smoke script`.
+- [x] Script: builds binary; copies `internal/finding/testdata/fixture/` to temp repo; `cavet init` (requires dev engine image); asserts baseline count ≥ planted findings; stages `api/users.py` change; `cavet scan --staged` exits 1 with secret finding present; `cavet triage <id> --dismiss --reason "fixture" --confidence high` succeeds; `cavet log --fingerprint <fp>` shows detected+triaged; `cavet items/raise/resolve` round-trip; second clean staged scan exits 0 with `0 new findings`; verifies `reports/latest.sarif` exists. Run green locally, wire into CI behind Docker-availability check. Commit `test: end-to-end smoke script`.
 
 ### Task 22: Installers + README
 

@@ -20,3 +20,19 @@ jobs:
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - run: golangci-lint run --timeout=5m
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - id: docker
+        run: if docker info >/dev/null 2>&1; then echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.docker.outputs.ok == 'true'
+        uses: docker/setup-buildx-action@v3
+      - if: steps.docker.outputs.ok == 'true'
+        run: docker buildx build --cache-from type=gha --cache-to type=gha,mode=max --load -t cavet-engine:dev -f engine/Dockerfile engine/
+      - if: steps.docker.outputs.ok == 'true'
+        shell: pwsh
+        run: ./scripts/smoke.ps1
