@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime/debug"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -17,8 +19,32 @@ import (
 	"github.com/ChaosChild/cavet/internal/store"
 )
 
-// version is set at build time via -ldflags.
+// version is set at build time via -ldflags ("dev" when unset).
 var version = "dev"
+
+// semverPrefix extracts major.minor from a semver-looking version string,
+// ignoring a leading v and any -rc suffix ("v1.2.3-rc1" -> "1.2").
+var semverPrefix = regexp.MustCompile(`^v?(\d+\.\d+)`)
+
+// pseudoVersion matches the 14-digit timestamp segment every module
+// pseudo-version carries ("0.0.0-20260831115634-1fe5bfa8e191+dirty"): local
+// go builds stamp one, and they must resolve to the rolling engine tag.
+var pseudoVersion = regexp.MustCompile(`-\d{14}-`)
+
+// resolveVersion returns the effective CLI version: the ldflags value when
+// set, else the module version from the build info (go install builds set no
+// ldflags but do stamp the module version), else "dev".
+func resolveVersion() string {
+	if v := strings.TrimPrefix(version, "v"); v != "" && v != "dev" && v != "(devel)" {
+		return v
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		if v := strings.TrimPrefix(bi.Main.Version, "v"); v != "" && v != "(devel)" {
+			return v
+		}
+	}
+	return "dev"
+}
 
 // exitErr carries a chosen exit code (cli-spec §4.1: informational, never
 // gating). An empty message prints nothing — exit 1 on findings is silent.
@@ -61,7 +87,7 @@ func newRoot() (*cobra.Command, error) {
 	}
 	root.SilenceUsage = true
 	root.SilenceErrors = true
-	root.Version = version
+	root.Version = resolveVersion()
 	root.SetVersionTemplate("cavet {{.Version}}\n")
 
 	root.AddCommand(
@@ -131,13 +157,28 @@ func loadConfig(s *store.Store) config.Config {
 	return c
 }
 
-// engineRef builds the engine image reference: fixed name plus variant tag,
+// engineTag maps the CLI version to the engine image tag: "<major.minor>-
+// <variant>" for semver releases (matching the release workflow's tags), the
+// rolling "<variant>" tag for dev builds and pseudo-versions (local go
+// builds). engine-spec §1 deviation 8.
+func engineTag(variant string) string {
+	v := resolveVersion()
+	if pseudoVersion.MatchString(v) {
+		return variant
+	}
+	if m := semverPrefix.FindStringSubmatch(v); m != nil {
+		return m[1] + "-" + variant
+	}
+	return variant
+}
+
+// engineRef builds the engine image reference: fixed name plus engineTag,
 // pinned digest when recorded. CAVET_ENGINE_IMAGE overrides the name for
 // development against a locally built image (cli-spec §16.19).
 func engineRef(cfg config.Config) string {
 	ref := os.Getenv("CAVET_ENGINE_IMAGE")
 	if ref == "" {
-		ref = "ghcr.io/chaoschild/cavet-engine:" + cfg.Engine.Variant
+		ref = "ghcr.io/chaoschild/cavet-engine:" + engineTag(cfg.Engine.Variant)
 	}
 	if cfg.Engine.Digest != "" && !strings.Contains(ref, "@") {
 		ref += "@" + cfg.Engine.Digest

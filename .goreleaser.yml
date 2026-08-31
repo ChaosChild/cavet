@@ -1,6 +1,6 @@
 # cavet CLI release config (implementation-plan Task 23). goreleaser v2 schema.
-# Targets: windows/amd64, linux/amd64+arm64, darwin/amd64+arm64 — the plan's
-# five; no brew/scoop/nfpm (deliberately minimal).
+# Six targets. Prebuilt binaries are Homebrew casks (`brews:` is deprecated in
+# v2) and a Scoop manifest committed to the bucket root (no directory:).
 version: 2
 
 project_name: cavet
@@ -10,7 +10,7 @@ builds:
     main: ./cmd/cavet
     binary: cavet
     env: [CGO_ENABLED=0]
-    targets: [windows_amd64, linux_amd64, linux_arm64, darwin_amd64, darwin_arm64]
+    targets: [windows_amd64, windows_arm64, linux_amd64, linux_arm64, darwin_amd64, darwin_arm64]
     ldflags:
       - -s -w
       - -X github.com/ChaosChild/cavet/internal/cli.version={{.Version}}
@@ -26,6 +26,42 @@ archives:
 
 checksum:
   name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+# Keyless Sigstore bundles (docs "Sign"): certificate and signature combined
+# into one .sigstore.json per artifact. Verify: cosign verify-blob --bundle
+# <artifact>.sigstore.json <artifact>.
+signs:
+  - id: checksum-bundle
+    cmd: cosign
+    signature: '${artifact}.sigstore.json'
+    args: [sign-blob, '--bundle=${signature}', '${artifact}', --yes]
+    artifacts: checksum
+  - id: sbom-bundle
+    cmd: cosign
+    signature: '${artifact}.sigstore.json'
+    args: [sign-blob, '--bundle=${signature}', '${artifact}', --yes]
+    artifacts: sbom
+
+homebrew_casks:
+  - repository:
+      owner: ChaosChild
+      name: homebrew-tap
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
+    homepage: https://github.com/ChaosChild/cavet
+    description: Advisory security tooling for coding agents
+    binaries: [cavet]
+
+scoops:
+  - repository:
+      owner: ChaosChild
+      name: scoop-bucket
+      token: '{{ .Env.SCOOP_BUCKET_TOKEN }}'
+    homepage: https://github.com/ChaosChild/cavet
+    description: Advisory security tooling for coding agents
+    license: MIT
 
 release:
   github:

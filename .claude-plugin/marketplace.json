@@ -1,0 +1,13 @@
+{
+  "name": "cavet",
+  "owner": {
+    "name": "ChaosChild"
+  },
+  "plugins": [
+    {
+      "name": "cavet",
+      "source": "./.",
+      "description": "Advisory security tooling for coding agents"
+    }
+  ]
+}

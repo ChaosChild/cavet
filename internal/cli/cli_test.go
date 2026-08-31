@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/config"
 	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/scan"
 	"github.com/ChaosChild/cavet/internal/store"
@@ -124,6 +125,71 @@ func TestResolveFindingPrefix(t *testing.T) {
 	}
 	if _, err := resolveFinding(st, "ffffff"); err == nil {
 		t.Fatal("unknown id must fail")
+	}
+}
+
+// ldflags-set versions map to minor-pinned engine tags; dev/devel builds keep
+// the rolling variant-only tag (cli-spec §16.19, engine-spec §1 deviation 8).
+func TestEngineRefVersionTags(t *testing.T) {
+	origVersion, origImg := version, os.Getenv("CAVET_ENGINE_IMAGE")
+	os.Unsetenv("CAVET_ENGINE_IMAGE")
+	t.Cleanup(func() {
+		version = origVersion
+		if origImg != "" {
+			os.Setenv("CAVET_ENGINE_IMAGE", origImg)
+		}
+	})
+	cases := []struct{ version, variant, want string }{
+		{"0.1.0", "core", "ghcr.io/chaoschild/cavet-engine:0.1-core"},
+		{"v1.2.3-rc1", "full", "ghcr.io/chaoschild/cavet-engine:1.2-full"},
+		{"dev", "core", "ghcr.io/chaoschild/cavet-engine:core"},
+		{"devel", "full", "ghcr.io/chaoschild/cavet-engine:full"},
+		// Local go builds stamp a pseudo-version into the build info; they
+		// must keep the rolling tag, not a bogus 0.0-<variant> pin.
+		{"0.0.0-20260831115634-1fe5bfa8e191+dirty", "core", "ghcr.io/chaoschild/cavet-engine:core"},
+	}
+	for _, c := range cases {
+		version = c.version
+		cfg := config.Default()
+		cfg.Engine.Variant = c.variant
+		got := engineRef(cfg)
+		if got != c.want {
+			t.Errorf("version %q variant %q: got %q want %q", c.version, c.variant, got, c.want)
+		}
+	}
+	// Digest pin and image override are unchanged by the tag derivation.
+	version = "0.1.0"
+	cfg := config.Default()
+	cfg.Engine.Digest = "sha256:abcd"
+	if got := engineRef(cfg); got != "ghcr.io/chaoschild/cavet-engine:0.1-core@sha256:abcd" {
+		t.Errorf("digest pin: got %q", got)
+	}
+	os.Setenv("CAVET_ENGINE_IMAGE", "localhost/cavet-engine:dev")
+	if got := engineRef(config.Default()); got != "localhost/cavet-engine:dev" {
+		t.Errorf("CAVET_ENGINE_IMAGE must override tag derivation, got %q", got)
+	}
+}
+
+// resolveVersion: ldflags value wins, then the build-info module version
+// (go install builds), then "dev". Test binaries have (devel)/empty build
+// info, so the fallback chain ends at "dev" here.
+func TestResolveVersion(t *testing.T) {
+	orig := version
+	t.Cleanup(func() { version = orig })
+	for in, want := range map[string]string{
+		"9.9.9": "9.9.9",
+		"v8.8.8": "8.8.8",
+	} {
+		version = in
+		if got := resolveVersion(); got != want {
+			t.Errorf("set %q: got %q want %q", in, got, want)
+		}
+	}
+	for _, in := range []string{"dev", "", "(devel)"} {
+		version = in
+		if got := resolveVersion(); got != "dev" {
+			t.Errorf("unset %q: got %q want dev (test build info is devel/empty)", in, got)
+		}
 	}
 }
 

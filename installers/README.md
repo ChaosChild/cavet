@@ -1,7 +1,9 @@
 # cavet installers
 
 One installer per harness, in two shells (`.ps1` for pwsh, `.sh` for bash).
-Each does the same five things, in the same order:
+Claude Code users can alternatively skip the installer entirely:
+`/plugin marketplace add ChaosChild/cavet` then `/plugin install cavet@cavet`.
+Each installer does the same five things, in the same order:
 
 1. resolve roots (real harness home, or a test target — see below),
 2. copy the six `cavet-*` skill directories from `skills/` as loose

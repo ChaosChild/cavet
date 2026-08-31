@@ -285,3 +285,9 @@ schedule stays off and the tag carries the cadence.
    downloads on the first misconfig scan. The build runs a seeded one-file misconfig
    scan and asserts `policy/content` exists. No separately versioned artifact exists
    to pin — the bundle version follows the Trivy version, which §2.1 already pins.
+8. **Versioned engine tags** (§1) — decided 2026-08-31. The tag scheme is
+   version-first with a variant suffix — `<version>-<variant>`, `<minor>-<variant>`,
+   and the rolling `<variant>` — replacing §1's variant-only tags (the `core-<digest8>`
+   / `full-<digest8>` alias retags are unchanged). The CLI derives `<minor>` from its
+   own version, so a released CLI and its engine move together; dev builds (no
+   semver version) use the rolling tags.

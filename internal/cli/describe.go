@@ -28,7 +28,7 @@ func newDescribeCmd() *cobra.Command {
 					cfg = loadConfig(s)
 				}
 			}
-			b, err := describe.JSON(version, cfg.Engine.Variant, cfg.Engine.Digest, skillsDir)
+			b, err := describe.JSON(resolveVersion(), cfg.Engine.Variant, cfg.Engine.Digest, skillsDir)
 			if err != nil {
 				return fail(err.Error())
 			}

@@ -1,0 +1,10 @@
+{
+  "name": "cavet",
+  "displayName": "cavet",
+  "version": "0.1.0",
+  "description": "Advisory security tooling for coding agents",
+  "repository": "https://github.com/ChaosChild/cavet",
+  "homepage": "https://github.com/ChaosChild/cavet",
+  "skills": ["./skills"],
+  "agents": ["./agents"]
+}

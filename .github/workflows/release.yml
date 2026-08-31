@@ -1,0 +1,68 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # release + git tag
+      id-token: write # cosign keyless
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - uses: sigstore/cosign-installer@v4
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+
+  engine:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit digest.txt back to main
+      packages: write # push to ghcr.io
+      id-token: write # cosign keyless
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - uses: sigstore/cosign-installer@v4
+      - name: Login to GHCR
+        run: echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Build, push, sign engine; record digests
+        env:
+          REG: ghcr.io/chaoschild/cavet-engine
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          minor=$(echo "$version" | cut -d. -f1-2)
+          # the docker driver refuses multi-platform push; dedicated builder
+          docker buildx create --name cavet-release --bootstrap && docker buildx use cavet-release
+          digests=()
+          for v in core full; do
+            meta="$RUNNER_TEMP/engine-$v.json"
+            docker buildx build --platform linux/amd64,linux/arm64 --target "final-$v" \
+              -t "$REG:$version-$v" -t "$REG:$minor-$v" -t "$REG:$v" \
+              --push --metadata-file "$meta" -f engine/Dockerfile engine/
+            digest=$(grep -o '"containerimage.digest": *"[^"]*"' "$meta" | grep -o 'sha256:[0-9a-f]*')
+            cosign sign --yes "$REG:$version-$v@$digest"
+            digests+=("$v $digest")
+          done
+          git config user.name 'github-actions[bot]'
+          git config email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git checkout -B main origin/main
+          { echo '# cavet engine published digests - format: "<variant> <manifest-digest>", one line per variant.'
+            echo '# Record of what shipped; committed after each release (engine-spec §9.3).'
+            printf '%s\n' "${digests[@]}"
+          } > engine/digest.txt
+          if git diff --quiet -- engine/digest.txt; then echo 'digest.txt unchanged'; exit 0; fi
+          git add engine/digest.txt
+          git commit -m "chore(release): engine digests $GITHUB_REF_NAME"
+          git push origin main
