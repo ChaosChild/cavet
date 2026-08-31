@@ -49,6 +49,11 @@ false one erodes the operator's tolerance for every future flag.
 One flag per turn is normal. If a turn has several, raise the highest-consequence one
 and name the others in a clause ("also: webhook verification, retention — later").
 
+Document mode differs: in one written deliverable covering several features,
+complete every section first, one `**cavet:**` flag per feature section inline
+(highest-consequence first within each). Never pause mid-document for security
+input — flags are surfaced, decisions raised via `cavet raise` (kind: design).
+
 ## Do not nag
 
 Before raising anything, know what is already open: run `cavet items`. If the concern

@@ -203,3 +203,15 @@ Ongoing, cheap, non-blocking:
 3. **Calibration made contractual** (§8) — spec §11.1 asks for negative examples and
    §13.2 asks for a miss log; this annex gives both mechanics and owners instead of
    leaving them aspirational.
+4. **CLI cross-reference in `cavet-secure-coding`** — the skill names
+   `cavet scan --staged --deep` explicitly and adds secure-coding as a `lookup`
+   caller (identifiers only). §5's "never flags" rule gains its second documented
+   exception, bounded to those two flags on `scan`: the hook's advisory shallowness
+   is invisible without them, and `--help` remains the full flag reference. The §5
+   dependency table's "Used by" column for `lookup` is accordingly read as including
+   secure-coding.
+5. **Canonical subagent contract lives in the skill body** (§1, §6.2) — the triage
+   dispatch contract is canonical in `cavet-triage`'s "Subagent role" section;
+   `subagents/cavet-security.md` demotes itself to design rationale and installers
+   translate from the skill. Removes the third copy of the contract that could
+   drift; §6.2's allowlist rule is unchanged.

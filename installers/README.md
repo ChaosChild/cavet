@@ -7,7 +7,8 @@ Each does the same five things, in the same order:
 2. copy the six `cavet-*` skill directories from `skills/` as loose
    directories under the harness's skills path (flat namespace, overwrite on
    re-run; uninstall = delete `cavet-*`),
-3. translate `subagents/cavet-security.md` into the harness's subagent/agent
+3. translate the subagent contract from the "Subagent role" section of
+   `skills/cavet-triage/SKILL.md` into the harness's subagent/agent
    format, tool allowlist = Read + shell scoped to `cavet`,
 4. append the instruction snippet from `docs/install-notes.md` to the
    harness's instruction file, idempotently (skip if

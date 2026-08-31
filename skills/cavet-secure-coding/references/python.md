@@ -40,6 +40,10 @@
 
 ## XML
 - `defusedxml` for anything untrusted; stdlib parsers are XXE-prone by default.
+  Parsing is the risk: string helpers like `xml.sax.saxutils.escape` never parse,
+  so they are not XXE-relevant — `html.escape` is the idiomatic markup escaper.
+  A flag on a non-parsing stdlib import gets a read-the-code adjudication, not
+  an automatic rewrite.
 
 ## Common gotchas
 - `assert` for validation is stripped under `-O`.

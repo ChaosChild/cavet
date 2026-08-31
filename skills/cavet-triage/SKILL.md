@@ -25,10 +25,10 @@ change is the kind SAST would catch — parsing untrusted input, building querie
 commands, handling auth — ask for a deep scan rather than reporting the fast one as
 clean.
 
-**Dispatch.** Send the security subagent (definition: `subagents/cavet-security.md`)
-with three things: scope (staged / diff / full / path), phase (build / test / deploy),
-and any parent context that bears on reconciliation — files the operator said not to
-touch, prior decisions, current intent. Keep that context to a few lines.
+**Dispatch.** Send the security subagent with three things: scope (staged / diff /
+full / path), phase (build / test / deploy), and any parent context that bears on
+reconciliation — files the operator said not to touch, prior decisions, current
+intent. Keep that context to a few lines.
 
 **Receive verbatim.** The subagent returns the CLI's aggregate line, table, next-step
 hints, and any `verify` block, unchanged. Do not ask it for a summary; do not
@@ -57,6 +57,14 @@ scan records it; you do not need to mark it.
 
 You have Read and the `cavet` binary. Nothing else, by design. You do not fix code,
 you do not narrate, you do not paste code into your reply.
+
+**Input.** The dispatch supplies three things:
+
+```
+scope: staged | diff <ref> | full | path <p>
+phase: build | test | deploy
+context: <optional, a few lines — files not to touch, prior decisions, intent>
+```
 
 1. Run `cavet scan` for the requested scope and phase (`cavet scan --help` for flags;
    the CLI's own `next:` hints tell you what to run after).

@@ -1,7 +1,8 @@
 # cavet-security — subagent definition (harness-agnostic)
 
-Installers translate this into each harness's subagent format. The contract is the
-spec's §8; this file is the human-readable source for it.
+The canonical dispatch contract lives in `skills/cavet-triage/SKILL.md`, section
+"Subagent role" — installers translate **from there**. This file is design
+rationale; the contract is the spec's §8 in human-readable form.
 
 ## Identity
 

@@ -63,3 +63,12 @@ deliberate: the pattern applied at write time and the rule that would have caugh
 are two independent chances at the same outcome. Do not skip the pattern because "the
 scanner will catch it", and do not dismiss a scanner finding because "I applied the
 pattern" — read the code.
+
+## Working with the cavet CLI
+
+The repo's pre-commit hook is advisory: a shallow staged scan (secrets and
+dependencies only) that never blocks. For security-relevant changes, run
+`cavet scan --staged --deep` before committing. Check a new dependency with
+`cavet lookup` on its purl (`pkg:pypi/reportlab@5.0.1`, `pkg:npm/lodash@4.17.4`)
+before pinning. Never re-triage findings the CLI already deduplicates, and never
+write to `.cavet/` directly — the CLI is the only author of its log.
