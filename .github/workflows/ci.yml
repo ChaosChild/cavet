@@ -1,5 +1,8 @@
 name: ci
 on: [push, pull_request]
+# CodeQL: least-privilege default for all jobs (alerts #1, #4)
+permissions:
+  contents: read
 jobs:
   test:
     strategy:
