@@ -56,12 +56,13 @@ func newTriageCmd() *cobra.Command {
 						Verdict: verdict, Confidence: events.Confidence(confidence),
 						Reason: reason, Sources: srcs,
 					})
-			}, func(f *store.Finding, ev events.Event) {
+			}, func(f *store.Finding, ev events.Event) string {
 				f.Status = string(verdict)
 				f.Verdict = &store.Verdict{
 					Verdict: string(verdict), Confidence: confidence, Reason: reason,
 					Sources: srcs, At: ev.TS, By: string(events.ActorOperator),
 				}
+				return fmt.Sprintf("triaged %s: %s (%s confidence)", f.DisplayID, verdict, confidence)
 			})
 		},
 	}
@@ -86,7 +87,10 @@ func newSuppressCmd() *cobra.Command {
 			return mutateFinding(args[0], func(f *store.Finding, eng string) (events.Event, error) {
 				return events.NewSuppressed(time.Now().UTC(), events.ActorOperator, events.PhaseBuild,
 					eng, f.Fingerprint, reason)
-			}, func(f *store.Finding, _ events.Event) { f.Status = "suppressed" })
+			}, func(f *store.Finding, _ events.Event) string {
+				f.Status = "suppressed"
+				return "suppressed " + f.DisplayID
+			})
 		},
 	}
 	cmd.Flags().StringVar(&reason, "reason", "", "why this stays silenced (required)")
@@ -106,7 +110,10 @@ func newDeferCmd() *cobra.Command {
 			return mutateFinding(args[0], func(f *store.Finding, eng string) (events.Event, error) {
 				return events.NewDeferred(time.Now().UTC(), events.ActorOperator, events.PhaseBuild,
 					eng, f.Fingerprint, reason)
-			}, func(f *store.Finding, _ events.Event) { f.Status = "deferred" })
+			}, func(f *store.Finding, _ events.Event) string {
+				f.Status = "deferred"
+				return "deferred " + f.DisplayID
+			})
 		},
 	}
 	cmd.Flags().StringVar(&reason, "reason", "", "why it waits (required)")
@@ -114,9 +121,10 @@ func newDeferCmd() *cobra.Command {
 }
 
 // mutateFinding is the shared shape of triage/suppress/defer: lock, resolve,
-// append the event, update state, persist — all under the artefact lock.
+// append the event, update state, persist — all under the artefact lock. The
+// apply callback returns the one-line confirmation (no silent success).
 func mutateFinding(id string, mk func(*store.Finding, string) (events.Event, error),
-	apply func(*store.Finding, events.Event)) error {
+	apply func(*store.Finding, events.Event) string) error {
 	s, err := openStore()
 	if err != nil {
 		return err
@@ -142,9 +150,10 @@ func mutateFinding(id string, mk func(*store.Finding, string) (events.Event, err
 	if err := s.Append(ev); err != nil {
 		return fail(err.Error())
 	}
-	apply(f, ev)
+	confirm := apply(f, ev)
 	if err := s.WriteState(st); err != nil {
 		return fail(err.Error())
 	}
+	fmt.Println(confirm)
 	return nil
 }

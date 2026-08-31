@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,12 @@ type ErrDegraded struct {
 func (e *ErrDegraded) Error() string {
 	return fmt.Sprintf("%s: %v", e.Source, e.Err)
 }
+
+func (e *ErrDegraded) Unwrap() error { return e.Err }
+
+// ErrNotFound marks a definitive 404: the identifier is absent from the
+// source, which is an answer ("no record"), not a degradation.
+var ErrNotFound = errors.New("not found")
 
 func getJSON(ctx context.Context, url string, header map[string]string, out any) error {
 	return do(ctx, http.MethodGet, url, header, nil, out)
@@ -81,6 +88,9 @@ func do(ctx context.Context, method, url string, header map[string]string, body 
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
 			lastErr = fmt.Errorf("%s: status %d", url, resp.StatusCode)
 			continue // one retry, then degrade
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return &ErrDegraded{Source: url, Err: ErrNotFound}
 		}
 		if resp.StatusCode != http.StatusOK {
 			return &ErrDegraded{Source: url, Err: fmt.Errorf("status %d", resp.StatusCode)}

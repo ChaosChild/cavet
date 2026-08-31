@@ -36,19 +36,24 @@ type Options struct {
 	Engine  string // engine ref recorded on every event (artefacts §2.1)
 }
 
-// Row is one confirmed-or-open finding for the result table.
+// Row is one confirmed-or-open finding for the result table. Confidence is
+// the verdict confidence (high|low) when triaged; Secret drives state-derived
+// next hints.
 type Row struct {
-	FP        string
-	DisplayID string
-	Sev       string
-	Rule      string
-	Path      string
-	Line      int
-	Desc      string
+	FP         string
+	DisplayID  string
+	Sev        string
+	Rule       string
+	Path       string
+	Line       int
+	Desc       string
+	Confidence string
+	Secret     bool
 }
 
 type Counts struct {
 	Confirmed                            int
+	ConfirmedHigh, ConfirmedLow          int
 	Critical, High, Medium, Low, Info    int
 	Dismissed, Suppressed, Baseline      int
 }
@@ -60,6 +65,8 @@ type Result struct {
 	Phase         events.Phase
 	Rows          []Row
 	Counts        Counts
+	DismissedIDs  []string // display ids of dismissed findings, for next hints
+	Items         int      // open items after this scan's fold
 }
 
 // LastScan is the coverage header the posture view shows: the scanners,
@@ -281,7 +288,8 @@ func writeMergedReport(s *store.Store, raw map[string][]byte) error {
 
 func buildResult(merged []*projection.MergedFinding, state *store.State, label string, scanners []string, o Options) *Result {
 	res := &Result{ScopeLabel: label, Scanners: scanners, Phase: o.Phase,
-		Counts: Counts{Baseline: len(state.Baseline.Fingerprints)}}
+		Counts: Counts{Baseline: len(state.Baseline.Fingerprints)},
+		Items:  len(state.Items)}
 	byFP := map[string]*store.Finding{}
 	for _, f := range state.Findings {
 		byFP[f.Fingerprint] = f
@@ -291,15 +299,25 @@ func buildResult(merged []*projection.MergedFinding, state *store.State, label s
 		if f == nil {
 			continue
 		}
+		conf := ""
+		if f.Verdict != nil {
+			conf = f.Verdict.Confidence
+		}
 		switch f.Status {
 		case "open", "confirmed":
 			res.Rows = append(res.Rows, Row{
 				FP: f.Fingerprint, DisplayID: f.DisplayID,
 				Sev: f.Severity, Rule: f.RuleID,
 				Path: m.Locations[0].Path, Line: m.Locations[0].Line,
-				Desc: f.Description,
+				Desc: f.Description, Confidence: conf, Secret: f.Secret,
 			})
 			res.Counts.Confirmed++
+			switch conf {
+			case "high":
+				res.Counts.ConfirmedHigh++
+			case "low":
+				res.Counts.ConfirmedLow++
+			}
 			switch f.Severity {
 			case "critical":
 				res.Counts.Critical++
@@ -313,7 +331,10 @@ func buildResult(merged []*projection.MergedFinding, state *store.State, label s
 				res.Counts.Info++
 			}
 		case "dismissed":
+			// Counted in the aggregate, never a table row — a dismiss must
+			// visibly shrink the table (cli-spec §16.23).
 			res.Counts.Dismissed++
+			res.DismissedIDs = append(res.DismissedIDs, f.DisplayID)
 		case "suppressed":
 			res.Counts.Suppressed++
 		}

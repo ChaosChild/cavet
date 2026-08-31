@@ -1,0 +1,12 @@
+{
+  "id": "GHSA-norange",
+  "summary": "Advisory exists upstream but carries no formal affected range",
+  "aliases": [],
+  "affected": [
+    {
+      "package": { "ecosystem": "PyPI", "name": "pkg" },
+      "ranges": [],
+      "database_specific": { "severity": "MODERATE" }
+    }
+  ]
+}

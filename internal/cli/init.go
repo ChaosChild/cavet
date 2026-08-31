@@ -34,7 +34,9 @@ func newInitCmd() *cobra.Command {
 }
 
 func runInit(hooks bool) error {
-	root, err := repoRoot()
+	// init scaffolds at cwd, deliberately not via repoRoot's upward walk —
+	// a nested-dir init must target the cwd, not silently adopt a parent.
+	root, err := os.Getwd()
 	if err != nil {
 		return fail(err.Error())
 	}

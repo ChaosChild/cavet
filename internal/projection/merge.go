@@ -115,13 +115,20 @@ func scannerPriority(s string) int {
 // isSecretFinding identifies the secret category: all gitleaks findings; Trivy
 // only via its secret-scanner rules — provider patterns whose ids name the
 // secret kind (spike §6). Vuln ids (CVE-*) and misconfig ids (AWS-*/AVD-*)
-// never contain these substrings.
+// never contain these substrings. Opengrep's curated corpus ships exactly one
+// secrets subtree (engine/curate-rules.sh: generic/secrets/), so its ids —
+// opt.opengrep-rules.generic.secrets.security.<rule> — are secret-category
+// precisely when they carry the generic.secrets path segment; the sibling
+// generic/* subtrees (dockerfile, html-templates, …) are not secrets.
 func isSecretFinding(f Finding) bool {
 	if f.Scanner == "gitleaks" {
 		return true
 	}
 	if f.Scanner == "trivy" {
 		return strings.Contains(f.RuleID, "secret") || strings.Contains(f.RuleID, "token")
+	}
+	if f.Scanner == "opengrep" {
+		return strings.Contains(f.RuleID, "generic.secrets.")
 	}
 	return false
 }

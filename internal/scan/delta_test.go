@@ -185,3 +185,54 @@ func TestFoldSurfacesOnlyActionableRows(t *testing.T) {
 		t.Fatalf("dismissed findings are never surfaced, got %d", surfaced)
 	}
 }
+
+// Fix 10 + 4 at the result layer: after a triage-dismiss, a re-scan's table
+// loses the row (still counted in the aggregate, id kept for next hints), and
+// triaged rows carry their verdict confidence.
+func TestBuildResultDismissedLeavesTableAndConfidenceShows(t *testing.T) {
+	fpOpen := strings.Repeat("a1", 32)
+	fpDismissed := strings.Repeat("b2", 32)
+	fpConfirmed := strings.Repeat("c3", 32)
+	st := &store.State{
+		Findings: []*store.Finding{
+			{Fingerprint: fpOpen, Status: "open", Severity: "high", DisplayID: "aaaaaa",
+				Locations: []store.Location{{Path: "a.py", Line: 1}}},
+			{Fingerprint: fpDismissed, Status: "dismissed", Severity: "high", DisplayID: "bbbbbb",
+				Verdict: &store.Verdict{Verdict: "dismissed", Confidence: "high"},
+				Locations: []store.Location{{Path: "b.py", Line: 1}}},
+			{Fingerprint: fpConfirmed, Status: "confirmed", Severity: "medium", DisplayID: "cccccc",
+				Verdict:  &store.Verdict{Verdict: "confirmed", Confidence: "low"},
+				Locations: []store.Location{{Path: "c.py", Line: 1}}},
+		},
+	}
+	merged := []*projection.MergedFinding{
+		mf(fpOpen, "gitleaks", "a.py", 1),
+		mf(fpDismissed, "gitleaks", "b.py", 1),
+		mf(fpConfirmed, "gitleaks", "c.py", 1),
+	}
+	res := buildResult(merged, st, "staged", []string{"gitleaks"}, foldOpts)
+	if len(res.Rows) != 2 {
+		t.Fatalf("dismissed finding must not be a table row, got %+v", res.Rows)
+	}
+	for _, r := range res.Rows {
+		if r.DisplayID == "bbbbbb" {
+			t.Fatal("dismissed row leaked into the table")
+		}
+	}
+	if res.Counts.Dismissed != 1 || res.Counts.Confirmed != 2 {
+		t.Fatalf("aggregate must count both, got %+v", res.Counts)
+	}
+	if len(res.DismissedIDs) != 1 || res.DismissedIDs[0] != "bbbbbb" {
+		t.Fatalf("dismissed id must survive for next hints, got %+v", res.DismissedIDs)
+	}
+	if res.Counts.ConfirmedHigh != 0 || res.Counts.ConfirmedLow != 1 {
+		t.Fatalf("confidence split wrong: %+v", res.Counts)
+	}
+	confByID := map[string]string{}
+	for _, r := range res.Rows {
+		confByID[r.DisplayID] = r.Confidence
+	}
+	if confByID["aaaaaa"] != "" || confByID["cccccc"] != "low" {
+		t.Fatalf("confidence must ride the rows (untriaged empty), got %+v", confByID)
+	}
+}

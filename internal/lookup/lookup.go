@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -110,7 +111,13 @@ func Run(ctx context.Context, ids []string, src *Sources, refresh bool) ([]Row, 
 
 func advisoryRow(ctx context.Context, id string, src *Sources, refresh bool) Row {
 	row := Row{ID: id}
-	row.URL = "https://osv.dev/vulnerability/" + id
+	// Canonical URL per id type so triage can cite identifier + URL (CVEs
+	// resolve on NVD, GHSA/OSV ids on osv.dev).
+	if reCVE.MatchString(id) {
+		row.URL = "https://nvd.nist.gov/vuln/detail/" + id
+	} else {
+		row.URL = "https://osv.dev/vulnerability/" + id
+	}
 
 	// artefacts §11: fresh cache serves; expired refetches and falls back to
 	// stale-with-marker offline; absent fetches and degrades on failure.
@@ -122,16 +129,22 @@ func advisoryRow(ctx context.Context, id string, src *Sources, refresh bool) Row
 			vuln = nil
 		}
 	}
+	notFound := false // identifier absent from the store — an answer, not a degradation
 	if vuln == nil { // absent, stale, or --refresh: fetch with fallback to stale
-		if v, err := src.OSV.GetVuln(ctx, id); err == nil {
+		v, err := src.OSV.GetVuln(ctx, id)
+		switch {
+		case err == nil:
 			vuln = v
-		} else if len(cached) > 0 {
-			vuln = new(OSVVuln)
-			if json.Unmarshal(cached, vuln) != nil {
-				vuln = nil
-			} else {
-				row.Stale = true
-				row.Notes = append(row.Notes, "osv served stale (offline)")
+		default:
+			notFound = errors.Is(err, ErrNotFound)
+			if len(cached) > 0 {
+				vuln = new(OSVVuln)
+				if json.Unmarshal(cached, vuln) != nil {
+					vuln = nil
+				} else {
+					row.Stale = true
+					row.Notes = append(row.Notes, "osv served stale (offline)")
+				}
 			}
 		}
 		if vuln != nil {
@@ -142,13 +155,20 @@ func advisoryRow(ctx context.Context, id string, src *Sources, refresh bool) Row
 		}
 	}
 	if vuln == nil {
-		row.Notes = append(row.Notes, "osv not available")
-		row.Severity, row.Range, row.Fixed = "not available", "not available", "not available"
+		if notFound {
+			row.Notes = append(row.Notes, "osv no record")
+			row.Severity, row.Range, row.Fixed = "no record", "no record", "no record"
+		} else {
+			row.Notes = append(row.Notes, "osv not available")
+			row.Severity, row.Range, row.Fixed = "not available", "not available", "not available"
+		}
 		return row
 	}
 	row.Summary = vuln.Summary
 	row.Severity = orNA(vuln.SeverityLabel())
-	row.Range = orNA(vuln.AffectedRange())
+	// Known advisory without a formal affected range is an answer of its own —
+	// distinct from "not available" (spec §5.3 degradation stays visible).
+	row.Range = orNoRange(vuln.AffectedRange())
 	row.Fixed = orNA(vuln.Fixed())
 
 	// Enrichment via the CVE alias — best effort, each cell independent.
@@ -228,6 +248,15 @@ func firstN(s []string, n int) []string {
 func orNA(s string) string {
 	if s == "" {
 		return "not available"
+	}
+	return s
+}
+
+// orNoRange distinguishes "advisory known, no formal affected range recorded"
+// from generic degradation.
+func orNoRange(s string) string {
+	if s == "" {
+		return "no range recorded"
 	}
 	return s
 }

@@ -47,6 +47,11 @@ Command names only. If any of these change, grep the skills for the name.
 
 Behavioural assumptions:
 - CLI output is markdown tables with an aggregate line and `next:` hints (§4).
+- `cavet scan` exit codes: 0 clean (or nothing staged), 1 findings present, 2 error —
+  informational, never gating; the pre-commit hook stays 0 unless `scan.hook_exit_1`.
+- `cavet scan --phase` design|build|test|deploy is recorded on every event the scan
+  appends and shown in the posture header; it does not change scanner selection
+  (scope flags and `--deep` do). Default `build`.
 - `engine shell` refuses without a TTY (§5), so `cavet *` is a safe allowlist.
 - Scan tiers (§5.2): `--staged` / `--diff` run Gitleaks + Trivy (~1.8s); `--full` and
   `--deep` add Opengrep (~50s). The result header names which scanners ran, and

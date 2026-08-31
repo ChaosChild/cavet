@@ -13,12 +13,14 @@ import (
 // out what it is facing (spec §4 principle 3).
 type Counts struct {
 	Confirmed                            int
+	ConfirmedHigh, ConfirmedLow          int // triaged verdicts by confidence
 	Critical, High, Medium, Low, Info    int
 	Dismissed, Suppressed, Baseline      int
 }
 
 // FindingView is one confirmed row. Path and Line stay structured so the
 // sort order (severity desc, path asc, line asc) is exact, not lexical.
+// Conf is the verdict confidence (high|low) when the finding was triaged.
 type FindingView struct {
 	ID   string
 	Sev  string
@@ -26,6 +28,7 @@ type FindingView struct {
 	Path string
 	Line int
 	Desc string
+	Conf string
 }
 
 type ScanView struct {
@@ -67,7 +70,10 @@ func RenderResult(v ScanView) string {
 func aggregate(c Counts) string {
 	head := fmt.Sprintf("%d confirmed", c.Confirmed)
 	if c.Confirmed > 0 {
-		head += " (" + breakdown(c) + ")"
+		// Confidence split (cli-spec §16.22): the receiver must be able to
+		// tell confirm-high from confirm-low without opening the finding.
+		head += fmt.Sprintf(" (%s): %d high confidence, %d low confidence",
+			breakdown(c), c.ConfirmedHigh, c.ConfirmedLow)
 	}
 	parts := []string{head,
 		fmt.Sprintf("%d dismissed", c.Dismissed),
@@ -111,7 +117,7 @@ func renderTable(fs []FindingView) string {
 	rows := make([][]string, 0, len(sorted))
 	for _, f := range sorted {
 		rows = append(rows, []string{
-			f.ID, f.Sev, f.Rule,
+			f.ID, sevCell(f), f.Rule,
 			fmt.Sprintf("%s:%d", f.Path, f.Line),
 			truncate(f.Desc),
 		})
@@ -156,4 +162,17 @@ func truncate(s string) string {
 		return s
 	}
 	return string(r[:descLimit-1]) + "…"
+}
+
+// sevCell marks verdict confidence on triaged rows (cli-spec §16.22):
+// `high*` = confirmed high confidence, `high^` = low; untriaged rows stay
+// bare. One glyph, fixed-width table discipline.
+func sevCell(f FindingView) string {
+	switch f.Conf {
+	case "high":
+		return f.Sev + "*"
+	case "low":
+		return f.Sev + "^"
+	}
+	return f.Sev
 }

@@ -20,6 +20,13 @@ func newScanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan [--staged|--diff <ref>|--full] [--deep] [--phase <phase>] [--context <ctx>]",
 		Short: "Run scanners for a scope and fold the delta",
+		Long: "Run scanners for a scope and fold the delta against recorded state.\n" +
+			"\nExit codes: 0 clean (or nothing staged), 1 findings present, 2 error.\n" +
+			"Exit 1 is informational, never gating — the pre-commit context stays 0\n" +
+			"unless scan.hook_exit_1 is set.\n" +
+			"\n--phase designates the lifecycle phase recorded on every event this scan\n" +
+			"appends and shown in the posture header; it does not change scanner\n" +
+			"selection (scopes and --deep do). Default: build.",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			scopes := 0
 			for _, b := range []bool{staged, diffRef != "", full} {
@@ -106,8 +113,10 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 		Scope: res.ScopeLabel, Scanners: res.Scanners, Phase: string(res.Phase),
 		EngineShort: shortEngine(ref),
 		Counts: output.Counts{
-			Confirmed: res.Counts.Confirmed, Critical: res.Counts.Critical,
-			High: res.Counts.High, Medium: res.Counts.Medium, Low: res.Counts.Low,
+			Confirmed: res.Counts.Confirmed,
+			ConfirmedHigh: res.Counts.ConfirmedHigh, ConfirmedLow: res.Counts.ConfirmedLow,
+			Critical: res.Counts.Critical,
+			High:     res.Counts.High, Medium: res.Counts.Medium, Low: res.Counts.Low,
 			Info: res.Counts.Info, Dismissed: res.Counts.Dismissed,
 			Suppressed: res.Counts.Suppressed, Baseline: res.Counts.Baseline,
 		},
@@ -116,7 +125,7 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 	for _, r := range res.Rows {
 		view.Findings = append(view.Findings, output.FindingView{
 			ID: r.DisplayID, Sev: r.Sev, Rule: r.Rule, Path: r.Path, Line: r.Line,
-			Desc: r.Desc,
+			Desc: r.Desc, Conf: r.Confidence,
 		})
 	}
 	fmt.Print(output.RenderResult(view))
@@ -132,22 +141,46 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 	return nil
 }
 
-// hints picks the concrete next-step templates mechanically, at most three
-// (cli-spec §9): top finding, a log view, and debt when there is nothing
-// better to suggest.
+// hints picks next steps from the result's state, at most three, in fixed
+// order (cli-spec §9, §16.23): a triaged secret outranks the top row for the
+// finding hint; open items earn a `cavet items` hint; a dismissed finding
+// redirects the log hint to its audit trail. With none of that, the static
+// defaults (top finding, a log view, debt) apply unchanged.
 func hints(res *scan.Result) []string {
+	if len(res.Rows) == 0 && res.Items == 0 && len(res.DismissedIDs) == 0 {
+		if res.Counts.Baseline > 0 {
+			return []string{"cavet debt"}
+		}
+		return nil
+	}
 	var out []string
 	if len(res.Rows) > 0 {
-		out = append(out, "cavet finding "+res.Rows[0].DisplayID+" --full")
-		if len(res.Rows) > 1 {
-			out = append(out, "cavet log --fingerprint "+res.Rows[1].DisplayID)
-		} else {
-			out = append(out, "cavet log --fingerprint "+res.Rows[0].DisplayID)
+		top := res.Rows[0]
+		for _, r := range res.Rows {
+			if r.Secret && r.Confidence != "" {
+				top = r
+				break
+			}
 		}
-		return out
+		out = append(out, "cavet finding "+top.DisplayID+" --full")
 	}
-	if res.Counts.Baseline > 0 {
-		out = append(out, "cavet debt")
+	if res.Items > 0 {
+		out = append(out, "cavet items")
+	}
+	logID := ""
+	switch {
+	case len(res.DismissedIDs) > 0:
+		logID = res.DismissedIDs[0]
+	case len(res.Rows) > 1:
+		logID = res.Rows[1].DisplayID
+	case len(res.Rows) == 1:
+		logID = res.Rows[0].DisplayID
+	}
+	if logID != "" {
+		out = append(out, "cavet log --fingerprint "+logID)
+	}
+	if len(out) > 3 {
+		out = out[:3]
 	}
 	return out
 }

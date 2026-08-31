@@ -117,6 +117,80 @@ func TestDegradedCellNeverFails(t *testing.T) {
 	if !strings.Contains(out, "CVE-2021-44228") {
 		t.Fatal("row must still be present")
 	}
+	// CVE ids cite NVD; the URL must render in the table even when degraded.
+	if !strings.Contains(out, "https://nvd.nist.gov/vuln/detail/CVE-2021-44228") {
+		t.Fatalf("CVE row must carry the NVD url:\n%s", out)
+	}
+}
+
+// Fix 2: every identifier kind renders a canonical source URL.
+func TestRowsCarryCanonicalURLs(t *testing.T) {
+	srv := fixtureServer(t, "/v1/vulns/GHSA-8j4c-xv47-3f4w", "osv-vuln.json")
+	defer srv.Close()
+	src := &Sources{
+		OSV: &OSV{Base: srv.URL}, KEV: &KEV{Base: srv.URL, Cache: NewCache(t.TempDir())},
+		EPSS: &EPSS{Base: srv.URL}, NVD: &NVD{Base: srv.URL},
+		Registry: &Registry{NpmBase: srv.URL, PyPIBase: srv.URL, CratesBase: srv.URL, GoBase: srv.URL},
+		Cache: NewCache(t.TempDir()),
+	}
+	rows, err := Run(context.Background(), []string{"GHSA-8j4c-xv47-3f4w", "CWE-89"}, src, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := Render(rows)
+	if !strings.Contains(out, "https://osv.dev/vulnerability/GHSA-8j4c-xv47-3f4w") {
+		t.Fatalf("GHSA row must carry the osv.dev url:\n%s", out)
+	}
+	if !strings.Contains(out, "https://cwe.mitre.org/data/definitions/89.html") {
+		t.Fatalf("CWE row must carry the mitre url:\n%s", out)
+	}
+}
+
+// Fix 3: "identifier absent from the store" (404) renders `no record` —
+// distinct from a degraded source.
+func TestNoRecordMarker(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+	src := &Sources{
+		OSV: &OSV{Base: srv.URL}, KEV: &KEV{Base: srv.URL, Cache: NewCache(t.TempDir())},
+		EPSS: &EPSS{Base: srv.URL}, NVD: &NVD{Base: srv.URL},
+		Registry: &Registry{NpmBase: srv.URL, PyPIBase: srv.URL, CratesBase: srv.URL, GoBase: srv.URL},
+		Cache: NewCache(t.TempDir()),
+	}
+	rows, err := Run(context.Background(), []string{"GHSA-bbbb-cccc-dddd"}, src, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := Render(rows)
+	if !strings.Contains(out, "no record") || strings.Contains(out, "no range recorded") {
+		t.Fatalf("absent identifier must render 'no record':\n%s", out)
+	}
+}
+
+// Fix 3: a known advisory without a formal affected range renders
+// `no range recorded`, not a generic degradation.
+func TestNoRangeRecordedMarker(t *testing.T) {
+	srv := fixtureServer(t, "/v1/vulns/GHSA-7777-8888-9999", "osv-vuln-empty-range.json")
+	defer srv.Close()
+	src := &Sources{
+		OSV: &OSV{Base: srv.URL}, KEV: &KEV{Base: srv.URL, Cache: NewCache(t.TempDir())},
+		EPSS: &EPSS{Base: srv.URL}, NVD: &NVD{Base: srv.URL},
+		Registry: &Registry{NpmBase: srv.URL, PyPIBase: srv.URL, CratesBase: srv.URL, GoBase: srv.URL},
+		Cache: NewCache(t.TempDir()),
+	}
+	rows, err := Run(context.Background(), []string{"GHSA-7777-8888-9999"}, src, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := Render(rows)
+	if !strings.Contains(out, "no range recorded") || strings.Contains(out, "no record") {
+		t.Fatalf("known advisory without ranges must render 'no range recorded':\n%s", out)
+	}
+	if !strings.Contains(out, "MODERATE") {
+		t.Fatalf("row must still carry the severity:\n%s", out)
+	}
 }
 
 func TestKindRejectsNonIdentifiers(t *testing.T) {

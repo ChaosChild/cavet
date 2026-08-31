@@ -6,14 +6,15 @@ import (
 )
 
 // Render reduces rows to one compact markdown table carrying only what
-// changes a triage decision (spec §5.3) — not the advisory prose.
+// changes a triage decision (spec §5.3) — not the advisory prose. The url
+// column carries the canonical source URL so verdicts cite identifier + URL.
 func Render(rows []Row) string {
 	if len(rows) == 0 {
 		return "no results\n"
 	}
-	headers := []string{"id", "severity", "range", "fixed", "kev", "epss", "summary"}
+	headers := []string{"id", "severity", "range", "fixed", "kev", "epss", "summary", "url"}
 	cells := func(r Row) []string {
-		return []string{r.ID, r.Severity, r.Range, r.Fixed, r.KEV, r.EPSS, r.Summary}
+		return []string{r.ID, r.Severity, r.Range, r.Fixed, r.KEV, r.EPSS, r.Summary, r.URL}
 	}
 	widths := make([]int, len(headers))
 	for i, h := range headers {

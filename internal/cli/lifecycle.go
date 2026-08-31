@@ -128,6 +128,7 @@ func newResolveCmd() *cobra.Command {
 			if err := s.WriteState(st); err != nil {
 				return fail(err.Error())
 			}
+			fmt.Println("resolved " + args[0])
 			return nil
 		},
 	}
@@ -148,6 +149,12 @@ func newItemsCmd() *cobra.Command {
 			st, err := s.LoadState()
 			if err != nil {
 				return fail(err.Error())
+			}
+			// Anti-nag: items is not the only backlog — flag baseline debt
+			// when it exists, silently skip when it does not.
+			if len(st.Baseline.Fingerprints) > 0 {
+				defer fmt.Printf("note: %d findings recorded as baseline debt — 'cavet debt' lists them\n",
+					len(st.Baseline.Fingerprints))
 			}
 			if len(st.Items) == 0 {
 				fmt.Println("no open items")

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -86,12 +87,27 @@ func newRoot() (*cobra.Command, error) {
 
 // --- shared helpers ---
 
+// repoRoot resolves the cavet-initialised root: walk up from cwd like git
+// until a directory holding .cavet/config.yaml appears (cli-spec §16.24), so
+// commands work from nested directories. init deliberately does not use this
+// — it scaffolds at cwd.
 func repoRoot() (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
-	return wd, nil
+	dir := wd
+	for {
+		if fi, serr := os.Stat(filepath.Join(dir, ".cavet", "config.yaml")); serr == nil && !fi.IsDir() {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", fail("no .cavet/ found in " + wd + " or any parent — cd into the cavet-initialised repo root or run 'cavet init'")
 }
 
 // openStore enforces the initialisation gate (cli-spec §4.3).
@@ -161,10 +177,20 @@ func runPosture(_ *cobra.Command, _ []string) error {
 	}
 	counts := output.Counts{Baseline: len(st.Baseline.Fingerprints)}
 	for _, f := range st.Findings {
+		conf := ""
+		if f.Verdict != nil {
+			conf = f.Verdict.Confidence
+		}
 		switch f.Status {
 		case "open", "confirmed":
 			counts.Confirmed++
-			sec := output.FindingView{ID: f.DisplayID, Sev: f.Severity, Rule: f.RuleID, Desc: f.Description}
+			switch conf {
+			case "high":
+				counts.ConfirmedHigh++
+			case "low":
+				counts.ConfirmedLow++
+			}
+			sec := output.FindingView{ID: f.DisplayID, Sev: f.Severity, Rule: f.RuleID, Desc: f.Description, Conf: conf}
 			if len(f.Locations) > 0 {
 				sec.Path, sec.Line = f.Locations[0].Path, f.Locations[0].Line
 			}

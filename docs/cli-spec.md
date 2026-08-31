@@ -608,3 +608,22 @@ other. Event appends remain conflict-free because only lock holders append.
     deep scans refresh `cache/advisories/rules.json` from bytes the scan
     already holds. `engine pull` has no running container to exec into; a
     separate extraction pass would duplicate what the scan just parsed.
+22. **Confidence is visible in scan output** (§9, decided 2026-08-31) — the
+    aggregate splits confirmed by verdict confidence
+    (`N confirmed (sev…): H high confidence, L low confidence`) and triaged
+    rows mark it in the sev column (`high*` high, `high^` low, bare =
+    untriaged), so a receiving agent can tell confirm-high from confirm-low
+    without opening the finding.
+23. **`next:` hints are state-derived** (§9, decided 2026-08-31) — a triaged
+    secret takes the finding hint, open items add `cavet items`, and dismissed
+    findings redirect the log hint to their audit trail; the static templates
+    apply only when none of that state exists.
+24. **Initialisation gate walks up from cwd** (§4.3, decided 2026-08-31) —
+    the root is the nearest ancestor holding `.cavet/config.yaml` (git-style),
+    so commands work from nested directories; when none exists the error names
+    the walk: `no .cavet/ found in <cwd> or any parent — cd into the
+    cavet-initialised repo root or run 'cavet init'`.
+25. **Lookup degradation distinguishes absence from missing data** (§11,
+    decided 2026-08-31) — a definitive 404 renders `no record` and a known
+    advisory without a formal affected range renders `no range recorded`,
+    splitting what §11's single `not available` cell used to conflate.

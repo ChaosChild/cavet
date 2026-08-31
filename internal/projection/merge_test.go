@@ -55,6 +55,49 @@ func TestSecretCollapse(t *testing.T) {
 	}
 }
 
+// The dogfooding pair: gitleaks generic-api-key + opengrep's
+// generic.secrets rule fire on the same span/path and must collapse to one
+// finding (opt.opengrep-rules.generic.secrets.* is secret-category).
+func TestSecretCollapseOpengrep(t *testing.T) {
+	var all []Finding
+	all = append(all, parseFixture(t, "testdata/secrets/a.sarif", "gitleaks", "")...)
+	all = append(all, parseFixture(t, "testdata/secrets/c.sarif", "opengrep", "")...)
+	if len(all) != 2 {
+		t.Fatalf("want 2 raw findings, got %d", len(all))
+	}
+
+	merged := Merge(all)
+	if len(merged) != 1 {
+		t.Fatalf("opengrep secret must collapse with gitleaks, got %d findings", len(merged))
+	}
+	m := merged[0]
+	if m.Scanner != "gitleaks" {
+		t.Fatalf("originating scanner must be gitleaks, got %q", m.Scanner)
+	}
+	ogRule := "opt.opengrep-rules.generic.secrets.security.detected-generic-api-key"
+	if len(m.AlsoDetectedBy) != 1 || m.AlsoDetectedBy[0] != ogRule {
+		t.Fatalf("want the opengrep rule in also_detected_by, got %+v", m.AlsoDetectedBy)
+	}
+	if len(m.CollapsedWith) != 1 || m.CollapsedWith[0] != ogRule {
+		t.Fatalf("want the opengrep rule in collapsed_with, got %+v", m.CollapsedWith)
+	}
+	if !m.Secret || m.RuleID != "generic-api-key" {
+		t.Fatalf("winner keeps gitleaks rule id and secret flag, got %q secret=%v", m.RuleID, m.Secret)
+	}
+}
+
+// Non-secrets under opengrep's generic subtree (dockerfile, html-templates…)
+// must NOT join the secret collapse.
+func TestOpengrepNonSecretStaysOut(t *testing.T) {
+	fs := []Finding{
+		{Scanner: "gitleaks", RuleID: "generic-api-key", Severity: "high", Path: "Dockerfile", Line: 3, Snippet: "Xk9mP2vL5nQ8wR3jT6yB4cF7hG1sD0eA"},
+		{Scanner: "opengrep", RuleID: "opt.opengrep-rules.generic.dockerfile.best-practice.multiple-cmd-instructions", Severity: "medium", Path: "Dockerfile", Line: 3, Snippet: "Xk9mP2vL5nQ8wR3jT6yB4cF7hG1sD0eA"},
+	}
+	if merged := Merge(fs); len(merged) != 2 {
+		t.Fatalf("non-secret opengrep rules must not collapse, got %d", len(merged))
+	}
+}
+
 // Non-secret findings with the same rule+context but different locations merge
 // into one finding with multiple locations (spec §3.3).
 func TestMultiLocationMerge(t *testing.T) {
