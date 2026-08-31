@@ -15,6 +15,7 @@ jobs:
       - uses: actions/setup-go@v7
         with: { go-version-file: go.mod }
       - uses: sigstore/cosign-installer@v4.1.2 # exact pin — repo has no mutable v4 major tag
+      - uses: anchore/sbom-action/download-syft@v0.24.2 # install-only: puts syft on PATH for goreleaser's SBOM pipe (exact pin, no mutable v0 tag dependency)
       - uses: goreleaser/goreleaser-action@v7
         with:
           version: '~> v2'
