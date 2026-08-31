@@ -27,7 +27,8 @@ jobs:
   engine:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # commit digest.txt back to main
+      contents: write # push release/digests-* branch
+      pull-requests: write # open digest PR
       packages: write # push to ghcr.io
       id-token: write # cosign keyless
     steps:
@@ -39,6 +40,7 @@ jobs:
       - name: Build, push, sign engine; record digests
         env:
           REG: ghcr.io/chaoschild/cavet-engine
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           minor=$(echo "$version" | cut -d. -f1-2)
@@ -55,9 +57,8 @@ jobs:
             digests+=("$v $digest")
           done
           git config user.name 'github-actions[bot]'
-          git config email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin main
-          git checkout -B main origin/main
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B "release/digests-$GITHUB_REF_NAME"
           { echo '# cavet engine published digests - format: "<variant> <manifest-digest>", one line per variant.'
             echo '# Record of what shipped; committed after each release (engine-spec §9.3).'
             printf '%s\n' "${digests[@]}"
@@ -65,4 +66,7 @@ jobs:
           if git diff --quiet -- engine/digest.txt; then echo 'digest.txt unchanged'; exit 0; fi
           git add engine/digest.txt
           git commit -m "chore(release): engine digests $GITHUB_REF_NAME"
-          git push origin main
+          git push origin "HEAD:release/digests-$GITHUB_REF_NAME"
+          gh pr create --title "chore(release): engine digests $GITHUB_REF_NAME" \
+            --body "Digest record from the $GITHUB_REF_NAME release engine job. Auto-generated; merge to record what shipped." \
+            --base main --head "release/digests-$GITHUB_REF_NAME" || true
