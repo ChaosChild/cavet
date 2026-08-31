@@ -1,13 +1,5 @@
 # Agent instructions for cavet
 
-## Tracking
-
-- `docs/implementation-plan.md` is the working plan. As each step/task completes,
-  flip its checkbox (`- [ ]` → `- [x]`) and include the change in the commit that
-  completes the work.
-- Commit messages: conventional commits (`feat:`, `test:`, `chore:`, `docs:`),
-  scoped where useful (e.g. `feat(events): …`).
-
 ## Build and verify
 
 - Go toolchain directive lives in `go.mod`; CI reads `go-version-file: go.mod`.
@@ -28,10 +20,5 @@
 
 - `.env` and `.lavish/` are gitignored. Never commit keys or session artefacts.
 
-## Spec sources
-
-- Design of record: `docs/SPECIFICATION.md` + annexes (`artefacts-spec.md`,
-  `cli-spec.md`, `engine-spec.md`, `skills-spec.md`). Deviations get a numbered
-  entry in the relevant annex's deviations section, not silent drift.
-- The implementation plan's inline code is a design sketch: adapt it, don't
-  transcribe it; behaviour in the annexes wins over sketch code.
+Build and development documentation (moved out of `docs/`):
+<https://migatchev.co.za/projects/cavet>.

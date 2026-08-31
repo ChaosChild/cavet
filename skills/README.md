@@ -14,14 +14,16 @@ cavet-deployment/      IaC, secrets, runtime config
 ```
 
 The `cavet-security` subagent definition lives in `../subagents/`; the
-agent-instruction snippet, allowlists, and CLI contract these skills depend on are
-in `../docs/install-notes.md`.
+agent-instruction snippet, allowlists, and CLI contract these skills depend on
+lived in `docs/install-notes.md`, now hosted at
+<https://migatchev.co.za/projects/cavet>.
 
 ## Contract with the CLI
 
 Skills reference **command names only**, never flags (spec §2.1). Flags are what
 `cavet <cmd> --help` and the CLI's `next:` hints answer at the moment of need. The
-commands these drafts depend on are listed in `../docs/install-notes.md`; if a command is
+commands these drafts depend on are listed in the CLI contract (hosted at
+<https://migatchev.co.za/projects/cavet>); if a command is
 renamed or removed, that list is the change surface.
 
 ## Style rules applied

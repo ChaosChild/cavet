@@ -6,7 +6,9 @@
 **Language:** Go
 **Date:** 2026-08-17 (revised 2026-08-18, 2026-08-21)
 
-The revisions of 2026-08-21 follow from `spike-2026-08-21-scanner-baseline.md`, which
+The revisions of 2026-08-21 follow from the [scanner-baseline
+spike](https://migatchev.co.za/projects/cavet) (formerly
+`spike-2026-08-21-scanner-baseline.md` in this directory), which
 captured real output and timings from Opengrep 1.27.1, Gitleaks 8.30.1 and Trivy
 0.74.0. Where this document previously asserted something the measurements
 contradict, the measurement wins and the section says so.

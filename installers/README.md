@@ -12,9 +12,10 @@ Each installer does the same five things, in the same order:
 3. translate the subagent contract from the "Subagent role" section of
    `skills/cavet-triage/SKILL.md` into the harness's subagent/agent
    format, tool allowlist = Read + shell scoped to `cavet`,
-4. append the instruction snippet from `docs/install-notes.md` to the
-   harness's instruction file, idempotently (skip if
-   `Never write to .cavet/ directly` is already present),
+4. append the instruction snippet (from
+   <https://migatchev.co.za/projects/cavet>, formerly
+   `docs/install-notes.md`) to the harness's instruction file, idempotently
+   (skip if `Never write to .cavet/ directly` is already present),
 5. print a summary of the paths written.
 
 ## Path table (verified 2026-08)
