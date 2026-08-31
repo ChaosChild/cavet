@@ -19,6 +19,15 @@ the only author of its log.
 Skills go as loose directories under the harness's skills path, flat namespace,
 `cavet-*` prefix intact. Uninstall = delete `cavet-*`.
 
+### What to commit
+
+Commit `.cavet/log/` (the append-only audit trail) and `.cavet/config.yaml`;
+`.cavet/design/` artefacts are committed too. `state/`, `cache/`, and `reports/`
+are derived and ignored by the scaffolded `.gitignore` — `cavet rebuild`
+regenerates them from the log. The scaffolded `.gitattributes` sets
+`merge=union` on `log/*.jsonl`, so concurrent agents appending to the log merge
+safely. Never edit the log by hand; the cavet CLI is its only author.
+
 ## Subagent
 
 `subagents/cavet-security.md` → the harness's subagent format. Tool allowlist:

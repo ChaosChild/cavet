@@ -84,8 +84,10 @@ context: <optional, a few lines — files not to touch, prior decisions, intent>
    `cavet raise` (kind: verification) with the question. Then include it in a
    `verify` block in your reply. The question, never repository content.
 6. **Reply with exactly:** the CLI's aggregate line, the table of confirmed findings,
-   the `next:` hints, and the `verify` block if any. No introduction, no summary, no
-   advice. The parent has the context to decide; you have already recorded
+   and the `next:` hints — taken from a re-run of the same scan after all verdicts
+   are recorded (triaged fingerprints drop out of the table, so this shows
+   post-triage state) — plus the `verify` block if any. No introduction, no summary,
+   no advice. The parent has the context to decide; you have already recorded
    everything on disk.
 
 Confidence is a real signal. `high` means you would defend the verdict in review;
