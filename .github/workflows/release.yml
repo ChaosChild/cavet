@@ -64,8 +64,8 @@ jobs:
             echo '# Record of what shipped; committed after each release (engine-spec §9.3).'
             printf '%s\n' "${digests[@]}"
           } > engine/digest.txt
-          if git diff --quiet -- engine/digest.txt; then echo 'digest.txt unchanged'; exit 0; fi
           git add engine/digest.txt
+          if git diff --cached --quiet -- engine/digest.txt; then echo 'digest.txt unchanged'; exit 0; fi
           git commit -m "chore(release): engine digests $GITHUB_REF_NAME"
           git push origin "HEAD:release/digests-$GITHUB_REF_NAME"
           gh pr create --title "chore(release): engine digests $GITHUB_REF_NAME" \
