@@ -32,7 +32,7 @@ jobs:
       - if: steps.docker.outputs.ok == 'true'
         uses: docker/setup-buildx-action@v4
       - if: steps.docker.outputs.ok == 'true'
-        run: docker buildx build --cache-from type=gha --cache-to type=gha,mode=max --load -t cavet-engine:dev -f engine/Dockerfile engine/
+        run: docker buildx build --target final-core --cache-from type=gha --cache-to type=gha,mode=max --load -t cavet-engine:dev -f engine/Dockerfile engine/ # core only — full's java-db layer overflows the runner disk; release.yml builds both variants
       - if: steps.docker.outputs.ok == 'true'
         shell: pwsh
         run: ./scripts/smoke.ps1
