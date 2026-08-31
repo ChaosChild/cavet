@@ -30,7 +30,7 @@ lands, build it locally (`docker build -t cavet-engine ./engine`) and point the
 CLI at it with `CAVET_ENGINE_IMAGE`. Then install the skills into your harness:
 
 ```pwsh
-pwsh installers/claude-code.ps1     # or codex, opencode, pi, hermes (.sh mirrors)
+pwsh installers/claude-code.ps1     # or codex, opencode, pi, hermes, zcode, deepseek (.sh mirrors)
 ```
 
 The installer places the six `cavet-*` skills, the `cavet-security` subagent,
