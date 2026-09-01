@@ -38,6 +38,56 @@ jobs:
       - uses: sigstore/cosign-installer@v4.1.2 # exact pin — repo has no mutable v4 major tag
       - name: Login to GHCR
         run: echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+      # scan gate before push: engine images are immutable per release, so gate
+      # at release time. amd64 local build suffices - both arches pin identical
+      # apt/scanner versions, only binary arches differ. Fresh advisory DB at
+      # gate time (action default); unfixed CVEs cannot block a release.
+      - name: Scan gate - build amd64 images
+        run: |
+          # the docker driver refuses multi-platform push; dedicated builder
+          docker buildx create --name cavet-release --bootstrap && docker buildx use cavet-release
+          for v in core full; do
+            docker buildx build --builder cavet-release --platform linux/amd64 --target "final-$v" \
+              -t "cavet-release-scan:$v" --load -f engine/Dockerfile engine/
+          done
+      # trivy couples the severity filter to the exit code, so print-HIGH/fail-
+      # CRITICAL needs two invocations per variant: report first, then the gate.
+      - name: Scan gate - core (report HIGH and CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0 # exact pin - latest stable release; repo makes no mutable-major-tag guarantee
+        with:
+          scan-type: image
+          image-ref: cavet-release-scan:core
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0' # report only; HIGH never blocks
+          ignore-unfixed: true
+      - name: Scan gate - core (CRITICAL fails)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: cavet-release-scan:core
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: Scan gate - full (report HIGH and CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: cavet-release-scan:full
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: true
+      - name: Scan gate - full (CRITICAL fails)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: cavet-release-scan:full
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
       - name: Build, push, sign engine; record digests
         env:
           REG: ghcr.io/chaoschild/cavet-engine
@@ -45,8 +95,6 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           minor=$(echo "$version" | cut -d. -f1-2)
-          # the docker driver refuses multi-platform push; dedicated builder
-          docker buildx create --name cavet-release --bootstrap && docker buildx use cavet-release
           digests=()
           for v in core full; do
             meta="$RUNNER_TEMP/engine-$v.json"
