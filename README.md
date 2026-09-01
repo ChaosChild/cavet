@@ -35,7 +35,8 @@ Pick your OS/arch archive from
 `checksums.txt` and `checksums.txt.sigstore.json` alongside it. cavet is a
 security tool: verify before trusting the download. Both the signature and the
 checksums are produced by the repo's own release workflow, so pin the
-certificate identity to it:
+certificate identity to it. Don't have cosign? See its
+[official installation guide](https://docs.sigstore.dev/cosign/system_config/installation/):
 
 ```sh
 cosign verify-blob \
@@ -48,17 +49,33 @@ sha256sum --check --ignore-missing checksums.txt   # macOS/Linux
 # Windows: compare (Get-FileHash cavet_0.1.0_windows_amd64.zip).Hash against checksums.txt
 ```
 
-Then extract and put the `cavet` binary on your `PATH`:
+The archive contains the `cavet` binary (plus `LICENSE` and `README.md`) at its
+root. Extract it and install system-wide:
 
 ```sh
 tar -xzf cavet_0.1.0_linux_amd64.tar.gz   # or: unzip cavet_0.1.0_windows_amd64.zip
+sudo install -m 0755 cavet /usr/local/bin/cavet
 ```
+
+Or, without sudo, user-local (Ubuntu's default profile picks up `~/.local/bin`
+once it exists):
+
+```sh
+mkdir -p ~/.local/bin && install -m 0755 cavet ~/.local/bin/cavet
+```
+
+To try it without installing, `./cavet --version` works straight from the
+extraction folder.
 
 #### go install
 
 ```sh
 go install github.com/ChaosChild/cavet/cmd/cavet@latest
 ```
+
+On a default Ubuntu install the binary lands in `~/go/bin`, which is not on
+`PATH` — fix with `echo 'export PATH="$PATH:$HOME/go/bin"' >> ~/.profile`,
+then log out and back in.
 
 #### Homebrew (macOS, Linux)
 
