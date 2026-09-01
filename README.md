@@ -23,55 +23,34 @@ harnesses, and CI are all here and working;
 
 1. **Docker**, with a running daemon — `cavet init` probes it first and tells you
    if it is unreachable.
-2. **A `cavet` binary** — from any channel below.
+2. **A `cavet` binary** — the one-liner below installs it, or any channel in
+   [Advanced: other install channels](#advanced-other-install-channels).
 3. **A git repository you want covered.**
 
-### Binary channels
+### Install
 
-#### GitHub Releases
-
-Pick your OS/arch archive from
-<https://github.com/ChaosChild/cavet/releases/latest>, and download
-`checksums.txt` and `checksums.txt.sigstore.json` alongside it. cavet is a
-security tool: verify before trusting the download. Both the signature and the
-checksums are produced by the repo's own release workflow, so pin the
-certificate identity to it:
+One line per platform — checksum-verified download, binary on your `PATH`:
 
 ```sh
-cosign verify-blob \
-  --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github\.com/ChaosChild/cavet/\.github/workflows/release\.yml@' \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  checksums.txt
-
-sha256sum --check --ignore-missing checksums.txt   # macOS/Linux
-# Windows: compare (Get-FileHash cavet_0.1.0_windows_amd64.zip).Hash against checksums.txt
+curl -fsSL https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/binary.sh | bash
 ```
 
-Then extract and put the `cavet` binary on your `PATH`:
-
-```sh
-tar -xzf cavet_0.1.0_linux_amd64.tar.gz   # or: unzip cavet_0.1.0_windows_amd64.zip
-```
-
-#### go install
-
-```sh
-go install github.com/ChaosChild/cavet/cmd/cavet@latest
-```
-
-#### Homebrew (macOS, Linux)
-
-```sh
-brew install --cask chaoschild/tap/cavet
-```
-
-#### Scoop (Windows)
+Installs the latest release for your OS/arch (darwin/linux × amd64/arm64)
+into `~/.local/bin` — override with `--dir <path>` or `CAVET_INSTALL_DIR`, pin
+a version with `bash -s -- --version <x.y.z>`. Windows (pwsh, canonical
+two-step form — a piped script cannot bind `param()`):
 
 ```pwsh
-scoop bucket add chaoschild https://github.com/ChaosChild/scoop-bucket
-scoop install cavet
+irm https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/binary.ps1 -OutFile binary.ps1
+pwsh -NoProfile -File binary.ps1
 ```
+
+Installs into `$HOME\.local\bin` and adds that directory to your user `PATH`
+(override with `-InstallDir`). Every download is verified against the release
+`checksums.txt`, and against the Sigstore signature too when
+[cosign](https://docs.sigstore.dev/cosign/system_config/installation/) is
+installed. Other channels — manual download, `go install`, Homebrew, Scoop —
+are in [Advanced: other install channels](#advanced-other-install-channels).
 
 ### Engine image
 
@@ -153,6 +132,71 @@ cavet scan --staged
 Exit codes are informational, never gating: `0` clean (or nothing staged),
 `1` findings present, `2` error. `cavet --help` lists everything;
 `cavet describe --json` emits the machine contract for tooling that wants it.
+
+### Advanced: other install channels
+
+<details>
+<summary>GitHub Releases manual download · go install · Homebrew · Scoop</summary>
+
+#### GitHub Releases
+
+Pick your OS/arch archive from
+<https://github.com/ChaosChild/cavet/releases/latest>, and download
+`checksums.txt` and `checksums.txt.sigstore.json` alongside it. cavet is a
+security tool: verify before trusting the download. Both the signature and the
+checksums are produced by the repo's own release workflow, so pin the
+certificate identity to it (no cosign yet?
+[Install it](https://docs.sigstore.dev/cosign/system_config/installation/)):
+
+```sh
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/ChaosChild/cavet/\.github/workflows/release\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  checksums.txt
+
+sha256sum --check --ignore-missing checksums.txt   # macOS/Linux
+# Windows: compare (Get-FileHash cavet_0.1.0_windows_amd64.zip).Hash against checksums.txt
+```
+
+Each archive holds the binary (`cavet`, or `cavet.exe` on Windows), `LICENSE`
+and `README.md` at its root — `./cavet` runs straight from the extraction
+folder, no install step needed. To put it on your `PATH`:
+
+```sh
+tar -xzf cavet_0.1.0_linux_amd64.tar.gz   # or: unzip cavet_0.1.0_windows_amd64.zip
+sudo install -m 0755 cavet /usr/local/bin/cavet
+```
+
+#### go install
+
+```sh
+go install github.com/ChaosChild/cavet/cmd/cavet@latest
+```
+
+The binary lands in `$GOPATH/bin/cavet` (or `$GOBIN/cavet` if set) — a
+directory Ubuntu does not put on your `PATH` by default. Fix:
+
+```sh
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.profile
+```
+
+then log out and back in.
+
+#### Homebrew (macOS, Linux)
+
+```sh
+brew install --cask chaoschild/tap/cavet
+```
+
+#### Scoop (Windows)
+
+```pwsh
+scoop bucket add chaoschild https://github.com/ChaosChild/scoop-bucket
+scoop install cavet
+```
+
+</details>
 
 ## What it does
 

@@ -3,7 +3,25 @@
 One installer per harness, in two shells (`.ps1` for pwsh, `.sh` for bash).
 Claude Code users can alternatively skip the installer entirely:
 `/plugin marketplace add ChaosChild/cavet` then `/plugin install cavet@cavet`.
-Each installer does the same five things, in the same order:
+
+`binary.sh` / `binary.ps1` are different: they install the `cavet` binary
+itself from GitHub Releases — resolve the requested version (default latest),
+download the OS/arch archive, verify it against `checksums.txt` (plus the
+Sigstore bundle when cosign is on PATH), and install into `$HOME/.local/bin`
+by default. Overrides: `--version <x.y.z|latest>` and `--dir <path>` /
+`CAVET_INSTALL_DIR` (sh); `-Version` and `-InstallDir` (pwsh, which also adds
+the install directory to the user `PATH`). One-liners:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/binary.sh | bash
+```
+
+```pwsh
+irm https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/binary.ps1 -OutFile binary.ps1
+pwsh -NoProfile -File binary.ps1
+```
+
+Each harness installer does the same five things, in the same order:
 
 1. resolve roots (real harness home, or a test target — see below),
 2. copy the six `cavet-*` skill directories from `skills/` as loose
