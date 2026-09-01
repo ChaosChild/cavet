@@ -1,21 +1,52 @@
 # cavet
 
+[![Release](https://img.shields.io/github/v/release/ChaosChild/cavet)](https://github.com/ChaosChild/cavet/releases/latest)
+[![CI](https://github.com/ChaosChild/cavet/actions/workflows/ci.yml/badge.svg)](https://github.com/ChaosChild/cavet/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ChaosChild/cavet.svg)](https://pkg.go.dev/github.com/ChaosChild/cavet)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ChaosChild/cavet)](https://goreportcard.com/report/github.com/ChaosChild/cavet)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/ChaosChild/cavet/blob/main/LICENSE)
+
 From *caveat*, "let him beware". A warning, not a prohibition.
 
-A toolbox that lets a willing operator enable their coding agent to think about
-security while it works, and to deal with the results efficiently — without
-prompting for it every time.
+Most of the code landing in repositories now is written by coding agents —
+sometimes eager to please the operator, and happy to skip the boring parts. At
+the same time, the agentic workflows doing the writing are themselves a rising
+attack surface. Put the two together and the direction is set: as agent-written
+code accelerates, the attack surface of the products being shipped has to
+shrink, not grow.
 
-`cavet` makes security review **repeatable**: the same checks, the same phases, the
-same output shape, the same audit trail, session after session.
+Security scanning already exists — most CI stacks run the same scanners cavet
+wraps — but it runs after the agent is done, and a finding that arrives after
+the change is complete arrives too late to shape it. Prose goes further: a
+paragraph in the system prompt, a section in the agent instructions, a skill —
+any of these can tell an agent to be security-aware while it designs and
+builds. It works, in the sense that it sometimes fires. But prose is advice,
+not a guarantee: it does not behave the same way twice, and it evaporates
+between sessions.
 
-**Nothing blocks.** Everything advises. The agent or the operator chooses to
-remediate, defer, or dismiss. Teams that need enforcement build it themselves
-around these tools.
+And when CI does flag something, the findings land in a new agent session that
+has none of the context that produced them: what the previous session decided
+during design, why it decided it, and which of these findings are pre-existing
+baseline debt versus newly introduced by the change. The same false positive
+gets rediscovered and re-argued from first principles, session after session.
+
+cavet is one operator's answer, in toolkit form: security at the same speed as
+everything else — operators and their agents producing more secure products,
+more often, with repeatable efficiency. The audit trail and the recorded
+baseline carry the context between sessions; the skills advise at the moments
+where judgement is actually needed; the CLI records every judgement — verdict,
+reason, actor — and is the only author of that record. The same checks, the
+same phases, the same output shape, the same audit trail, session after
+session. **Nothing blocks.** Everything advises. The agent or the operator
+chooses to remediate, defer, or dismiss. Teams that need enforcement build it
+themselves around these tools.
 
 **Status:** v0.1.0. The CLI, the multi-arch engine image, installers for seven
 harnesses, and CI are all here and working;
 [SPECIFICATION.md](docs/SPECIFICATION.md) remains the design of record.
+
+<!-- screenshot: terminal showing cavet scan output in an agent session (owner to add) -->
+<!-- <p><img src="docs/screenshot.png" alt="cavet scan output in an agent session" width="720"></p> -->
 
 ## Installation
 
