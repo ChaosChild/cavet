@@ -30,10 +30,11 @@ const (
 
 type Client struct {
 	docker *client.Client
-	image  string // image ref to run
-	digest string // pinned digest ("" = dev mode, no drift gate)
-	root   string // absolute host repository root
-	name   string // cavet-<12 hex of sha256(root)> (cli-spec §10.1)
+	image  string   // image ref to run
+	digest string   // pinned digest ("" = dev mode, no drift gate)
+	root   string   // absolute host repository root
+	name   string   // cavet-<12 hex of sha256(root)> (cli-spec §10.1)
+	meta   *gitMeta // non-nil when root is a linked git worktree (see paths.go)
 
 	scans int // scan-dir tiebreaker (see NextScanDir)
 }
@@ -51,12 +52,16 @@ func ContainerName(root string) string {
 // New builds a client. pinnedDigest may be empty in development (local image
 // tag, no drift enforcement); production always pins (spec §3.4).
 func New(image, pinnedDigest, root string) *Client {
-	return &Client{
+	c := &Client{
 		image:  image,
 		digest: pinnedDigest,
 		root:   root,
 		name:   ContainerName(root),
 	}
+	if m, ok := resolveGitMeta(root); ok {
+		c.meta = &m
+	}
+	return c
 }
 
 func (c *Client) Name() string { return c.name }
@@ -108,6 +113,15 @@ func (c *Client) EnsureRunning(ctx context.Context) error {
 	if err := c.checkDigest(ctx, res.Container.Image); err != nil {
 		return err
 	}
+	if res.Container.HostConfig != nil && mountsStale(c.meta != nil, res.Container.HostConfig.Binds) {
+		// The container predates the /gitmeta mount (or carries a stale one):
+		// binds are fixed at create time, so replace the container rather
+		// than silently running without it. The name is unchanged (§10.1).
+		if _, err := c.docker.ContainerRemove(ctx, c.name, client.ContainerRemoveOptions{Force: true}); err != nil {
+			return err
+		}
+		return c.createAndProbe(ctx)
+	}
 	if res.Container.State != nil && res.Container.State.Running {
 		return nil
 	}
@@ -126,7 +140,7 @@ func (c *Client) createAndProbe(ctx context.Context) error {
 		cfg.User = strconv.Itoa(os.Getuid()) + ":" + strconv.Itoa(os.Getgid())
 	}
 	host := &container.HostConfig{
-		Binds:       []string{strings.ReplaceAll(c.root, "\\", "/") + ":/workspace"},
+		Binds:       c.binds(),
 		NetworkMode: "none", // offline by construction; no scanner tier needs it (spec §7.5)
 	}
 	if _, err := c.docker.ContainerCreate(ctx, client.ContainerCreateOptions{
@@ -138,6 +152,27 @@ func (c *Client) createAndProbe(ctx context.Context) error {
 		return fmt.Errorf("start engine container: %w", err)
 	}
 	return c.probe(ctx)
+}
+
+// binds builds the container's bind list: /workspace always, plus the main
+// checkout's .git at /gitmeta read-only for linked worktrees — the worktree's
+// .git is a gitfile to a host-absolute path outside /workspace.
+func (c *Client) binds() []string {
+	b := []string{strings.ReplaceAll(c.root, "\\", "/") + ":/workspace"}
+	if c.meta != nil {
+		b = append(b, strings.ReplaceAll(c.meta.hostDir, "\\", "/")+":"+gitMetaMount+":ro")
+	}
+	return b
+}
+
+// gitEnv redirects container git into the /gitmeta mount for linked worktrees;
+// nil in normal repositories. It applies to every exec: staging is the only
+// git consumer the CLI drives, and scanner binaries ignore git env.
+func (c *Client) gitEnv() []string {
+	if c.meta == nil {
+		return nil
+	}
+	return c.meta.env
 }
 
 // checkDigest enforces the pinned digest when one is configured.
