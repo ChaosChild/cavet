@@ -8,18 +8,18 @@
 
 From *caveat*, "let him beware". A warning, not a prohibition.
 
-Most of the code landing in repositories now is written by coding agents —
+Most of the code landing in repositories now is written by coding agents –
 sometimes eager to please the operator, and happy to skip the boring parts. At
 the same time, the agentic workflows doing the writing are themselves a rising
 attack surface. Put the two together and the direction is set: as agent-written
 code accelerates, the attack surface of the products being shipped has to
 shrink, not grow.
 
-Security scanning already exists — most CI stacks run the same scanners cavet
-wraps — but it runs after the agent is done, and a finding that arrives after
+Security scanning already exists – most CI stacks run the same scanners cavet
+wraps – but it runs after the agent is done, and a finding that arrives after
 the change is complete arrives too late to shape it. Prose goes further: a
-paragraph in the system prompt, a section in the agent instructions, a skill —
-any of these can tell an agent to be security-aware while it designs and
+paragraph in the system prompt, a section in the agent instructions, a skill. Any
+of these can tell an agent to be security-aware while it designs and
 builds. It works, in the sense that it sometimes fires. But prose is advice,
 not a guarantee: it does not behave the same way twice, and it evaporates
 between sessions.
@@ -31,11 +31,11 @@ baseline debt versus newly introduced by the change. The same false positive
 gets rediscovered and re-argued from first principles, session after session.
 
 cavet is one operator's answer, in toolkit form: security at the same speed as
-everything else — operators and their agents producing more secure products,
+everything else – operators and their agents producing more secure products,
 more often, with repeatable efficiency. The audit trail and the recorded
 baseline carry the context between sessions; the skills advise at the moments
-where judgement is actually needed; the CLI records every judgement — verdict,
-reason, actor — and is the only author of that record. The same checks, the
+where judgement is actually needed; the CLI records every judgement – verdict,
+reason, actor – and is the only author of that record. The same checks, the
 same phases, the same output shape, the same audit trail, session after
 session. **Nothing blocks.** Everything advises. The agent or the operator
 chooses to remediate, defer, or dismiss. Teams that need enforcement build it
@@ -52,24 +52,24 @@ harnesses, and CI are all here and working;
 
 ### Prerequisites
 
-1. **Docker**, with a running daemon — `cavet init` probes it first and tells you
+1. **Docker**, with a running daemon – `cavet init` probes it first and tells you
    if it is unreachable.
-2. **A `cavet` binary** — the one-liner below installs it, or any channel in
+2. **A `cavet` binary** – the one-liner below installs it, or any channel in
    [Advanced: other install channels](#advanced-other-install-channels).
 3. **A git repository you want covered.**
 
 ### Install
 
-One line per platform — checksum-verified download, binary on your `PATH`:
+One line per platform – checksum-verified download, binary on your `PATH`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/binary.sh | bash
 ```
 
 Installs the latest release for your OS/arch (darwin/linux × amd64/arm64)
-into `~/.local/bin` — override with `--dir <path>` or `CAVET_INSTALL_DIR`, pin
+into `~/.local/bin` – override with `--dir <path>` or `CAVET_INSTALL_DIR`, pin
 a version with `bash -s -- --version <x.y.z>`. Windows (pwsh, canonical
-two-step form — a piped script cannot bind `param()`):
+two-step form – a piped script cannot bind `param()`):
 
 ```pwsh
 irm https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/binary.ps1 -OutFile binary.ps1
@@ -80,24 +80,24 @@ Installs into `$HOME\.local\bin` and adds that directory to your user `PATH`
 (override with `-InstallDir`). Every download is verified against the release
 `checksums.txt`, and against the Sigstore signature too when
 [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) is
-installed. Other channels — manual download, `go install`, Homebrew, Scoop —
+installed. Other channels – manual download, `go install`, Homebrew, Scoop –
 are in [Advanced: other install channels](#advanced-other-install-channels).
 
 ### Engine image
 
 Nothing to install by hand: `cavet init` pulls the engine image,
-`ghcr.io/chaoschild/cavet-engine` — public, multi-arch (`linux/amd64`,
+`ghcr.io/chaoschild/cavet-engine` – public, multi-arch (`linux/amd64`,
 `linux/arm64`), and digest-pinned into `.cavet/config.yaml` on first run.
 
-- Two variants: **core** (default — secrets, dependencies, SAST) and **full**
+- Two variants: **core** (default – secrets, dependencies, SAST) and **full**
   (adds Trivy's Java vulnerability database); set `engine.variant` in
   `config.yaml`.
-- `CAVET_ENGINE_IMAGE` overrides the image reference entirely — local builds,
+- `CAVET_ENGINE_IMAGE` overrides the image reference entirely – local builds,
   mirrors, pinning.
 
 The image bundles Opengrep, Gitleaks and Trivy. The Opengrep rule corpus is
 LGPL-2.1 + Commons Clause: using cavet is fine, selling a service whose value
-derives from those rules is not — see the [licence table](#licence).
+derives from those rules is not – see the [licence table](#licence).
 
 ### `cavet init`
 
@@ -114,18 +114,18 @@ later with `cavet debt`).
 
 | Path | Commit? |
 |---|---|
-| `log/` | yes — the append-only audit trail (`.gitattributes` sets `merge=union` on it) |
-| `config.yaml` | yes — engine variant + digest pin |
-| `design/` | yes — design decisions |
-| `state/`, `cache/`, `reports/` | no — derived; `cavet rebuild` regenerates them |
+| `log/` | yes – the append-only audit trail (`.gitattributes` sets `merge=union` on it) |
+| `config.yaml` | yes – engine variant + digest pin |
+| `design/` | yes – design decisions |
+| `state/`, `cache/`, `reports/` | no – derived; `cavet rebuild` regenerates them |
 
 The scaffolded `.gitignore` already excludes the derived directories. Never
-edit `log/` by hand — the CLI is its only author.
+edit `log/` by hand – the CLI is its only author.
 
 ### Harness setup
 
 The six `cavet-*` skills and the `cavet-security` subagent ride along into your
-coding agent. The binary from the step above is still required — the skills
+coding agent. The binary from the step above is still required – the skills
 drive the CLI, they do not replace it.
 
 **Claude Code** (plugin, no clone needed):
@@ -135,14 +135,14 @@ drive the CLI, they do not replace it.
 /plugin install cavet@cavet
 ```
 
-**Every other harness** — codex, opencode, pi, hermes, zcode, deepseek — one
+**Every other harness** – codex, opencode, pi, hermes, zcode, deepseek – one
 line, no clone needed:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/fetch.sh | bash -s -- --harness codex
 ```
 
-pwsh (canonical two-step form — a piped script cannot bind `param()`):
+pwsh (canonical two-step form – a piped script cannot bind `param()`):
 
 ```pwsh
 irm https://raw.githubusercontent.com/ChaosChild/cavet/main/installers/fetch.ps1 -OutFile fetch.ps1
@@ -191,7 +191,7 @@ sha256sum --check --ignore-missing checksums.txt   # macOS/Linux
 ```
 
 Each archive holds the binary (`cavet`, or `cavet.exe` on Windows), `LICENSE`
-and `README.md` at its root — `./cavet` runs straight from the extraction
+and `README.md` at its root – `./cavet` runs straight from the extraction
 folder, no install step needed. To put it on your `PATH`:
 
 ```sh
@@ -205,7 +205,7 @@ sudo install -m 0755 cavet /usr/local/bin/cavet
 go install github.com/ChaosChild/cavet/cmd/cavet@latest
 ```
 
-The binary lands in `$GOPATH/bin/cavet` (or `$GOBIN/cavet` if set) — a
+The binary lands in `$GOPATH/bin/cavet` (or `$GOBIN/cavet` if set) – a
 directory Ubuntu does not put on your `PATH` by default. Fix:
 
 ```sh
@@ -244,7 +244,7 @@ scoop install cavet
 | `items` | List open items: design concerns and verification requests |
 | `raise` | Open an item: a design concern or a verification request |
 | `resolve` | Close an open item with the decision or answer |
-| `lookup` | Advisory, package, and rule lookup — identifiers only, by design |
+| `lookup` | Advisory, package, and rule lookup – identifiers only, by design |
 | `engine` | Control the long-lived scanner container |
 | `rebaseline` | After a deliberate engine change: regenerate the baseline |
 | `rebuild` | Regenerate `state/` from the log (the source of truth) |
@@ -254,15 +254,15 @@ Judgement lives in the skills: `cavet-design`, `cavet-design-review`,
 `cavet-secure-coding`, `cavet-triage`, `cavet-supply-chain`, `cavet-deployment`,
 plus the `cavet-security` subagent that does focused review with nothing but
 Read and a cavet-only shell. The skills advise; the CLI is the only author of
-`.cavet/` artefacts — every verdict, deferral, and suppression lands in the log
+`.cavet/` artefacts – every verdict, deferral, and suppression lands in the log
 with a reason and an actor.
 
 ## Documentation
 
-- [SPECIFICATION.md](docs/SPECIFICATION.md) — what this is and why it is shaped
+- [SPECIFICATION.md](docs/SPECIFICATION.md) – what this is and why it is shaped
   this way. The design story, kept in the repo.
-- Build and development documentation — implementation history, the spec
-  annexes, the scanner spike, the distribution plan, install internals — lives
+- Build and development documentation – implementation history, the spec
+  annexes, the scanner spike, the distribution plan, install internals – lives
   at <https://migatchev.co.za/projects/cavet>.
 
 ## Licence
@@ -286,6 +286,6 @@ whose value derives entirely or substantially from them. Using `cavet`, distribu
 it, and building on it are all unaffected. Selling a hosted service whose value comes
 substantially from those rules is not.
 
-The rules are only loaded by the deep scan tier. The fast tier — secrets and
-dependency scanning, which is what the pre-commit hook and staged scans use — is
+The rules are only loaded by the deep scan tier. The fast tier – secrets and
+dependency scanning, which is what the pre-commit hook and staged scans use – is
 entirely MIT and Apache-2.0, and Opengrep can be disabled outright in `config.yaml`.
