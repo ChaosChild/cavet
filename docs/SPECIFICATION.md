@@ -347,7 +347,7 @@ cavet debt [--severity <level>]     # pre-existing baseline, on demand only
 cavet log [--since <date>] [--fingerprint <id>]
 cavet lookup <identifier>... [--refresh]   # advisory / rule lookup, allowlisted sources
 cavet items                         # open items: design concerns + verification requests
-cavet engine (status|start|stop|pull|shell)
+cavet engine (status|start|stop|pull|prune|shell)
 cavet rebuild                       # regenerate state/ from log/
 cavet rebaseline                    # after a deliberate engine image change
 cavet describe --json               # machine contract for third-party installers
