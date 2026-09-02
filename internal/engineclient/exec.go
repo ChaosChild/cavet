@@ -28,6 +28,7 @@ func (c *Client) Exec(ctx context.Context, cmd []string) (ExecResult, error) {
 		AttachStdout: true,
 		AttachStderr: true,
 		WorkingDir:   "/workspace",
+		Env:          c.gitEnv(),
 	})
 	if err != nil {
 		return ExecResult{}, fmt.Errorf("exec create %v: %w", cmd, err)
