@@ -44,8 +44,13 @@ themselves around these tools.
 harnesses, and CI are all here and working;
 [SPECIFICATION.md](docs/SPECIFICATION.md) remains the design of record.
 
-<!-- screenshot: terminal showing cavet scan output in an agent session (owner to add) -->
-<!-- <p><img src="docs/screenshot.png" alt="cavet scan output in an agent session" width="720"></p> -->
+<p><img src="docs/scan-demo.gif" alt="cavet staged scan finds a planted key, the finding is dismissed with a recorded reason, and the audit trail shows every event" width="840"></p>
+<p>
+  <img src="docs/harness-claude.png" alt="Claude Code loads the cavet-triage skill, dispatches the cavet-security subagent, and reconciles the verdict for the operator" width="840">
+</p>
+<p>
+  <img src="docs/harness-opencode.png" alt="OpenCode runs the same flow: skill, subagent scan, verification item resolved with cavet, reconciliation and coverage caveat" width="840">
+</p>
 
 ## Installation
 
