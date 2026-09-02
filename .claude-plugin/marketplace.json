@@ -1,12 +1,13 @@
 {
   "name": "cavet",
+  "description": "Advisory security tooling for coding agents: design-time, code-time, and pre-commit security skills plus a triage subagent.",
   "owner": {
     "name": "ChaosChild"
   },
   "plugins": [
     {
       "name": "cavet",
-      "source": "./.",
+      "source": "./",
       "description": "Advisory security tooling for coding agents"
     }
   ]

@@ -3,8 +3,10 @@
   "displayName": "cavet",
   "version": "0.1.0",
   "description": "Advisory security tooling for coding agents",
+  "author": {
+    "name": "Andrei Migatchev",
+    "url": "https://github.com/ChaosChild"
+  },
   "repository": "https://github.com/ChaosChild/cavet",
-  "homepage": "https://github.com/ChaosChild/cavet",
-  "skills": ["./skills"],
-  "agents": ["./agents"]
+  "homepage": "https://github.com/ChaosChild/cavet"
 }
