@@ -99,7 +99,11 @@ Nothing to install by hand: `cavet init` pulls the engine image,
 - `CAVET_ENGINE_IMAGE` overrides the image reference entirely – local builds,
   mirrors, pinning.
 
-The image bundles Opengrep, Gitleaks and Trivy. The Opengrep rule corpus is
+The image bundles Opengrep, Gitleaks, Trivy and Checkov. Trivy alone already
+covers dependencies, IaC misconfiguration and containers from one binary;
+Checkov is an optional, off-by-default second IaC scanner for operators who
+want its broader IaC rule set, enabled per repository with
+`scanners.checkov: true` in `config.yaml`. The Opengrep rule corpus is
 LGPL-2.1 + Commons Clause: using cavet is fine, selling a service whose value
 derives from those rules is not – see the [licence table](#licence).
 
@@ -285,6 +289,8 @@ to sell something built on this:
 | `cavet` CLI, skills, subagent, installers | MIT |
 | Gitleaks | MIT |
 | Trivy | Apache-2.0 |
+| Checkov *(optional, off by default)* | Apache-2.0 |
+| git (in the engine image) | GPL-2.0 |
 | Opengrep engine | LGPL-2.1 |
 | **Opengrep rule corpus** | **LGPL-2.1 + Commons Clause** |
 
