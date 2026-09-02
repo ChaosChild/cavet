@@ -8,12 +8,15 @@
 ARG OPENGREP_VERSION=1.27.1
 ARG GITLEAKS_VERSION=8.30.1
 ARG TRIVY_VERSION=0.74.0
-ARG CHECKOV_VERSION=3.2.30
+ARG CHECKOV_VERSION=3.3.16
 ARG OPENGREP_RULES_SHA=f1d2b562b414783763fd02a6ed2736eaed622efa
 
 # ---------------------------------------------------------------- base ------
 FROM debian:bookworm-slim AS base
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# -y upgrade: the base snapshot's debs go stale between releases (e.g. libexpat1
+# CVE-2026-56408); upgrade picks up every fixed deb security update at build time.
+RUN apt-get update && apt-get -y upgrade \
+    && apt-get install -y --no-install-recommends \
         locales git ca-certificates curl \
     && sed -i 's/^# *C.UTF-8 UTF-8/C.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen \
@@ -24,27 +27,34 @@ ENV TRIVY_CACHE_DIR=/opt/trivy-cache
 ENV OPENGREP_RULES=/opt/opengrep-rules
 ENV GITLEAKS_CONFIG=/opt/gitleaks.toml
 
+# Gitleaks (MIT) — source-built on a current toolchain.
+# Upstream v8.30.1 release binaries are built with Go 1.24.11 + x/crypto
+# v0.35.0 and carry open stdlib/x CVEs (rc1 scan: 1 CRITICAL, 31 HIGH) with no
+# newer upstream release. Building the pinned tag with golang:1.26 fixes the
+# toolchain; the x/* bumps deliberately go past the upstream pin (dependency
+# upgrades only, behaviour unchanged; go mod tidy prunes anything unused).
+# Supply chain: this replaces the release-tarball sha256 pin — the pinned git
+# tag plus go's own module-hash verification (checksum db) cover provenance.
+# gore2regex + CGO_ENABLED=0 mirror the upstream release build (go-re2 is
+# pure-Go wazero, no cgo needed); -ldflags injects the version so
+# `gitleaks --version` still reports the tag.
+FROM golang:1.26-bookworm AS gitleaks-build
+ARG GITLEAKS_VERSION
+RUN git clone --depth 1 --branch "v${GITLEAKS_VERSION}" https://github.com/gitleaks/gitleaks /src \
+    && cd /src \
+    && go get golang.org/x/crypto@latest golang.org/x/net@latest \
+    && go mod tidy \
+    && CGO_ENABLED=0 go build -tags gore2regex -trimpath \
+        -ldflags "-s -w -X=github.com/zricethezav/gitleaks/v8/version.Version=${GITLEAKS_VERSION}" \
+        -o /out/gitleaks .
+
 # ------------------------------------------------------------ scanners ------
 FROM base AS scanners
 ARG TARGETARCH
 ARG OPENGREP_VERSION
-ARG GITLEAKS_VERSION
 ARG TRIVY_VERSION
 ARG CHECKOV_VERSION
-
-# Gitleaks (MIT) — checksum-verified pinned release (engine-spec §10.2).
-RUN set -e; \
-    case "$TARGETARCH" in \
-        amd64) glarch=linux_x64;   sha=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb ;; \
-        arm64) glarch=linux_arm64; sha=e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080 ;; \
-        *) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;; \
-    esac; \
-    curl -fsSL -o /tmp/gitleaks.tar.gz \
-        "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${glarch}.tar.gz"; \
-    echo "$sha /tmp/gitleaks.tar.gz" | sha256sum -c -; \
-    tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks; \
-    chmod +x /usr/local/bin/gitleaks; \
-    rm /tmp/gitleaks.tar.gz
+COPY --from=gitleaks-build /out/gitleaks /usr/local/bin/gitleaks
 
 # Trivy (Apache-2.0).
 RUN set -e; \
@@ -74,9 +84,12 @@ RUN set -e; \
 
 # Checkov (Apache-2.0), opt-in per repository (config.scanners.checkov).
 # ponytail: pip-installed in a venv; pin drift is contained to this layer.
+# setuptools: Debian's ensurepip bundles 66.1.1 into every venv (CVE-2024-6345,
+# CVE-2025-47273); checkov does not depend on it, so bump it past the fixes.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-venv \
     && python3 -m venv /opt/checkov \
+    && /opt/checkov/bin/pip install --no-cache-dir --upgrade "setuptools>=78.1.1" \
     && /opt/checkov/bin/pip install --no-cache-dir "checkov==${CHECKOV_VERSION}" \
     && ln -s /opt/checkov/bin/checkov /usr/local/bin/checkov \
     && apt-get purge -y python3-venv && apt-get autoremove -y \
