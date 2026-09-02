@@ -25,8 +25,20 @@ set -euo pipefail
 
 REPO=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SKILL_NAMES="cavet-deployment cavet-design cavet-design-review cavet-secure-coding cavet-supply-chain cavet-triage"
-MARKER='Never write to .cavet/ directly'
-SNIPPET='Security is part of design, not a phase after it. When we discuss architecture,
+MARKER='Security runs through cavet'
+SNIPPET=$(cat <<'CAVET_SNIPPET'
+Security runs through cavet. Six skills cover the whole path: cavet-design,
+cavet-design-review, cavet-supply-chain, cavet-secure-coding, cavet-deployment,
+cavet-triage. Each skill's description states exactly when it fires; when the
+current task matches one, load that skill and follow it. Do not improvise your
+own security review, and do not skip a matching skill because the task looks
+safe: recognising what is security-relevant is what the skills are for. The
+skills advise, never block; the operator decides. Before scanning, check
+`cavet log --since`: a recorded scan may already cover the current state.
+Never write to .cavet/ directly: the cavet CLI is the only author of its log.
+CAVET_SNIPPET
+)
+OLD_SNIPPET='Security is part of design, not a phase after it. When we discuss architecture,
 features, integrations, data flows, auth, or third-party services, surface security
 implications alongside functional ones — one line, at the decision point, via the
 cavet-design skill. When code is written, apply cavet-secure-coding. Before commit
@@ -102,13 +114,21 @@ Output (to parent) — exactly this, nothing else:
       <id>,<question>
 EOF
 
-# 4. append the instruction snippet, idempotently
-if [ -f "$INSTR_FILE" ] && grep -qF "$MARKER" "$INSTR_FILE"; then
-  INSTR_ACTION='already present'
-else
-  printf '\n%s\n' "$SNIPPET" >> "$INSTR_FILE"
-  INSTR_ACTION='appended'
+# 4. instruction snippet: skip if current, replace the old text, else append
+INSTR_CONTENT=''
+if [ -f "$INSTR_FILE" ]; then
+  INSTR_CONTENT=$(cat "$INSTR_FILE" && printf x)
+  INSTR_CONTENT=${INSTR_CONTENT%x}
 fi
+case "$INSTR_CONTENT" in
+  *"$MARKER"*) INSTR_ACTION='already present' ;;
+  *"$OLD_SNIPPET"*)
+    printf '%s' "${INSTR_CONTENT//"$OLD_SNIPPET"/"$SNIPPET"}" > "$INSTR_FILE"
+    INSTR_ACTION='upgraded' ;;
+  *)
+    printf '\n%s\n' "$SNIPPET" >> "$INSTR_FILE"
+    INSTR_ACTION='appended' ;;
+esac
 
 # 5. summary
 echo 'cavet -> DeepSeek Harness (dsh)'

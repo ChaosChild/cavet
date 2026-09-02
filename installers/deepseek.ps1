@@ -27,8 +27,19 @@ $repo = Split-Path -Parent $PSScriptRoot
 $skillNames = @('cavet-deployment', 'cavet-design', 'cavet-design-review',
                 'cavet-secure-coding', 'cavet-supply-chain', 'cavet-triage')
 $utf8 = [Text.UTF8Encoding]::new($false)
-$marker = 'Never write to .cavet/ directly'
+$marker = 'Security runs through cavet'
 $snippet = @'
+Security runs through cavet. Six skills cover the whole path: cavet-design,
+cavet-design-review, cavet-supply-chain, cavet-secure-coding, cavet-deployment,
+cavet-triage. Each skill's description states exactly when it fires; when the
+current task matches one, load that skill and follow it. Do not improvise your
+own security review, and do not skip a matching skill because the task looks
+safe: recognising what is security-relevant is what the skills are for. The
+skills advise, never block; the operator decides. Before scanning, check
+`cavet log --since`: a recorded scan may already cover the current state.
+Never write to .cavet/ directly: the cavet CLI is the only author of its log.
+'@
+$oldSnippet = @'
 Security is part of design, not a phase after it. When we discuss architecture,
 features, integrations, data flows, auth, or third-party services, surface security
 implications alongside functional ones — one line, at the decision point, via the
@@ -101,9 +112,13 @@ Output (to parent) — exactly this, nothing else:
 $subagentFile = Join-Path $harnessHome 'cavet-security.md'
 [IO.File]::WriteAllText($subagentFile, $subagent, $utf8)
 
-# 4. append the instruction snippet, idempotently
-if ((Test-Path $instrFile) -and (Select-String -SimpleMatch -Quiet $marker $instrFile)) {
+# 4. instruction snippet: skip if current, replace the old text, else append
+$instrContent = if (Test-Path $instrFile) { [IO.File]::ReadAllText($instrFile) } else { '' }
+if ($instrContent.Contains($marker)) {
     $instrAction = 'already present'
+} elseif ($instrContent.Contains($oldSnippet)) {
+    [IO.File]::WriteAllText($instrFile, $instrContent.Replace($oldSnippet, $snippet), $utf8)
+    $instrAction = 'upgraded'
 } else {
     [IO.File]::AppendAllText($instrFile, "`n$snippet`n", $utf8)
     $instrAction = 'appended'

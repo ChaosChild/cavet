@@ -17,6 +17,11 @@ you are the subagent — read that section only.
 hook output has landed in your context (a hook result *is* a scan result — treat it
 as one, do not re-run it). Not after every keystroke.
 
+**Check before you scan.** Run `cavet log --since <recent>` first: if a scan for
+the same scope is already recorded, or hook output covering it is already in your
+context, reconcile from that record instead of dispatching a new scan. Dispatch
+only when nothing recent covers the current state of the code.
+
 **Read the coverage, not just the findings.** The result header names the scanners
 that actually ran, and a staged scan runs secrets and dependency checks only — SAST
 is not on that path. A clean staged result means "no secrets, no vulnerable
