@@ -347,7 +347,7 @@ cavet debt [--severity <level>]     # pre-existing baseline, on demand only
 cavet log [--since <date>] [--fingerprint <id>]
 cavet lookup <identifier>... [--refresh]   # advisory / rule lookup, allowlisted sources
 cavet items                         # open items: design concerns + verification requests
-cavet engine (status|start|stop|pull|prune|shell)
+cavet engine (status|start|stop|pull|prune|shell)   # prune: remove containers whose repo root is gone
 cavet rebuild                       # regenerate state/ from log/
 cavet rebaseline                    # after a deliberate engine image change
 cavet describe --json               # machine contract for third-party installers
@@ -581,6 +581,13 @@ warm-up — which is a further reason SAST does not belong on the fast path.
   holds some memory and effectively no CPU, and stopping it would reintroduce the 24s
   Trivy cold start the fast tier (§5.2) depends on avoiding. Operators on
   constrained machines can bound it with ordinary Docker resource limits.
+- `cavet engine prune [--all]` garbage-collects what the no-idle-timeout policy
+  accumulates: repositories get deleted, moved, or were throwaway test checkouts,
+  and their containers outlive them. The default removes containers whose repository
+  root no longer exists on the host; `--all` removes every cavet container except the
+  calling repository's. Containers hold no unique state, so removal loses nothing;
+  a container prune cannot classify (no `/workspace` bind) is reported and skipped,
+  never removed.
 
 ### 7.2 Contents
 

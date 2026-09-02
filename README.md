@@ -110,7 +110,11 @@ cavet init             # add --hooks to also install the advisory pre-commit hoo
 
 It scaffolds `.cavet/`, pulls and starts the engine container, and runs a full
 baseline scan that records every pre-existing finding as debt (work through it
-later with `cavet debt`).
+later with `cavet debt`). The engine container is per-repository and long-lived:
+cavet restarts it when stopped and creates a new one only when absent. Repositories
+that get deleted or moved leave their containers behind; `cavet engine prune`
+removes those, and `--all` removes every cavet container except the current
+repository's.
 
 | Path | Commit? |
 |---|---|
@@ -245,7 +249,7 @@ scoop install cavet
 | `raise` | Open an item: a design concern or a verification request |
 | `resolve` | Close an open item with the decision or answer |
 | `lookup` | Advisory, package, and rule lookup – identifiers only, by design |
-| `engine` | Control the long-lived scanner container |
+| `engine` | Control the long-lived scanner container; `prune` removes containers whose repository is gone |
 | `rebaseline` | After a deliberate engine change: regenerate the baseline |
 | `rebuild` | Regenerate `state/` from the log (the source of truth) |
 | `describe` | Machine contract for third-party installers |
