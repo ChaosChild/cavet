@@ -1,0 +1,14 @@
+engine:
+  variant: core
+  digest: "sha256:cdcd09ad645318041c6400d1e27db1841989c8859cf403aeb1e6fc74fc6f173b"
+scan:
+  deep_default: false
+  container_images: false
+  hook_exit_1: false
+scanners:
+  checkov: false
+network:
+  proxy: ""
+  db_overrides:
+    trivy_db: ""
+    trivy_java_db: ""
