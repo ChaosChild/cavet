@@ -1,0 +1,68 @@
+name: image-posture
+# Weekly alarm on the SHIPPED engine: the rolling :core/:full tags resolve to
+# the latest release, so this catches criticals published AFTER an image
+# shipped. The dev-machine process (engine/scan-local.ps1) and the release-time
+# gate (release.yml) cover what is being built; this is the posture backstop.
+# Findings update ONE tracked issue (new comment per run); zero findings stay
+# silent. The run itself stays green either way - the issue is the alarm.
+on:
+  schedule:
+    - cron: '0 3 * * 0' # Sunday 03:00 UTC, quiet hour
+  workflow_dispatch:
+
+jobs:
+  posture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # pull engine images from ghcr
+      issues: write # open/comment the posture alarm issue
+    steps:
+      - uses: actions/checkout@v7
+      - name: Login to GHCR
+        run: echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Scan core (rolling tag = latest shipped)
+        uses: aquasecurity/trivy-action@v0.36.0 # exact pin - same as the release gate in release.yml
+        with:
+          scan-type: image
+          image-ref: ghcr.io/chaoschild/cavet-engine:core
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '0' # alarm via issue, never a red run
+          output: posture-core.txt
+      - name: Scan full (rolling tag = latest shipped)
+        uses: aquasecurity/trivy-action@v0.36.0 # exact pin - same as the release gate in release.yml
+        with:
+          scan-type: image
+          image-ref: ghcr.io/chaoschild/cavet-engine:full
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          output: posture-full.txt
+      - name: Alarm - one tracked issue, new comment per run with findings
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          crit=$(cat posture-core.txt posture-full.txt | tr -d '()' \
+            | awk '/^Total:/{for(i=1;i<NF;i++) if($i=="CRITICAL:") c+=$(i+1)} END{print c+0}')
+          echo "criticals: $crit"
+          [ "$crit" -gt 0 ] || { echo 'no criticals; staying silent'; exit 0; }
+          {
+            echo "Weekly scan of the shipped engine (rolling core/full tags) found $crit CRITICAL(s)."
+            echo
+            echo '```'
+            cat posture-core.txt posture-full.txt
+            echo '```'
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > posture-body.md
+          title='image-posture: new criticals in shipped engine'
+          num=$(gh issue list --state open --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body-file posture-body.md
+          else
+            gh issue create -t "$title" --body-file posture-body.md
+          fi
