@@ -15,8 +15,42 @@ import (
 )
 
 func newEngineCmd() *cobra.Command {
+	var all bool
+	prune := &cobra.Command{
+		Use:   "prune [--all]",
+		Short: "Remove engine containers whose repository root is gone from the host",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			s, err := openStore()
+			if err != nil {
+				return err
+			}
+			cfg := loadConfig(s)
+			root, _ := repoRoot()
+			c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			entries, err := c.Prune(ctx, all)
+			if err != nil {
+				return fail(err.Error())
+			}
+			if len(entries) == 0 {
+				fmt.Println("no cavet engine containers")
+				return nil
+			}
+			for _, e := range entries {
+				if e.Root != "" {
+					fmt.Printf("%s %s: %s\n", e.Name, e.Root, e.Action)
+				} else {
+					fmt.Printf("%s: %s\n", e.Name, e.Action)
+				}
+			}
+			return nil
+		},
+	}
+	prune.Flags().BoolVar(&all, "all", false, "remove every cavet-* container except this repository's")
+
 	cmd := &cobra.Command{
-		Use:   "engine (status|start|stop|pull|shell)",
+		Use:   "engine (status|start|stop|pull|prune|shell)",
 		Short: "Control the long-lived scanner container",
 	}
 	cmd.AddCommand(
@@ -120,6 +154,7 @@ func newEngineCmd() *cobra.Command {
 				return nil
 			},
 		},
+		prune,
 		&cobra.Command{
 			Use:   "shell",
 			Short: "Interactive shell in the engine container (operator only)",
