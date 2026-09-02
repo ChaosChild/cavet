@@ -1,4 +1,4 @@
 # cavet engine published digests - format: "<variant> <manifest-digest>", one line per variant.
 # Record of what shipped; committed after each release (engine-spec §9.3).
-core sha256:cdcd09ad645318041c6400d1e27db1841989c8859cf403aeb1e6fc74fc6f173b
-full sha256:e930a5723762f0066a6d275ca89b0b5b6f112056a6f20efa8755c0108a9b75e1
+core sha256:ec7369a052b989a56a1408317c693dcd406a847ea6f60d313526a06658239718
+full sha256:b88130afec0f909fd9b03c6af959f96747f095fd0b38ee3729e24205207981fa
