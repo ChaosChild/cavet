@@ -1,0 +1,83 @@
+name: Bug report
+description: Something in cavet misbehaves – a command, the engine, an installer, or a skill
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please redact secrets, keys, and session
+        artefacts from everything you paste – issues are public. Security
+        vulnerabilities do not belong here; use private vulnerability
+        reporting (Security tab → Report a vulnerability) instead.
+  - type: input
+    id: version
+    attributes:
+      label: cavet version
+      description: Output of `cavet version`
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Install channel
+      options:
+        - binary installer (binary.sh / binary.ps1)
+        - Homebrew
+        - Scoop
+        - go install
+        - built from source
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - windows/amd64
+        - linux/amd64
+        - linux/arm64
+        - darwin/amd64
+        - darwin/arm64
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - CLI (scan, debt, design, log, …)
+        - engine container / image
+        - installer / upgrade
+        - skills or subagents in a harness
+        - CI integration
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands, in order, from a clean state where possible
+      placeholder: |
+        cavet init
+        git add keyfile.txt
+        cavet scan --staged
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      description: What you expected to happen, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Output and context
+      description: |
+        Relevant `cavet log` output, stderr, or engine logs, with secrets
+        redacted. If engine-related: was the Docker daemon reachable, and
+        which variant is pinned in `.cavet/config.yaml` (core or full)?
