@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a change or addition to cavet
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        cavet advises, never blocks – proposals that fit that shape and the
+        existing phase model are the easiest to accept. Big ideas are still
+        welcome; docs/SPECIFICATION.md is the design of record and will move
+        with the idea.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does cavet fall short?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: harness
+    attributes:
+      label: Which harness do you run cavet through?
+      description: Helps judge where a change has to land – CLI, skill, or subagent
+      options:
+        - Claude Code
+        - Codex
+        - DeepSeek
+        - Hermes
+        - OpenCode
+        - Pi
+        - ZCode
+        - Other / multiple
+        - Not using a harness yet
