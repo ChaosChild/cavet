@@ -351,6 +351,7 @@ cavet engine (status|start|stop|pull|prune|shell)   # prune: remove containers w
 cavet rebuild                       # regenerate state/ from log/
 cavet rebaseline                    # after a deliberate engine image change
 cavet describe --json               # machine contract for third-party installers
+cavet update [--check]              # in-place self-update from GitHub releases
 ```
 
 `describe --json` emits skill paths, recommended subagent tool allowlists, trigger
