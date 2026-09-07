@@ -87,6 +87,18 @@ Installs into `$HOME\.local\bin` and adds that directory to your user `PATH`
 installed. Other channels – manual download, `go install`, Homebrew, Scoop –
 are in [Advanced: other install channels](#advanced-other-install-channels).
 
+### Upgrade
+
+`cavet update` is the in-place upgrade path: it resolves the latest release,
+verifies it exactly like the installers (checksum, plus the Sigstore bundle
+when cosign is installed), and swaps the running binary at its real install
+location. That location is the reason it exists: re-running an installer
+defaults to `~/.local/bin` (or `$HOME\.local\bin`) regardless of where cavet
+actually lives, so a Homebrew, Scoop, `go install` or manual install can end
+up shadowed by a stale copy. `cavet update --check` only reports whether an
+update exists. Development builds (`go install`, `go build`) refuse and point
+back at their own channel.
+
 ### Engine image
 
 Nothing to install by hand: `cavet init` pulls the engine image,
@@ -261,6 +273,7 @@ scoop install cavet
 | `rebaseline` | After a deliberate engine change: regenerate the baseline |
 | `rebuild` | Regenerate `state/` from the log (the source of truth) |
 | `describe` | Machine contract for third-party installers |
+| `update` | Update the cavet binary in place from GitHub releases, checksum and Sigstore verified |
 
 Judgement lives in the skills: `cavet-design`, `cavet-design-review`,
 `cavet-secure-coding`, `cavet-triage`, `cavet-supply-chain`, `cavet-deployment`,
