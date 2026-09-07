@@ -40,7 +40,7 @@ session. **Nothing blocks.** Everything advises. The agent or the operator
 chooses to remediate, defer, or dismiss. Teams that need enforcement build it
 themselves around these tools.
 
-**Status:** v0.1.0. The CLI, the multi-arch engine image, installers for seven
+**Status:** v0.1.1. The CLI, the multi-arch engine image, installers for seven
 harnesses, and CI are all here and working;
 [SPECIFICATION.md](docs/SPECIFICATION.md) remains the design of record.
 

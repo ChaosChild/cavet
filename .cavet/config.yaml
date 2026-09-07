@@ -1,6 +1,6 @@
 engine:
   variant: core
-  digest: "sha256:cdcd09ad645318041c6400d1e27db1841989c8859cf403aeb1e6fc74fc6f173b"
+  digest: "sha256:cdaa96cc243d18e434033fd1a95917d4760c7fc8f27caeeebd7102a71676a62f"
 scan:
   deep_default: false
   container_images: false
