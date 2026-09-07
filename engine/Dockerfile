@@ -48,6 +48,28 @@ RUN git clone --depth 1 --branch "v${GITLEAKS_VERSION}" https://github.com/gitle
         -ldflags "-s -w -X=github.com/zricethezav/gitleaks/v8/version.Version=${GITLEAKS_VERSION}" \
         -o /out/gitleaks .
 
+# Trivy (Apache-2.0), source-built like gitleaks above. CVE-2026-84304 (HIGH,
+# grpc, fixed in v1.83.1) sits in the v0.74.0 upstream release binary and
+# v0.74.0 is still the latest release, so no fixed tarball exists to pin;
+# building the pinned tag with the grpc bump is the only clean path (a
+# dependency upgrade only, behaviour unchanged; go mod tidy prunes anything
+# unused). Supply chain: this replaces the release-tarball sha256 pins with the
+# pinned git tag plus go's own module-hash verification (checksum db), same as
+# the gitleaks stage. Flip back to the release tarball when upstream trivy
+# ships grpc >= 1.83.1. -ldflags injects the one version var upstream's
+# goreleaser/magefile set, so `trivy --version` still reports the tag, and
+# GOEXPERIMENT=jsonv2 mirrors upstream's release env (trivy imports the
+# experimental encoding/json/v2, gated behind it).
+FROM golang:1.26-bookworm AS trivy-build
+ARG TRIVY_VERSION
+RUN git clone --depth 1 --branch "v${TRIVY_VERSION}" https://github.com/aquasecurity/trivy /src \
+    && cd /src \
+    && go get google.golang.org/grpc@v1.83.1 \
+    && go mod tidy \
+    && CGO_ENABLED=0 GOEXPERIMENT=jsonv2 go build -trimpath \
+        -ldflags "-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}" \
+        -o /out/trivy ./cmd/trivy
+
 # ------------------------------------------------------------ scanners ------
 FROM base AS scanners
 ARG TARGETARCH
@@ -56,19 +78,9 @@ ARG TRIVY_VERSION
 ARG CHECKOV_VERSION
 COPY --from=gitleaks-build /out/gitleaks /usr/local/bin/gitleaks
 
-# Trivy (Apache-2.0).
-RUN set -e; \
-    case "$TARGETARCH" in \
-        amd64) tarch=Linux-64bit;  sha=2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a ;; \
-        arm64) tarch=Linux-ARM64;  sha=b94ce1976bbf3c15b514b605ee88be7c6d94a29be2302847ff01cb794d47aad5 ;; \
-        *) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;; \
-    esac; \
-    curl -fsSL -o /tmp/trivy.tar.gz \
-        "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_${tarch}.tar.gz"; \
-    echo "$sha /tmp/trivy.tar.gz" | sha256sum -c -; \
-    tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy; \
-    chmod +x /usr/local/bin/trivy; \
-    rm /tmp/trivy.tar.gz
+# Trivy (Apache-2.0): source-built above (trivy-build), not the release
+# tarball, until upstream ships grpc >= 1.83.1.
+COPY --from=trivy-build /out/trivy /usr/local/bin/trivy
 
 # Opengrep (engine LGPL-2.1) — self-contained manylinux binary.
 RUN set -e; \
