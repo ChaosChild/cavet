@@ -74,7 +74,6 @@ RUN git clone --depth 1 --branch "v${TRIVY_VERSION}" https://github.com/aquasecu
 FROM base AS scanners
 ARG TARGETARCH
 ARG OPENGREP_VERSION
-ARG TRIVY_VERSION
 ARG CHECKOV_VERSION
 COPY --from=gitleaks-build /out/gitleaks /usr/local/bin/gitleaks
 
