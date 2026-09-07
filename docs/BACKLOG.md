@@ -9,14 +9,6 @@ version that carried it. Last updated: 2026-09-07.
 
 ## Open
 
-### Engine digest rebaseline (in flight, v0.1.1)
-
-This repository's own `.cavet/config.yaml` still pins the rc1 engine image
-digest. New digests only exist once the v0.1.1 engine images are published, so
-this closes right after the release: adopt the new core digest (`cavet engine
-pull`, then `cavet rebaseline`) and resolve the accepted-risk item recorded
-during the CVE-2026-84304 grace window.
-
 ### `cavet import`
 
 cavet's event model cannot ingest external scanner output: findings from
@@ -54,6 +46,13 @@ localhost-only bind vs LAN, live event log vs snapshot, and what velocity
 metrics need captured at event time.
 
 ## Closed
+
+### Engine digest rebaseline (2026-09-07, v0.1.1)
+
+This repository adopted the v0.1.1 core engine digest (`cavet engine pull`,
+then `cavet rebaseline`: 71 findings re-recorded, verdicts preserved) and
+resolved the accepted-risk item recorded during the CVE-2026-84304 grace
+window.
 
 ### `cavet update` (2026-09-07, v0.1.1)
 
