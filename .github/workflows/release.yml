@@ -143,8 +143,11 @@ jobs:
           : > "$RUNNER_TEMP/engine-digests"
           for v in core full; do
             docker buildx imagetools create -t "$REG:${RELEASE_VERSION}-$v" "$REG:${RETAG_FROM_VERSION}-$v"
-            src=$(docker buildx imagetools inspect "$REG:${RETAG_FROM_VERSION}-$v" --format '{{.Descriptor.Digest}}')
-            dst=$(docker buildx imagetools inspect "$REG:${RELEASE_VERSION}-$v" --format '{{.Descriptor.Digest}}')
+            # digest via --raw + sha256: the OCI digest is sha256 of the raw
+            # manifest bytes. Template fields vary across buildx versions
+            # ({{.Descriptor.Digest}} fails on current runners), --raw does not.
+            src=$(docker buildx imagetools inspect "$REG:${RETAG_FROM_VERSION}-$v" --raw | sha256sum | awk '{print "sha256:"$1}')
+            dst=$(docker buildx imagetools inspect "$REG:${RELEASE_VERSION}-$v" --raw | sha256sum | awk '{print "sha256:"$1}')
             # imagetools create must preserve the manifest digest: cosign signs
             # by digest, so a reconstructed manifest would ship a tag with no
             # valid signature. Stop the release if the digests diverge.
