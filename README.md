@@ -52,6 +52,28 @@ harnesses, and CI are all here and working;
   <img src="docs/harness-opencode.png" alt="OpenCode runs the same flow: skill, subagent scan, verification item resolved with cavet, reconciliation and coverage caveat" width="840">
 </p>
 
+## Network posture
+
+Two properties, both structural rather than promised:
+
+- **Scanning runs with the network off.** The engine container is created with
+  `NetworkMode: none`, enforced in `internal/engineclient/client.go` and pinned
+  by CI tests; no scanner tier needs egress.
+- **`cavet lookup` accepts identifiers only** – CVE, GHSA and OSV ids, package
+  coordinates, rule ids, CWE references. A command whose only parameters are
+  identifiers structurally cannot carry a code snippet, a file path, or a secret.
+
+What your agent does with your code afterwards is outside cavet's mandate.
+
+## How this differs from /security-review, Aikido and Semgrep Guardian
+
+`/security-review` is prose plus a model reading the diff. Aikido's plugin and
+Semgrep Guardian are commercial scanners wired into the agent loop. cavet is
+deterministic scanners plus advisory skills, with verdicts recorded in a log
+the repository owns. [docs/COMPARISON.md](docs/COMPARISON.md) carries the full
+comparison: what each tool is, which scanners run, where code goes, what
+persists between sessions, what it costs.
+
 ## Installation
 
 ### Prerequisites
@@ -148,9 +170,19 @@ edit `log/` by hand – the CLI is its only author.
 
 ### Harness setup
 
-The six `cavet-*` skills and the `cavet-security` subagent ride along into your
-coding agent. The binary from the step above is still required – the skills
-drive the CLI, they do not replace it.
+**Skills, any agent, one line.** `npx skills add ChaosChild/cavet` installs the
+seven cavet skills into any of 70 supported agents (Claude Code, Codex, OpenCode,
+Pi, Hermes, zcode, Cursor, Copilot, Gemini CLI, Windsurf and more). The skills
+will walk you through installing the CLI and engine on first use: `cavet-install`
+prints the exact command, what it does, and waits for your explicit yes before
+running anything. Skills alone are enough to evaluate cavet and how it advises;
+the binary and engine are needed to actually scan.
+
+The per-harness routes below copy the six phase skills and add what that line
+does not carry: the `cavet-security` subagent and the agent-instruction
+snippet, placed where the harness reads them. The binary from the install step
+above is still required on either path – the skills drive the CLI, they do not
+replace it.
 
 **Claude Code** (plugin, no clone needed):
 
@@ -277,15 +309,19 @@ scoop install cavet
 
 Judgement lives in the skills: `cavet-design`, `cavet-design-review`,
 `cavet-secure-coding`, `cavet-triage`, `cavet-supply-chain`, `cavet-deployment`,
-plus the `cavet-security` subagent that does focused review with nothing but
-Read and a cavet-only shell. The skills advise; the CLI is the only author of
-`.cavet/` artefacts – every verdict, deferral, and suppression lands in the log
-with a reason and an actor.
+plus the `cavet-install` bootstrap skill that offers the binary install when a
+skill cannot find the CLI, and the `cavet-security` subagent that does focused
+review with nothing but Read and a cavet-only shell. The skills advise; the CLI
+is the only author of `.cavet/` artefacts – every verdict, deferral, and
+suppression lands in the log with a reason and an actor.
 
 ## Documentation
 
 - [SPECIFICATION.md](docs/SPECIFICATION.md) – what this is and why it is shaped
   this way. The design story, kept in the repo.
+- [docs/COMPARISON.md](docs/COMPARISON.md) – how cavet compares with
+  `/security-review`, the Aikido plugin, Semgrep Guardian, Snyk, and the
+  agent-security tools on a different axis.
 - Build and development documentation – implementation history, the spec
   annexes, the scanner spike, the distribution plan, install internals – lives
   at <https://migatchev.co.za/projects/cavet>.

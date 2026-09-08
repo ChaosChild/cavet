@@ -4,6 +4,14 @@ One installer per harness, in two shells (`.ps1` for pwsh, `.sh` for bash).
 Claude Code users can alternatively skip the installer entirely:
 `/plugin marketplace add ChaosChild/cavet` then `/plugin install cavet@cavet`.
 
+There is also a skills-first route that needs no installer at all:
+`npx skills add ChaosChild/cavet` (see the repo README) installs the cavet
+skills into any of 70 supported agents, including a `cavet-install` skill that
+offers the binary install on first use. What the installers below add on top
+of the skills is the `cavet-security` subagent (step 3) and the
+agent-instruction snippet (step 4); the two routes coexist, and the repo
+README says which is canonical for what.
+
 `binary.sh` / `binary.ps1` are different: they install the `cavet` binary
 itself from GitHub Releases — resolve the requested version (default latest),
 download the OS/arch archive, verify it against `checksums.txt` (plus the
