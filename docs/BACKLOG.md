@@ -5,9 +5,19 @@ of forgetting them exceeds the cost of writing them down, and move to Closed
 when they ship. Ordering is the maintainer's call.
 
 When an item ships, move it below the line with the completion date and the
-version that carried it. Last updated: 2026-09-07.
+version that carried it. Last updated: 2026-09-08.
 
 ## Open
+
+### golang 1.27 for the engine source builds
+
+Dependabot's 1.27-bookworm bump (PR #25) is closed and its 1.27.x minor
+ignored: trivy v0.74.0 does not compile on Go 1.27 because the revised
+encoding/json/v2 experiment dropped json.SkipFunc, and the engine builds
+trivy with GOEXPERIMENT=jsonv2 to mirror the upstream release build.
+Revisit when trivy ships past 0.74.0; also check whether that release
+carries grpc 1.83.1 or newer, which would let the engine flip back to
+release tarballs instead of source builds.
 
 ### `cavet import`
 
@@ -30,13 +40,6 @@ placement (image builds are slow, own tier or part of `--full`); fingerprint
 and baseline semantics for artifacts (key by Dockerfile plus base-image
 digests, not source lines).
 
-### Digest-pin the golang build stage
-
-The engine's source builds (gitleaks, trivy) float the minor tag of
-`golang:1.26-bookworm` so rebuilds pick up Go patches. Pinning the stage by
-digest would freeze the supply chain at the cost of manual toolchain bumps.
-Decide at the next supply-chain posture review.
-
 ### `cavet serve` dashboard
 
 A local, human-readable web dashboard over cavet data: findings, triage state,
@@ -46,6 +49,14 @@ localhost-only bind vs LAN, live event log vs snapshot, and what velocity
 metrics need captured at event time.
 
 ## Closed
+
+### Digest-pin the golang build stage (2026-09-08, unreleased)
+
+Both golang source-build stages (gitleaks, trivy) pin the 1.26-bookworm
+manifest-list digest, so scanner-binary builds are reproducible and
+Dependabot's weekly docker updates bump the digest instead of drifting the
+tag. The debian:bookworm-slim base stays tag-pinned on purpose: that stage
+takes apt security updates at build time.
 
 ### Engine digest rebaseline (2026-09-07, v0.1.1)
 
