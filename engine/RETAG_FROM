@@ -1,0 +1,10 @@
+# cavet engine release control. This file present at the tagged commit means
+# the engine image content is unchanged since the version named below, and the
+# release workflow retags that image instead of rebuilding it.
+# Provenance-only edits (e.g. digest-pinning a base image that the previous
+# build already used) do not change image content; a retag is still correct.
+# Signatures carry over because cosign signs by digest: a retag preserves the
+# manifest digest, so the signatures from the named release stay valid.
+# DELETE this file in any PR that changes engine image content (Dockerfile,
+# bundled scanners, entrypoint) so that release rebuilds and re-signs.
+0.1.1

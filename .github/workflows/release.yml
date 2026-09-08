@@ -38,11 +38,32 @@ jobs:
       - uses: sigstore/cosign-installer@v4.1.2 # exact pin — repo has no mutable v4 major tag
       - name: Login to GHCR
         run: echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+      - name: Resolve engine mode
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          retag_from=""
+          if [ -f engine/RETAG_FROM ]; then
+            retag_from=$(awk '!/^[[:space:]]*#/ && /[^[:space:]]/ { print; exit }' engine/RETAG_FROM \
+              | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          fi
+          if [ -n "$retag_from" ]; then
+            if [ "$retag_from" = "$version" ]; then
+              echo "::error::engine/RETAG_FROM names the version being released ($retag_from); a retag needs a prior version" >&2
+              exit 1
+            fi
+            echo "ENGINE_MODE=retag" >> "$GITHUB_ENV"
+            echo "RETAG_FROM_VERSION=$retag_from" >> "$GITHUB_ENV"
+          else
+            echo "ENGINE_MODE=build" >> "$GITHUB_ENV"
+          fi
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
       # scan gate before push: engine images are immutable per release, so gate
       # at release time. amd64 local build suffices - both arches pin identical
       # apt/scanner versions, only binary arches differ. Fresh advisory DB at
       # gate time (action default); unfixed CVEs cannot block a release.
       - name: Scan gate - build amd64 images
+        if: env.ENGINE_MODE == 'build'
         run: |
           # the docker driver refuses multi-platform push; dedicated builder
           docker buildx create --name cavet-release --bootstrap && docker buildx use cavet-release
@@ -53,6 +74,7 @@ jobs:
       # trivy couples the severity filter to the exit code, so print-HIGH/fail-
       # CRITICAL needs two invocations per variant: report first, then the gate.
       - name: Scan gate - core (report HIGH and CRITICAL)
+        if: env.ENGINE_MODE == 'build'
         uses: aquasecurity/trivy-action@v0.36.0 # exact pin - latest stable release; repo makes no mutable-major-tag guarantee
         with:
           scan-type: image
@@ -62,6 +84,7 @@ jobs:
           exit-code: '0' # report only; HIGH never blocks
           ignore-unfixed: true
       - name: Scan gate - core (CRITICAL fails)
+        if: env.ENGINE_MODE == 'build'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
@@ -71,6 +94,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
       - name: Scan gate - full (report HIGH and CRITICAL)
+        if: env.ENGINE_MODE == 'build'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
@@ -80,6 +104,7 @@ jobs:
           exit-code: '0'
           ignore-unfixed: true
       - name: Scan gate - full (CRITICAL fails)
+        if: env.ENGINE_MODE == 'build'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
@@ -89,33 +114,71 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
       - name: Build, push, sign engine; record digests
+        if: env.ENGINE_MODE == 'build'
         env:
           REG: ghcr.io/chaoschild/cavet-engine
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          minor=$(echo "$version" | cut -d. -f1-2)
-          digests=()
+          minor=$(echo "$RELEASE_VERSION" | cut -d. -f1-2)
+          : > "$RUNNER_TEMP/engine-digests"
           for v in core full; do
             meta="$RUNNER_TEMP/engine-$v.json"
             docker buildx build --platform linux/amd64,linux/arm64 --target "final-$v" \
-              -t "$REG:$version-$v" -t "$REG:$minor-$v" -t "$REG:$v" \
+              -t "$REG:$RELEASE_VERSION-$v" -t "$REG:$minor-$v" -t "$REG:$v" \
               --push --metadata-file "$meta" -f engine/Dockerfile engine/
             digest=$(grep -o '"containerimage.digest": *"[^"]*"' "$meta" | grep -o 'sha256:[0-9a-f]*')
-            cosign sign --yes "$REG:$version-$v@$digest"
-            digests+=("$v $digest")
+            cosign sign --yes "$REG:$RELEASE_VERSION-$v@$digest"
+            printf '%s %s\n' "$v" "$digest" >> "$RUNNER_TEMP/engine-digests"
           done
+      # retag path skips the scan gate on purpose: image bytes are unchanged
+      # since the release that already passed it. minor-<variant> and rolling
+      # tags already point at this manifest from the prior release, and the
+      # digest is already signed, so only the versioned tags are created and
+      # nothing is re-signed.
+      - name: Retag engine from prior release
+        if: env.ENGINE_MODE == 'retag'
+        env:
+          REG: ghcr.io/chaoschild/cavet-engine
+        run: |
+          set -euo pipefail
+          : > "$RUNNER_TEMP/engine-digests"
+          for v in core full; do
+            docker buildx imagetools create -t "$REG:${RELEASE_VERSION}-$v" "$REG:${RETAG_FROM_VERSION}-$v"
+            src=$(docker buildx imagetools inspect "$REG:${RETAG_FROM_VERSION}-$v" --format '{{.Descriptor.Digest}}')
+            dst=$(docker buildx imagetools inspect "$REG:${RELEASE_VERSION}-$v" --format '{{.Descriptor.Digest}}')
+            # imagetools create must preserve the manifest digest: cosign signs
+            # by digest, so a reconstructed manifest would ship a tag with no
+            # valid signature. Stop the release if the digests diverge.
+            if [ "$src" != "$dst" ]; then
+              echo "::error::imagetools create changed the $v manifest digest (source $src, retagged $dst); refusing to ship an unsigned-equivalent tag" >&2
+              exit 1
+            fi
+            printf '%s %s\n' "$v" "$dst" >> "$RUNNER_TEMP/engine-digests"
+          done
+          echo "retagged $RELEASE_VERSION core/full from $RETAG_FROM_VERSION: engine image content unchanged, so the prior scan result and digest-scoped cosign signatures carry over; minor and rolling tags already point at this manifest."
+      - name: Record engine digests and plugin version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "$RUNNER_TEMP/engine-digests" ]; then
+            echo "::error::$RUNNER_TEMP/engine-digests missing; neither the build nor the retag step produced digests" >&2
+            exit 1
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git checkout -B "release/digests-$GITHUB_REF_NAME"
           { echo '# cavet engine published digests - format: "<variant> <manifest-digest>", one line per variant.'
             echo '# Record of what shipped; committed after each release (engine-spec §9.3).'
-            printf '%s\n' "${digests[@]}"
+            cat "$RUNNER_TEMP/engine-digests"
           } > engine/digest.txt
-          git add engine/digest.txt
-          if git diff --cached --quiet -- engine/digest.txt; then echo 'digest.txt unchanged'; exit 0; fi
-          git commit -m "chore(release): engine digests $GITHUB_REF_NAME"
+          jq --arg v "$RELEASE_VERSION" '.version = $v' .claude-plugin/plugin.json > tmp && mv tmp .claude-plugin/plugin.json
+          git add engine/digest.txt .claude-plugin/plugin.json
+          if git diff --cached --quiet -- engine/digest.txt .claude-plugin/plugin.json; then
+            echo 'digest.txt and plugin.json unchanged'
+            exit 0
+          fi
+          git commit -m "chore(release): engine digests + plugin version $GITHUB_REF_NAME"
           git push origin "HEAD:release/digests-$GITHUB_REF_NAME"
-          gh pr create --title "chore(release): engine digests $GITHUB_REF_NAME" \
+          gh pr create --title "chore(release): engine digests + plugin version $GITHUB_REF_NAME" \
             --body "Digest record from the $GITHUB_REF_NAME release engine job. Auto-generated; merge to record what shipped." \
             --base main --head "release/digests-$GITHUB_REF_NAME" || true
