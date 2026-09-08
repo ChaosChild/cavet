@@ -934,11 +934,34 @@ version recorded on every event so the log stays readable as the model evolves.
 
 ## 11. Skills
 
-**Hard cap: six top-level skills.** Adding a seventh requires deleting one. Focused
-skills outperform exhaustive bundles, and the natural drift is one skill per phase ×
-stack × framework, which is context bloat through a different door.
+**Hard cap: seven top-level skills, six of them trigger-contract skills.**
+Adding an eighth requires deleting one. Focused skills outperform exhaustive
+bundles, and the natural drift is one skill per phase × stack × framework, which
+is context bloat through a different door.
 
-Depth lives in `references/` beneath each skill, loaded on demand.
+The seventh, `cavet-install`, is a **bootstrap skill**, a separate class. The cap
+moved from six to seven for two reasons, recorded so the move is not read as
+licence to make it eight:
+
+1. **The cost model does not apply.** What stays resident is the description. The
+   six trigger-contract skills need long, pushy descriptions because they must
+   fire on activity that never mentions security. A bootstrap skill's trigger is
+   mechanical and unambiguous: the binary is not on PATH. Two lines of
+   description, roughly 15 to 20 resident tokens, not ~100.
+2. **A skill name is the only identifier that resolves on every harness.** The
+   cheaper option is a shared `references/install.md`, but references live inside
+   a single skill's directory and skills install as flat directories across 70
+   different layouts. A cross-skill relative path is exactly the kind of thing
+   that breaks silently on the harnesses nobody tests. The skill is not a
+   convenience here, it is the addressing mechanism.
+
+A bootstrap skill is exempt from the trigger-contract description conventions
+because its trigger is mechanical, and that exemption is what keeps its resident
+cost small. The exemption covers this class of skill only; the cap on
+trigger-contract skills is unchanged.
+
+Depth lives in `references/` beneath each skill, loaded on demand. The bootstrap
+skill has none: a bootstrap skill stays a single file.
 
 **Every skill is prefixed `cavet-`.** Because Agent Plugins 1.0 is not used (§2.2),
 installers place skills as loose directories under each harness's skills path, in a
@@ -958,6 +981,7 @@ The prefix carries the security signal, so the names do not repeat it —
 | `cavet-secure-coding` | Build | Any code being written or modified |
 | `cavet-supply-chain` | Build, Deploy | Adding or updating dependencies |
 | `cavet-deployment` | Deploy | IaC, secrets management, runtime configuration |
+| `cavet-install` *(bootstrap)* | Any | A cavet skill finding the CLI missing; never when the binary is present and working |
 
 ### 11.1 `cavet-design` — the differentiating component
 
