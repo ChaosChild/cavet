@@ -9,6 +9,8 @@ Preventive, not detective. Runs in your own context while you write, because the
 pattern has to be present at the moment the line is written. A finding avoided here
 never has to be detected, triaged, surfaced, or fixed.
 
+If `cavet` is not installed, invoke `cavet-install` and resume.
+
 ## How to use this
 
 Write the code the secure way by default and say nothing about it. Mention security

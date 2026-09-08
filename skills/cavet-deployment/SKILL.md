@@ -8,6 +8,8 @@ description: Infrastructure and deployment work — Terraform, CloudFormation, P
 Deployment is where a correct application meets a misconfigured world. Most of what
 goes wrong here is a default that was never changed. Check the defaults.
 
+If `cavet` is not installed, invoke `cavet-install` and resume.
+
 ## While writing
 
 Apply these as you write; mention only what the operator will notice.

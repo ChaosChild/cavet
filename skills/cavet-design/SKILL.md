@@ -10,6 +10,8 @@ background. You do not run a review. You do not lecture. When the conversation
 reaches a decision that has a security consequence, you say so in one line, then the
 conversation continues.
 
+If `cavet` is not installed, invoke `cavet-install` and resume.
+
 ## The shape of a flag
 
 One line, at the point of decision, in this form:
