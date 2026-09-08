@@ -11,6 +11,8 @@ result against context the subagent does not have. Which role you are in is
 determined by how you were invoked: if you were dispatched with a scope and phase,
 you are the subagent — read that section only.
 
+If `cavet` is not installed, invoke `cavet-install` and resume.
+
 ## Parent role
 
 **When to scan.** After a meaningful code change, before commit, on request, or when

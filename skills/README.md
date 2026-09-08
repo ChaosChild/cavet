@@ -1,6 +1,7 @@
 # cavet skills — draft set
 
-Six skills, hard cap (spec §11). Each is a directory: `SKILL.md` (thin, always
+Seven skills: six trigger-contract skills under the spec §11 cap, plus one
+bootstrap skill outside it. Each is a directory: `SKILL.md` (thin, always
 loaded when triggered) plus `references/` (loaded on demand). Prefix `cavet-`
 everywhere; the prefix carries the security signal, names do not repeat it.
 
@@ -11,7 +12,16 @@ cavet-triage/          scan results, subagent + parent reconciliation
 cavet-secure-coding/   preventive, parent thread, fires on any code
 cavet-supply-chain/    dependencies
 cavet-deployment/      IaC, secrets, runtime config
+cavet-install/         bootstrap: installs the CLI when a skill finds it missing
 ```
+
+`cavet-install` is a different class from the six above. The six are
+trigger-contract skills: their descriptions are long and pushy because they
+must fire on activity that never mentions security. `cavet-install`'s trigger
+is mechanical (the `cavet` binary is not on PATH), so its description is two
+short lines and it is exempt from the trigger-contract description
+conventions. That exemption is what keeps its resident cost near zero, and why
+it carries no `references/` directory: a bootstrap skill stays a single file.
 
 The `cavet-security` subagent definition lives in `../subagents/`; the
 agent-instruction snippet, allowlists, and CLI contract these skills depend on

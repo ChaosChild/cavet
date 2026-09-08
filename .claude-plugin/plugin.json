@@ -1,7 +1,7 @@
 {
   "name": "cavet",
   "displayName": "cavet",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Advisory security tooling for coding agents",
   "author": {
     "name": "Andrei Migatchev",

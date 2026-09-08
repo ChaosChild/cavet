@@ -9,6 +9,8 @@ A dependency is code you run with your privileges, written by someone you have n
 met, updated on their schedule. The questions below take thirty seconds and are
 cheaper than the incident.
 
+If `cavet` is not installed, invoke `cavet-install` and resume.
+
 ## Before adding
 
 1. **Is it needed?** Standard library or an existing dependency first. A

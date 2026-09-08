@@ -9,6 +9,8 @@ The checkpoint. Conversational flagging (`cavet-design`) is probabilistic; this 
 the deterministic pass at the door between design and build. It exists to catch two
 things: what was raised and then forgotten, and what was never raised at all.
 
+If `cavet` is not installed, invoke `cavet-install` and resume.
+
 ## Procedure
 
 1. **Read the open items first.** Run `cavet items`. This is not optional and it is
