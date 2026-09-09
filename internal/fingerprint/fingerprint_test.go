@@ -45,6 +45,33 @@ func TestOfMatchesKnownVector(t *testing.T) {
 	}
 }
 
+func TestImageMatchesKnownVector(t *testing.T) {
+	// sha256("img:" + tag + \x00 + vulnID + \x00 + pkg + \x00 + version),
+	// cross-checked against the platform SHA-256; the identity is package
+	// identity, no line context (spec §3.3 img namespace).
+	want := "632b26e2f594a0cf53f5541fcf380fc7af4f71690a8e46497b2385f0a2bffe86"
+	if got := Image("cavet-scan-0", "CVE-2026-14456", "libcrypto3", "3.5.7-r0"); got != want {
+		t.Fatalf("got %s want %s", got, want)
+	}
+}
+
+func TestImageSeparatesFields(t *testing.T) {
+	base := Image("cavet-scan-0", "CVE-1", "openssl", "1.0")
+	for name, got := range map[string]string{
+		"tag":     Image("cavet-scan-1", "CVE-1", "openssl", "1.0"),
+		"vuln":    Image("cavet-scan-0", "CVE-2", "openssl", "1.0"),
+		"pkg":     Image("cavet-scan-0", "CVE-1", "libssl", "1.0"),
+		"version": Image("cavet-scan-0", "CVE-1", "openssl", "1.1"),
+	} {
+		if got == base {
+			t.Fatalf("Image must separate %s from the identity", name)
+		}
+	}
+	if base == Of("CVE-1", "") {
+		t.Fatal("img: namespace must never collide with line-context fingerprints")
+	}
+}
+
 func TestKeysSeparateFields(t *testing.T) {
 	if Of("ab", "") == Of("a", "b") {
 		t.Fatal("Of must separate rule key from context")

@@ -1,0 +1,137 @@
+{
+ "version": "2.1.0",
+ "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+ "runs": [
+  {
+   "tool": {
+    "driver": {
+     "fullName": "Trivy Vulnerability Scanner",
+     "informationUri": "https://github.com/aquasecurity/trivy",
+     "name": "Trivy",
+     "rules": [
+      {
+       "id": "CVE-2026-14456",
+       "name": "OsPackageVulnerability",
+       "shortDescription": {
+        "text": "openssl: OpenSSL: Denial of Service via unbounded memory growth in QUIC server"
+       },
+       "fullDescription": {
+        "text": "Issue summary: When an OpenSSL QUIC server (Listener SSL object) processes\nvalid QUIC Initial packets for unknown destin"
+       },
+       "defaultConfiguration": {
+        "level": "error"
+       },
+       "helpUri": "https://avd.aquasec.com/nvd/cve-2026-14456",
+       "help": {
+        "text": "Vulnerability CVE-2026-14456\nSeverity: HIGH\nPackage: libssl3\nFixed Version: 3.5.8-r0\nLink: [CVE-2026-14456](https://avd."
+       },
+       "properties": {
+        "precision": "very-high",
+        "security-severity": "8.0",
+        "tags": [
+         "vulnerability",
+         "security",
+         "HIGH"
+        ]
+       }
+      },
+      {
+       "id": "CVE-2025-8869",
+       "name": "LanguageSpecificPackageVulnerability",
+       "shortDescription": {
+        "text": "pip: pip missing checks on symbolic link extraction"
+       },
+       "fullDescription": {
+        "text": "When extracting a tar archive pip may not check symbolic links point into the extraction directory if the tarfile module"
+       },
+       "defaultConfiguration": {
+        "level": "warning"
+       },
+       "helpUri": "https://avd.aquasec.com/nvd/cve-2025-8869",
+       "help": {
+        "text": "Vulnerability CVE-2025-8869\nSeverity: MEDIUM\nPackage: pip\nFixed Version: 25.3\nLink: [CVE-2025-8869](https://avd.aquasec."
+       },
+       "properties": {
+        "cvssv40_baseScore": 5.9,
+        "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:A/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
+        "precision": "very-high",
+        "security-severity": "5.5",
+        "tags": [
+         "vulnerability",
+         "security",
+         "MEDIUM"
+        ]
+       }
+      }
+     ],
+     "version": "0.74.0"
+    }
+   },
+   "results": [
+    {
+     "ruleId": "CVE-2026-14456",
+     "ruleIndex": 0,
+     "level": "error",
+     "message": {
+      "text": "Package: libcrypto3\nInstalled Version: 3.5.7-r0\nVulnerability CVE-2026-14456\nSeverity: HIGH\nFixed Version: 3.5.8-r0\nLink: [CVE-2026-14456](https://avd.aquasec.com/nvd/cve-2026-14456)"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "/host/maia-python.tar",
+         "uriBaseId": "ROOTPATH"
+        },
+        "region": {
+         "startLine": 1,
+         "startColumn": 1,
+         "endLine": 1,
+         "endColumn": 1
+        }
+       },
+       "message": {
+        "text": "/host/maia-python.tar: libcrypto3@3.5.7-r0"
+       }
+      }
+     ]
+    },
+    {
+     "ruleId": "CVE-2025-8869",
+     "ruleIndex": 10,
+     "level": "warning",
+     "message": {
+      "text": "Package: pip\nInstalled Version: 25.0.1\nVulnerability CVE-2025-8869\nSeverity: MEDIUM\nFixed Version: 25.3\nLink: [CVE-2025-8869](https://avd.aquasec.com/nvd/cve-2025-8869)"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info/METADATA",
+         "uriBaseId": "ROOTPATH"
+        },
+        "region": {
+         "startLine": 1,
+         "startColumn": 1,
+         "endLine": 1,
+         "endColumn": 1
+        }
+       },
+       "message": {
+        "text": "usr/local/lib/python3.12/site-packages/pip-25.0.1.dist-info/METADATA: pip@25.0.1"
+       }
+      }
+     ]
+    }
+   ],
+   "columnKind": "utf16CodeUnits",
+   "properties": {
+    "imageID": "sha256:a410e22a7e9a662440e5853c886ebb80e3497aad3fd3304469037c113f3166db",
+    "imageName": "/host/maia-python.tar",
+    "repoDigests": null,
+    "repoTags": [
+     "maia-python:latest"
+    ]
+   }
+  }
+ ]
+}

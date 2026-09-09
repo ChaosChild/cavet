@@ -252,6 +252,19 @@ This applies to secret findings specifically. SAST and SCA findings do not overl
 across the default scanner set, and inventing a general cross-scanner identity for
 them would be speculative — revisit if a second SAST engine is ever enabled.
 
+**Image findings fingerprint on package identity, not code context.** `trivy image`
+scans layers where line context does not exist: the SARIF locations are the scan
+tar or in-image file paths, meaningless repo-side. An image finding's identity is
+`sha256("img:" + imageName + "\x00" + vulnID + "\x00" + pkgName + "\x00" + pkgVersion)`,
+where `imageName` is the tag the scan built the image under (`cavet-scan-<n>`), so
+the same CVE in two configured images stays two findings with separate triage. The
+finding locates at the configured Dockerfile's repo path, never an in-image path,
+and Dockerfile path plus any resolved base-image digests ride as location and
+metadata, never identity. The scanner name `trivy-image` is distinct from `trivy`:
+a filesystem scan covering the Dockerfile proves nothing about image findings
+(§3.1), because it did not run the scanner that found them. The secret
+pre-collapse never applies to image findings.
+
 ### 3.4 Determinism of the delta
 
 If scanner rules or vulnerability databases drift between runs, the delta becomes
@@ -596,7 +609,7 @@ warm-up — which is a further reason SAST does not belong on the fast path.
 |---|---|---|---|
 | SAST | **Opengrep** | Engine LGPL-2.1; **rules LGPL-2.1 + Commons Clause** | Default engine, deep tier only (§5.2) |
 | Secrets | **Gitleaks** | MIT | Requires git history |
-| SCA, IaC, containers | **Trivy** | Apache-2.0 | One binary, one startup. Container image scanning is a separate opt-in (§7.6) |
+| SCA, IaC, containers | **Trivy** | Apache-2.0 | One binary, one startup. Container image scanning is a separate opt-in under the distinct `trivy-image` scanner identity (§3.3, §7.6) |
 | IaC *(optional, off by default)* | **Checkov** | Apache-2.0 | Enabled per repository in `config.yaml`; broader IaC coverage than Trivy at a real startup cost |
 | VCS | **git** | GPL-2.0 | Read operations, sandboxed |
 

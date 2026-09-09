@@ -76,6 +76,12 @@ func Merge(fs []Finding) []*MergedFinding {
 	byFP := map[string]*MergedFinding{}
 	for _, f := range rest {
 		fp := fingerprint.Of(fingerprint.RuleKey(f.CWE, f.RuleID), normSpan(f.Snippet))
+		if f.Scanner == "trivy-image" {
+			// Image layers have no line context: identity is package identity
+			// in the img: namespace (spec §3.3). The secret pre-collapse above
+			// can never reach here – isSecretFinding matches "trivy" only.
+			fp = fingerprint.Image(f.ImageName, f.RuleID, f.PkgName, f.PkgVersion)
+		}
 		if m, ok := byFP[fp]; ok {
 			m.Locations = appendUniqueLoc(m.Locations, Location{Path: f.Path, Line: f.Line})
 			continue
@@ -124,7 +130,7 @@ func isSecretFinding(f Finding) bool {
 	if f.Scanner == "gitleaks" {
 		return true
 	}
-	if f.Scanner == "trivy" {
+	if f.Scanner == "trivy" { // "trivy-image" never matches: fs secrets only
 		return strings.Contains(f.RuleID, "secret") || strings.Contains(f.RuleID, "token")
 	}
 	if f.Scanner == "opengrep" {

@@ -20,6 +20,13 @@ type Finding struct {
 	Line     int
 	Desc     string // one line; renderer truncates further
 	Snippet  string // matched-span text; feeds fingerprinting and secret collapse
+
+	// Image findings only (scanner trivy-image): package identity replaces
+	// line context, and ImageName is the tag the scan built the image under,
+	// stamped by the caller (image.go) after Parse.
+	ImageName  string
+	PkgName    string
+	PkgVersion string
 }
 
 type sarifDoc struct {
@@ -72,7 +79,8 @@ type sarifResult struct {
 // (Gitleaks, Opengrep). A malformed result drops its row with a warning naming
 // the scanner — never a hard failure (cli-spec §9). The target prefix (the
 // container path scanned, e.g. /workspace or /scan/3) is stripped from
-// absolute paths so results come back repo-relative.
+// absolute paths so results come back repo-relative. For trivy-image, target
+// is the Dockerfile repo path: image findings locate there, never in-image.
 func Parse(scanner string, data []byte, target string) ([]Finding, []string, error) {
 	var doc sarifDoc
 	if err := json.Unmarshal(data, &doc); err != nil {
@@ -101,18 +109,21 @@ func Parse(scanner string, data []byte, target string) ([]Finding, []string, err
 }
 
 func parseResult(scanner, target string, rules []sarifRule, byID map[string]int, res sarifResult) (Finding, string) {
+	var rule sarifRule
+	if res.RuleIndex != nil && *res.RuleIndex >= 0 && *res.RuleIndex < len(rules) {
+		rule = rules[*res.RuleIndex]
+	} else if i, ok := byID[res.RuleID]; ok {
+		rule = rules[i]
+	}
+	if scanner == "trivy-image" {
+		return parseImageResult(scanner, target, rule, res)
+	}
 	if len(res.Locations) == 0 {
 		return Finding{}, fmt.Sprintf("%s: rule %s has no location, row dropped", scanner, res.RuleID)
 	}
 	loc := res.Locations[0].PhysicalLocation
 	if loc.ArtifactLocation.URI == "" || loc.Region.StartLine < 1 {
 		return Finding{}, fmt.Sprintf("%s: rule %s has an incomplete location, row dropped", scanner, res.RuleID)
-	}
-	var rule sarifRule
-	if res.RuleIndex != nil && *res.RuleIndex >= 0 && *res.RuleIndex < len(rules) {
-		rule = rules[*res.RuleIndex]
-	} else if i, ok := byID[res.RuleID]; ok {
-		rule = rules[i]
 	}
 	// A missing rule degrades to empty metadata, never a failure (cli-spec §9).
 	return Finding{
@@ -125,6 +136,44 @@ func parseResult(scanner, target string, rules []sarifRule, byID map[string]int,
 		Desc:     oneLine(descriptionFor(scanner, res, rule)),
 		Snippet:  loc.Region.Snippet.Text,
 	}, ""
+}
+
+// parseImageResult handles the trivy-image shape. Package identity rides the
+// result message as "Package: <name> / Installed Version: <version>" lines
+// (captured from engine trivy 0.74.0, 2026-09-09); SARIF locations are the
+// scan tar or in-image paths, meaningless repo-side, so the caller's target
+// (the Dockerfile repo path) is the location. Rows without package identity
+// (e.g. image secrets) drop with a warning per cli-spec §9 – ponytail: image
+// secrets are out of scope; parse them if a caller ever needs them.
+func parseImageResult(scanner, target string, rule sarifRule, res sarifResult) (Finding, string) {
+	pkg, ver := pkgIdentity(res.Message.Text)
+	if pkg == "" || ver == "" {
+		return Finding{}, fmt.Sprintf("%s: rule %s carries no package identity, row dropped", scanner, res.RuleID)
+	}
+	return Finding{
+		Scanner:    scanner,
+		RuleID:     res.RuleID,
+		CWE:        cweOf(rule),
+		Severity:   NormalizeSeverity(scanner, rawSeverity(scanner, rule)),
+		Path:       target,
+		Line:       1,
+		Desc:       oneLine(descriptionFor(scanner, res, rule)),
+		PkgName:    pkg,
+		PkgVersion: ver,
+	}, ""
+}
+
+// pkgIdentity pulls "Package: <name>" and "Installed Version: <version>" from
+// a trivy result message.
+func pkgIdentity(msg string) (pkg, ver string) {
+	for _, ln := range strings.Split(msg, "\n") {
+		if v, ok := strings.CutPrefix(ln, "Package: "); ok {
+			pkg = strings.TrimSpace(v)
+		} else if v, ok := strings.CutPrefix(ln, "Installed Version: "); ok {
+			ver = strings.TrimSpace(v)
+		}
+	}
+	return pkg, ver
 }
 
 // stripTarget rewrites a container-absolute path back to repo-relative.
