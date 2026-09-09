@@ -498,17 +498,22 @@ func TestImageTagSaltedByRepoRoot(t *testing.T) {
 }
 
 // stagedDiverges pins the index-vs-worktree comparison the staged image
-// phase warns on: identical content is not divergence, differing content is.
+// phase warns on: git diff-files --quiet, exit 0 is not divergence, exit 1
+// is (git's filter-aware comparison, so a CRLF-smudged worktree matches its
+// LF index blob).
 func TestStagedDiverges(t *testing.T) {
 	s := newTestStore(t)
 	host := filepath.Join(s.Root, "Dockerfile")
 	seedDockerfile(t, host) // writes "FROM scratch\n"
-	r := &fakeRunner{stdout: map[string]string{"git show :Dockerfile": "FROM scratch\n"}}
-	if div, err := stagedDiverges(context.Background(), r, "Dockerfile", host); err != nil || div {
+	r := &fakeRunner{exit: map[string]int{"git diff-files --quiet -- Dockerfile": 0}}
+	if div, err := stagedDiverges(context.Background(), r, "Dockerfile"); err != nil || div {
 		t.Fatalf("identical index and worktree must not diverge: %v %v", div, err)
 	}
-	r = &fakeRunner{stdout: map[string]string{"git show :Dockerfile": "FROM patched\n"}}
-	if div, err := stagedDiverges(context.Background(), r, "Dockerfile", host); err != nil || !div {
+	if !r.ran("git diff-files --quiet -- Dockerfile") {
+		t.Fatalf("comparison must use filter-aware git diff-files, cmds: %v", r.cmds)
+	}
+	r = &fakeRunner{exit: map[string]int{"git diff-files --quiet": 1}}
+	if div, err := stagedDiverges(context.Background(), r, "Dockerfile"); err != nil || !div {
 		t.Fatalf("differing index and worktree must diverge: %v %v", div, err)
 	}
 }
@@ -520,8 +525,12 @@ func TestStagedImageScanProceedsOnDivergence(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	r := &fakeRunner{
 		stdout: map[string]string{
-			"git diff --cached":    "Dockerfile\x00",
-			"git show :Dockerfile": "FROM vulnerable\n", // index holds the CVE, tree holds the fix
+			"git diff --cached": "Dockerfile\x00",
+		},
+		exit: map[string]int{
+			// git diff-files --quiet exit 1: the index holds the CVE, the
+			// working tree holds the fix.
+			"git diff-files --quiet": 1,
 		},
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),

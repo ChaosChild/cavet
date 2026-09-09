@@ -74,7 +74,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 		// reads the file on disk. With partial staging that mismatch can
 		// wrongly remediate or miss detection, so it warns loudly and
 		// proceeds; see stagedDiverges.
-		if div, err := stagedDiverges(ctx, r, dockerfile, host); err != nil {
+			if div, err := stagedDiverges(ctx, r, dockerfile); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: %s index/worktree comparison failed: %v\n", dockerfile, err)
 		} else if div {
 			fmt.Fprintf(os.Stderr, "warning: staged %s differs from the working tree; "+
@@ -120,25 +120,26 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 	return report, fs, nil
 }
 
-// stagedDiverges reports whether the index's copy of path (git show :<path>)
-// hashes differently from the working-tree file at hostPath. Divergence
-// semantics: the staged image phase builds WORKING-TREE content while staged
-// coverage credits the INDEX, so with partial staging (the fix in the tree,
-// the CVE in the index) the scan can wrongly remediate or miss detection;
-// the caller warns and proceeds, since refusing would hide the tree's state
-// too. The raw blob vs raw file comparison ignores checkout filters, so a
-// CRLF checkout can read as divergent; the warning is advisory either way.
-func stagedDiverges(ctx context.Context, r Runner, path, hostPath string) (bool, error) {
-	res, err := r.Exec(ctx, []string{"git", "show", ":" + path})
+// stagedDiverges reports whether the index's copy of path differs from the
+// working-tree file, per git diff-files --quiet (exit status 1 = diverges,
+// 0 = identical). The comparison is git's own filter-aware one, so checkout
+// filters like core.autocrlf do not read a smudged (CRLF) working tree as
+// divergent the way a raw blob-vs-file hash would. Divergence semantics: the
+// staged image phase builds WORKING-TREE content while staged coverage
+// credits the INDEX, so with partial staging (the fix in the tree, the CVE
+// in the index) the scan can wrongly remediate or miss detection; the caller
+// warns and proceeds, since refusing would hide the tree's state too.
+func stagedDiverges(ctx context.Context, r Runner, path string) (bool, error) {
+	res, err := r.Exec(ctx, []string{"git", "diff-files", "--quiet", "--", path})
 	if err != nil {
 		return false, err
 	}
-	if res.Code != 0 {
-		return false, fmt.Errorf("git show :%s: %.200s", path, res.Stderr)
+	switch res.Code {
+	case 0:
+		return false, nil
+	case 1:
+		return true, nil
+	default:
+		return false, fmt.Errorf("git diff-files --quiet -- %s: %.200s", path, res.Stderr)
 	}
-	wt, err := os.ReadFile(hostPath)
-	if err != nil {
-		return false, err
-	}
-	return sha256.Sum256(res.Stdout) != sha256.Sum256(wt), nil
 }
