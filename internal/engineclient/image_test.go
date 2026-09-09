@@ -117,7 +117,7 @@ func TestTarDirSkipsSymlinks(t *testing.T) {
 
 func TestTarDirExcludesGitAndCavet(t *testing.T) {
 	dir := t.TempDir()
-	for _, p := range []string{".git/config", ".cavet/state/findings.json", "Dockerfile"} {
+	for _, p := range []string{".git/config", ".cavet/state/findings.json", "sub/.git", "Dockerfile"} {
 		full := filepath.Join(dir, filepath.FromSlash(p))
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 			t.Fatal(err)
@@ -146,7 +146,10 @@ func TestTarDirExcludesGitAndCavet(t *testing.T) {
 		t.Fatalf("regular files must be archived, got %v", entries)
 	}
 	for name := range entries {
-		if strings.HasPrefix(name, ".git/") || strings.HasPrefix(name, ".cavet/") {
+		// A regular file named .git (a linked worktree's gitfile) must be
+		// skipped like the .git directory, at any depth.
+		if name == ".git" || strings.HasSuffix(name, "/.git") ||
+			strings.HasPrefix(name, ".git/") || strings.HasPrefix(name, ".cavet/") {
 			t.Fatalf(".git and .cavet must stay out of the build context, got %v", entries)
 		}
 	}
