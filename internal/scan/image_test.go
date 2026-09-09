@@ -31,7 +31,8 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "engine", "Dockerfile"))
 	r := &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-1.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
 	res, err := Run(context.Background(), s, r, Options{
@@ -112,6 +113,31 @@ func TestImageScanMissingDockerfileFails(t *testing.T) {
 	}
 }
 
+// A failed trivy-image exec on the second image must fail the scan even
+// though both per-image reports are present: /reports persists in the
+// container, and without the per-image name plus exit-code gate CopyOut
+// would hand back a stale report, re-attributing the wrong image's findings
+// or masking the failure as a clean scan.
+func TestImageScanFailedExecCannotReuseStaleReport(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	seedDockerfile(t, filepath.Join(s.Root, "engine", "Dockerfile"))
+	r := &fakeRunner{
+		exit: map[string]int{"--input /scan/image-1.tar": 1},
+		reports: map[string][]byte{
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-1.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		},
+	}
+	_, err := Run(context.Background(), s, r, Options{
+		Scope: ScopeImage, Images: []string{"Dockerfile", "engine/Dockerfile"},
+		Engine: "ghcr.io/x@sha256:t",
+	})
+	if err == nil || !strings.Contains(err.Error(), "trivy-image scan failed (exit 1)") {
+		t.Fatalf("a failed trivy-image exec must fail the scan despite CopyOut succeeding, got %v", err)
+	}
+}
+
 func TestFullScanIncludesImagePhase(t *testing.T) {
 	s := newTestStore(t)
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
@@ -120,7 +146,7 @@ func TestFullScanIncludesImagePhase(t *testing.T) {
 			"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
 			"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
 			"/reports/opengrep.sarif":    fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
-			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
 	res, err := Run(context.Background(), s, r, Options{
@@ -151,7 +177,7 @@ func TestBaselineWriteIncludesImageFindings(t *testing.T) {
 			"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
 			"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
 			"/reports/opengrep.sarif":    fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
-			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
 	if _, err := Run(context.Background(), s, r, Options{
@@ -205,7 +231,7 @@ func TestStagedScanImageTrigger(t *testing.T) {
 	reports := map[string][]byte{
 		"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
 		"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-		"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 	}
 	// A configured Dockerfile among the staged paths pulls the image phase in.
 	r := &fakeRunner{
@@ -269,7 +295,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 		return map[string][]byte{
 			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
 			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-			"/reports/trivy-image.sarif": imageReport,
+			"/reports/trivy-image-0.sarif": imageReport,
 		}
 	}
 	wantFP := fingerprint.Image("Dockerfile", "CVE-2024-9", "openssl", "3.0.15-r1")
@@ -362,7 +388,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 
 	// 4. The image scan that covers its Dockerfile remediates it.
 	if _, err := Run(context.Background(), s, &fakeRunner{
-		reports: map[string][]byte{"/reports/trivy-image.sarif": cleanImageReport},
+		reports: map[string][]byte{"/reports/trivy-image-0.sarif": cleanImageReport},
 	}, Options{
 		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
@@ -402,7 +428,8 @@ func TestImageIdentitySurvivesListReordering(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "engine", "Dockerfile"))
 	reports := func() map[string][]byte {
 		return map[string][]byte{
-			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+			"/reports/trivy-image-1.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		}
 	}
 	run := func(images []string) {

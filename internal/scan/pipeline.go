@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ChaosChild/cavet/internal/engineclient"
@@ -260,15 +261,30 @@ func invocation(scanner, target string) []string {
 			"--skip-db-update", "--skip-check-update", "--offline-scan",
 			"--format", "sarif", "--output", "/reports/trivy.sarif", target}
 	case "trivy-image":
-		// target is the container-side tar the image phase copied in.
+		// target is the container-side tar the image phase copied in; the
+		// per-image ordinal rides it, so every image writes its own report
+		// file (see reportPath).
 		return []string{"trivy", "image", "--input", target,
 			"--offline-scan", "--skip-db-update", "--skip-check-update",
-			"--format", "sarif", "--output", "/reports/trivy-image.sarif"}
+			"--format", "sarif", "--output", reportPath("trivy-image", target)}
 	case "opengrep":
 		return []string{"opengrep", "scan", "--config", "/opt/opengrep-rules",
 			"--sarif", "--output", "/reports/opengrep.sarif", target}
 	}
 	return nil
+}
+
+// reportPath is the container path a scanner's report lands at. trivy-image
+// runs once per image, so its report name carries the image ordinal derived
+// from the target tar (image-<n>.tar): /reports persists in the container
+// across scans, and a shared name would let a failed exec copy out the
+// previous image's or previous scan's report.
+func reportPath(scanner, target string) string {
+	if scanner == "trivy-image" {
+		return "/reports/trivy-image-" +
+			strings.TrimSuffix(strings.TrimPrefix(target, "/scan/image-"), ".tar") + ".sarif"
+	}
+	return "/reports/" + scanner + ".sarif"
 }
 
 func runScanners(ctx context.Context, r Runner, scanners []string, target string) (map[string][]byte, error) {
@@ -278,9 +294,12 @@ func runScanners(ctx context.Context, r Runner, scanners []string, target string
 		if err != nil {
 			return nil, err
 		}
-		b, cerr := r.CopyOut(ctx, "/reports/"+sc+".sarif")
-		if cerr != nil {
-			// Non-zero exit without a report is the anomaly contract (§10.3).
+		b, cerr := r.CopyOut(ctx, reportPath(sc, target))
+		// Non-zero exit without a report is the anomaly contract (§10.3). A
+		// trivy-image run also fails on a non-zero exit with a report: the
+		// file on disk can be a stale one from an earlier scan, and reusing
+		// it would mis-attribute findings or mask the failure as clean.
+		if cerr != nil || (sc == "trivy-image" && res.Code != 0) {
 			return nil, fmt.Errorf("%s scan failed (exit %d): %.300s", sc, res.Code, res.Stderr)
 		}
 		out[sc] = b
