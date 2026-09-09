@@ -293,7 +293,7 @@ func parseAndMerge(scanners []string, raw map[string][]byte, target string, imag
 	for _, sc := range scanners {
 		if sc == "trivy-image" {
 			// Parsed per image in image.go with its Dockerfile location and
-			// build tag; re-parsing here would lose both.
+			// path-derived identity; re-parsing here would lose both.
 			continue
 		}
 		fs, warns, err := projection.Parse(sc, raw[sc], target)

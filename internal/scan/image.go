@@ -54,7 +54,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 	tag := fmt.Sprintf("cavet-scan-%d", n) // transient build/remove tag, never identity
 	// The img: fingerprint's imageName is the configured Dockerfile path,
 	// slash-normalised: identity must survive rebuilds and reordering of the
-	// container_images list (design D3) — the ordinal tag would re-identify
+	// container_images list (design D3): the ordinal tag would re-identify
 	// every image finding and orphan triage state.
 	identity := filepath.ToSlash(dockerfile)
 	// Context is the Dockerfile's directory, the docker build -f convention;
