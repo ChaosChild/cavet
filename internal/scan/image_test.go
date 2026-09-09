@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ChaosChild/cavet/internal/store"
 )
 
 func seedDockerfile(t *testing.T, s string) {
@@ -119,6 +122,65 @@ func TestFullScanIncludesImagePhase(t *testing.T) {
 	}
 	if len(res.Rows) != 4 {
 		t.Fatalf("want 3 fs findings + 1 image finding, got %d", len(res.Rows))
+	}
+}
+
+// The init/rebaseline baseline flow: the full scan runs with Images from the
+// config, then every state fingerprint, image findings included, lands in
+// baseline.json so pre-existing image CVEs never arrive as detected events.
+func TestBaselineWriteIncludesImageFindings(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	r := &fakeRunner{
+		reports: map[string][]byte{
+			"/reports/gitleaks.sarif":   fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":      fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":   fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/trivy-image.sarif": fixtureSARIF("trivy", "CVE-2024-9", "app/lib.py", 1),
+		},
+	}
+	if _, err := Run(context.Background(), s, r, Options{
+		Scope: ScopeFull, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageFP := ""
+	var fps []string
+	for _, f := range st.Findings {
+		fps = append(fps, f.Fingerprint)
+		f.InBaseline = true // the init/rebaseline baseline write (artefacts §6.3)
+		if f.OriginatingScanner == "trivy-image" {
+			imageFP = f.Fingerprint
+		}
+	}
+	if imageFP == "" {
+		t.Fatalf("the image finding must reach state, got %+v", st.Findings)
+	}
+	if err := s.WriteBaseline(store.Baseline{
+		EngineDigest: "ghcr.io/x@sha256:t", CreatedAt: time.Now().UTC(), Fingerprints: fps,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(s.Cavet, "state", "baseline.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bl store.Baseline
+	if err := json.Unmarshal(b, &bl); err != nil {
+		t.Fatal(err)
+	}
+	in := false
+	for _, fp := range bl.Fingerprints {
+		if fp == imageFP {
+			in = true
+		}
+	}
+	if !in {
+		t.Fatalf("image finding must enter baseline.json, got %d fingerprints", len(bl.Fingerprints))
 	}
 }
 
