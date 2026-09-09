@@ -172,6 +172,59 @@ func TestBuildFailure(t *testing.T) {
 	}
 }
 
+func TestBuildFailureBuildKitStream(t *testing.T) {
+	// Real BuildKit /build shape: aux trace envelopes (protobuf payloads)
+	// then a terminal error event; no classic stream text at all.
+	buildkit := `{"id":"moby.buildkit.trace","aux":"Cm8K"}
+{"id":"moby.buildkit.trace","aux":"Cn0K"}
+{"error":"busybox: failed to resolve source metadata","errorDetail":{"message":"busybox: failed to resolve source metadata"}}
+`
+	err := buildFailure(strings.NewReader(buildkit))
+	if err == nil || !strings.Contains(err.Error(), "failed to resolve source metadata") {
+		t.Fatalf("BuildKit failure must surface the error field, got %v", err)
+	}
+	if strings.Contains(err.Error(), "output:") {
+		t.Fatalf("BuildKit failure without stream text must not claim output: %v", err)
+	}
+	// errorDetail-only stream (no top-level error).
+	err = buildFailure(strings.NewReader(`{"errorDetail":{"code":1,"message":"process did not complete successfully: exit code: 7"}}` + "\n"))
+	if err == nil || !strings.Contains(err.Error(), "exit code: 7") {
+		t.Fatalf("errorDetail-only failure must surface, got %v", err)
+	}
+	// Successful BuildKit build ends with an image id aux frame, no error.
+	ok := `{"id":"moby.buildkit.trace","aux":"Cm8K"}
+{"id":"moby.image.id","aux":{"ID":"sha256:3a58ad"}}
+`
+	if err := buildFailure(strings.NewReader(ok)); err != nil {
+		t.Fatalf("successful BuildKit build log must not error: %v", err)
+	}
+}
+
+func TestBuildFailureTailTruncation(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString(`{"stream":"HEAD `)
+	for i := 0; i < 100; i++ {
+		sb.WriteString("xxxxxxxxxx") // 1000 filler chars after HEAD
+	}
+	sb.WriteString(` TAIL\n"}
+{"errorDetail":{"message":"boom"},"error":"boom"}
+`)
+	err := buildFailure(strings.NewReader(sb.String()))
+	if err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("failure must surface, got %v", err)
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "HEAD") {
+		t.Fatalf("output must carry the tail, not the head: %q", msg)
+	}
+	if !strings.Contains(msg, "TAIL") {
+		t.Fatalf("output tail must be preserved: %q", msg)
+	}
+	if i := strings.Index(msg, "output: "); i >= 0 && len(msg[i+len("output: "):]) > 300 {
+		t.Fatalf("output must be truncated to ~300 chars: %d", len(msg)-i-len("output: "))
+	}
+}
+
 // --- integration: same daemon-unreachable skip pattern as client_test.go ---
 
 func TestImageBuildSaveCopyInRemove(t *testing.T) {

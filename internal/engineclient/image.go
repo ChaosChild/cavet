@@ -1,9 +1,10 @@
 package engineclient
 
 import (
-	"archive/tar"
+		"archive/tar"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client"
 )
 
@@ -90,6 +92,11 @@ func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag
 	res, err := c.docker.ImageBuild(ctx, pr, client.ImageBuildOptions{
 		Dockerfile: dockerfile,
 		Tags:       []string{tag},
+		// BuildKit, unconditionally: the classic builder does not populate
+		// the automatic platform args (TARGETARCH/TARGETOS/...), so any
+		// dockerfile using them fails with an empty value. A daemon without
+		// BuildKit reports that through the normal build failure path.
+		Version: build.BuilderBuildKit,
 	})
 	if err != nil {
 		return fmt.Errorf("image build %s: %w", tag, err)
@@ -122,15 +129,23 @@ func buildDockerfileRef(dockerfilePath, contextDir string) (string, error) {
 
 // buildFailure scans the build log's NDJSON stream for an error event. The
 // daemon reports build failures in a 200 response body, so reading it is the
-// only way to see them; the log tail is truncated per house style (~300 chars).
+// only way to see them. Both builders end a failed build with an error /
+// errorDetail event; BuildKit's remaining frames are aux trace envelopes whose
+// payloads are protobuf, so the readable output is whatever stream events the
+// daemon still emits (classic builder text). The surfaced log is the TAIL
+// (~300 chars, house style): the failure reason lives at the end, and showing
+// the head once hid a root cause behind "Step 1/56".
 func buildFailure(r io.Reader) error {
 	var log strings.Builder
 	var failure string
 	dec := json.NewDecoder(r)
 	for {
 		var ev struct {
-			Stream string `json:"stream"`
-			Error  string `json:"error"`
+			Stream      string `json:"stream"`
+			Error       string `json:"error"`
+			ErrorDetail struct {
+				Message string `json:"message"`
+			} `json:"errorDetail"`
 		}
 		if err := dec.Decode(&ev); err != nil {
 			if err == io.EOF {
@@ -139,12 +154,22 @@ func buildFailure(r io.Reader) error {
 			return fmt.Errorf("build log: %w", err)
 		}
 		log.WriteString(ev.Stream)
+		if ev.ErrorDetail.Message != "" {
+			failure = ev.ErrorDetail.Message
+		}
 		if ev.Error != "" {
 			failure = ev.Error
 		}
 	}
 	if failure != "" {
-		return fmt.Errorf("%s; output: %.300s", failure, log.String())
+		out := log.String()
+		if len(out) > 300 {
+			out = out[len(out)-300:]
+		}
+		if out != "" {
+			return fmt.Errorf("%s; output: %s", failure, out)
+		}
+		return errors.New(failure)
 	}
 	return nil
 }
