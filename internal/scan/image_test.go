@@ -143,9 +143,9 @@ func TestFullScanIncludesImagePhase(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	r := &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-			"/reports/opengrep.sarif":    fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":      fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
@@ -174,9 +174,9 @@ func TestBaselineWriteIncludesImageFindings(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	r := &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-			"/reports/opengrep.sarif":    fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":      fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
@@ -229,8 +229,8 @@ func TestStagedScanImageTrigger(t *testing.T) {
 	s := newTestStore(t)
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	reports := map[string][]byte{
-		"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-		"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+		"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+		"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
 		"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 	}
 	// A configured Dockerfile among the staged paths pulls the image phase in.
@@ -293,8 +293,8 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	cleanImageReport := []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy","rules":[]}},"results":[]}]}`)
 	fsReports := func() map[string][]byte {
 		return map[string][]byte{
-			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
 			"/reports/trivy-image-0.sarif": imageReport,
 		}
 	}
@@ -347,9 +347,9 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	// stronger case: every path covered, scanner still absent.
 	if _, err := Run(context.Background(), s, &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/gitleaks.sarif":  fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":     fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-			"/reports/opengrep.sarif":  fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif": fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
 		},
 	}, Options{Scope: ScopeFull, Engine: "ghcr.io/x@sha256:t"}); err != nil {
 		t.Fatal(err)
@@ -465,6 +465,48 @@ func TestImageIdentitySurvivesListReordering(t *testing.T) {
 	}
 	if len(st.Findings) != 2 {
 		t.Fatalf("one finding per configured image expected, got %+v", st.Findings)
+	}
+}
+
+// stagedDiverges pins the index-vs-worktree comparison the staged image
+// phase warns on: identical content is not divergence, differing content is.
+func TestStagedDiverges(t *testing.T) {
+	s := newTestStore(t)
+	host := filepath.Join(s.Root, "Dockerfile")
+	seedDockerfile(t, host) // writes "FROM scratch\n"
+	r := &fakeRunner{stdout: map[string]string{"git show :Dockerfile": "FROM scratch\n"}}
+	if div, err := stagedDiverges(context.Background(), r, "Dockerfile", host); err != nil || div {
+		t.Fatalf("identical index and worktree must not diverge: %v %v", div, err)
+	}
+	r = &fakeRunner{stdout: map[string]string{"git show :Dockerfile": "FROM patched\n"}}
+	if div, err := stagedDiverges(context.Background(), r, "Dockerfile", host); err != nil || !div {
+		t.Fatalf("differing index and worktree must diverge: %v %v", div, err)
+	}
+}
+
+// A staged Dockerfile whose working-tree copy diverges from the index warns
+// and still scans: partial staging must not silently skip the image phase.
+func TestStagedImageScanProceedsOnDivergence(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	r := &fakeRunner{
+		stdout: map[string]string{
+			"git diff --cached":    "Dockerfile\x00",
+			"git show :Dockerfile": "FROM vulnerable\n", // index holds the CVE, tree holds the fix
+		},
+		reports: map[string][]byte{
+			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		},
+	}
+	if _, err := Run(context.Background(), s, r, Options{
+		Scope: ScopeStaged, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !r.ran("trivy image --input /scan/image-0.tar") {
+		t.Fatalf("divergent staged Dockerfile must still build and scan, cmds: %v", r.cmds)
 	}
 }
 

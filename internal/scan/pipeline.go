@@ -194,7 +194,9 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	}
 	var imageFindings []projection.Finding
 	if len(images) > 0 {
-		b, fs, err := scanImages(ctx, s, r, images)
+		// staged: the image phase joined a staged scan, so coverage credits
+		// index content while builds compile the working tree (image.go).
+		b, fs, err := scanImages(ctx, s, r, images, o.Scope == ScopeStaged)
 		if err != nil {
 			return nil, err
 		}

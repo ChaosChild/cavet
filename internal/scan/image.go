@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,13 +13,13 @@ import (
 )
 
 // scanImages runs the image phase: build each configured Dockerfile host-side
-// (transient tag cavet-scan-<n>), save the image tar to .cavet/tmp, copy it
-// into the engine at /scan, and trivy it offline. The per-image SARIF runs
-// come back stitched into one trivy-image report plus pre-parsed findings
+// (transient tag cavet-scan-<n>), save the image tar to .cavet/tmp,
+// copy it into the engine at /scan, and trivy it offline. The per-image SARIF
+// runs come back stitched into one trivy-image report plus pre-parsed findings
 // (located at each Dockerfile, identity-bound to the Dockerfile path for the
 // img: fingerprint namespace). Any failure aborts the scan loudly, never a
 // silent skip.
-func scanImages(ctx context.Context, s *store.Store, r Runner, dockerfiles []string) ([]byte, []projection.Finding, error) {
+func scanImages(ctx context.Context, s *store.Store, r Runner, dockerfiles []string, staged bool) ([]byte, []projection.Finding, error) {
 	// CopyToContainer needs the destination directory to exist; a pure image
 	// scan never created a scan dir yet.
 	if res, err := r.Exec(ctx, []string{"mkdir", "-p", "/scan"}); err != nil || res.Code != 0 {
@@ -27,7 +28,7 @@ func scanImages(ctx context.Context, s *store.Store, r Runner, dockerfiles []str
 	docs := make([][]byte, 0, len(dockerfiles))
 	var findings []projection.Finding
 	for n, df := range dockerfiles {
-		b, fs, err := scanOneImage(ctx, s, r, n, df)
+		b, fs, err := scanOneImage(ctx, s, r, n, df, staged)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -45,7 +46,7 @@ func scanImages(ctx context.Context, s *store.Store, r Runner, dockerfiles []str
 // parsed findings (located at the Dockerfile, identity-bound to the
 // Dockerfile path). The tar and the built image are transient: both are
 // removed on the way out, best-effort on error.
-func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfile string) ([]byte, []projection.Finding, error) {
+func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfile string, staged bool) ([]byte, []projection.Finding, error) {
 	host := filepath.Join(s.Root, filepath.FromSlash(dockerfile))
 	if fi, err := os.Stat(host); err != nil || fi.IsDir() {
 		return nil, nil, fmt.Errorf("dockerfile %s not found in the repository; "+
@@ -62,6 +63,20 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 	// ponytail: Dockerfiles that expect a different context (a repo-root
 	// context with COPY subdir/...) will fail to build; the ceiling is a
 	// per-entry context in the container_images list form.
+	if staged {
+		// Divergence semantics: this scan's coverage credits the INDEX (the
+		// staged checkout describes what will be committed) while the build
+		// below compiles WORKING-TREE content, because the host-side build
+		// reads the file on disk. With partial staging that mismatch can
+		// wrongly remediate or miss detection, so it warns loudly and
+		// proceeds; see stagedDiverges.
+		if div, err := stagedDiverges(ctx, r, dockerfile, host); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: %s index/worktree comparison failed: %v\n", dockerfile, err)
+		} else if div {
+			fmt.Fprintf(os.Stderr, "warning: staged %s differs from the working tree; "+
+				"the image build uses WORKING-TREE content while this scan's coverage describes INDEX content\n", dockerfile)
+		}
+	}
 	if err := r.BuildImage(ctx, host, filepath.Dir(host), tag); err != nil {
 		return nil, nil, fmt.Errorf("image build for %s failed: %w", dockerfile, err)
 	}
@@ -99,4 +114,27 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 		fs[i].ImageName = identity
 	}
 	return report, fs, nil
+}
+
+// stagedDiverges reports whether the index's copy of path (git show :<path>)
+// hashes differently from the working-tree file at hostPath. Divergence
+// semantics: the staged image phase builds WORKING-TREE content while staged
+// coverage credits the INDEX, so with partial staging (the fix in the tree,
+// the CVE in the index) the scan can wrongly remediate or miss detection;
+// the caller warns and proceeds, since refusing would hide the tree's state
+// too. The raw blob vs raw file comparison ignores checkout filters, so a
+// CRLF checkout can read as divergent; the warning is advisory either way.
+func stagedDiverges(ctx context.Context, r Runner, path, hostPath string) (bool, error) {
+	res, err := r.Exec(ctx, []string{"git", "show", ":" + path})
+	if err != nil {
+		return false, err
+	}
+	if res.Code != 0 {
+		return false, fmt.Errorf("git show :%s: %.200s", path, res.Stderr)
+	}
+	wt, err := os.ReadFile(hostPath)
+	if err != nil {
+		return false, err
+	}
+	return sha256.Sum256(res.Stdout) != sha256.Sum256(wt), nil
 }
