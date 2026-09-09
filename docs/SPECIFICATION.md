@@ -788,10 +788,11 @@ visible; `cavet engine status` reports the baked database's build date.
 Missing capability → report it in `cavet engine status`, skip it, note the gap in scan
 output. Never hard-fail.
 
-Container **image** scanning requires mounting the Docker socket into the engine,
-which is a meaningful privilege escalation. Off by default, opt-in per repository,
-documented honestly. Filesystem and configuration scanning need no such access and
-stay on.
+Container **image** scanning never mounts the Docker socket into the engine; the
+engine keeps `NetworkMode: none`. Builds run on the host through the Docker (moby)
+SDK, and the built image is handed to the engine as a tar that trivy scans offline
+like any other artefact. Off by default, opt-in per repository, documented honestly.
+Filesystem and configuration scanning need no Docker access at all.
 
 If the Docker daemon is unreachable, `cavet` says so plainly and exits 2. There is no
 degraded host-scanner fallback — that would reintroduce exactly the version drift the
