@@ -55,7 +55,8 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 		t.Fatalf("built images must be removed, cmds: %v", r.cmds)
 	}
 	// The same CVE+package in both images stays two findings: identity is
-	// bound to the tag each image was built under (img: namespace).
+	// bound to the configured Dockerfile path each image came from (img:
+	// namespace), not the transient build tag.
 	if len(res.Rows) != 2 || res.Rows[0].Rule != "CVE-2024-9" {
 		t.Fatalf("want one row per image, got %+v", res.Rows)
 	}
@@ -68,8 +69,8 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 		}
 	}
 	fps := map[string]bool{res.Rows[0].FP: true, res.Rows[1].FP: true}
-	if !fps[fingerprint.Image("cavet-scan-0", "CVE-2024-9", "openssl", "3.0.15-r1")] ||
-		!fps[fingerprint.Image("cavet-scan-1", "CVE-2024-9", "openssl", "3.0.15-r1")] {
+	if !fps[fingerprint.Image("Dockerfile", "CVE-2024-9", "openssl", "3.0.15-r1")] ||
+		!fps[fingerprint.Image("engine/Dockerfile", "CVE-2024-9", "openssl", "3.0.15-r1")] {
 		t.Fatalf("fingerprints must be per-image img: identities, got %v", fps)
 	}
 	// Tars are transient: tmp ends empty.
@@ -271,7 +272,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 			"/reports/trivy-image.sarif": imageReport,
 		}
 	}
-	wantFP := fingerprint.Image("cavet-scan-0", "CVE-2024-9", "openssl", "3.0.15-r1")
+	wantFP := fingerprint.Image("Dockerfile", "CVE-2024-9", "openssl", "3.0.15-r1")
 
 	// 1. First image scan: one image finding enters state with its img:
 	// identity, Dockerfile location, and trivy-image as originating scanner.
@@ -388,6 +389,55 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 		if f.Fingerprint == wantFP {
 			t.Fatalf("remediated image finding must leave state, got %+v", st.Findings)
 		}
+	}
+}
+
+// Reordering container_images changes the transient build tags
+// (cavet-scan-0/1 swap) but must not re-identify image findings: identity
+// derives from the Dockerfile path, so the reorder scan emits neither fresh
+// detected nor false remediated events (design D3).
+func TestImageIdentitySurvivesListReordering(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	seedDockerfile(t, filepath.Join(s.Root, "engine", "Dockerfile"))
+	reports := func() map[string][]byte {
+		return map[string][]byte{
+			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		}
+	}
+	run := func(images []string) {
+		t.Helper()
+		if _, err := Run(context.Background(), s, &fakeRunner{reports: reports()}, Options{
+			Scope: ScopeImage, Images: images, Engine: "ghcr.io/x@sha256:t",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run([]string{"Dockerfile", "engine/Dockerfile"})
+	run([]string{"engine/Dockerfile", "Dockerfile"}) // reordered
+
+	evs, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	detected, remediated := 0, 0
+	for _, e := range evs {
+		switch e.Kind {
+		case events.Detected:
+			detected++
+		case events.Remediated:
+			remediated++
+		}
+	}
+	if detected != 2 || remediated != 0 {
+		t.Fatalf("reordering must keep identities: got %d detected, %d remediated", detected, remediated)
+	}
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(st.Findings) != 2 {
+		t.Fatalf("one finding per configured image expected, got %+v", st.Findings)
 	}
 }
 

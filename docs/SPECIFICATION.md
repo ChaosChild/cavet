@@ -256,13 +256,19 @@ them would be speculative — revisit if a second SAST engine is ever enabled.
 scans layers where line context does not exist: the SARIF locations are the scan
 tar or in-image file paths, meaningless repo-side. An image finding's identity is
 `sha256("img:" + imageName + "\x00" + vulnID + "\x00" + pkgName + "\x00" + pkgVersion)`,
-where `imageName` is the tag the scan built the image under (`cavet-scan-<n>`), so
-the same CVE in two configured images stays two findings with separate triage. The
-finding locates at the configured Dockerfile's repo path, never an in-image path,
-and Dockerfile path plus any resolved base-image digests ride as location and
-metadata, never identity. The scanner name `trivy-image` is distinct from `trivy`:
-a filesystem scan covering the Dockerfile proves nothing about image findings
-(§3.1), because it did not run the scanner that found them. The secret
+where `imageName` is the configured image's Dockerfile repo path,
+slash-normalised. Identity derives from the configuration, not from the transient
+`cavet-scan-<n>` build tag, so it survives rebuilds and reordering of the
+configured image list; the build tag exists only to build and remove the image,
+and binding identity to the list ordinal would re-identify every image finding
+and orphan its triage state. The same CVE in two configured images stays two
+findings with separate triage. The finding locates at the configured Dockerfile's
+repo path, never an in-image path; resolved base-image digests, when available,
+ride as metadata, never identity. Non-package results inside images (e.g. Trivy
+secret findings in layers) carry no package identity and are dropped entirely
+with a warning (cli-spec §9). The scanner name `trivy-image` is distinct from
+`trivy`: a filesystem scan covering the Dockerfile proves nothing about image
+findings (§3.1), because it did not run the scanner that found them. The secret
 pre-collapse never applies to image findings.
 
 ### 3.4 Determinism of the delta

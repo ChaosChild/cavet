@@ -131,7 +131,7 @@ func TestDistinctContextsStayDistinct(t *testing.T) {
 // on line context (spec §3.3); the secret pre-collapse never applies.
 func TestImageFindingsFingerprintOnPackageIdentity(t *testing.T) {
 	fs := parseFixture(t, "../finding/testdata/trivy-image.sarif", "trivy-image", "Dockerfile")
-	fs[0].ImageName, fs[1].ImageName = "cavet-scan-0", "cavet-scan-0"
+	fs[0].ImageName, fs[1].ImageName = "Dockerfile", "Dockerfile"
 	merged := Merge(fs)
 	if len(merged) != 2 {
 		t.Fatalf("distinct packages stay distinct, got %d", len(merged))
@@ -141,7 +141,7 @@ func TestImageFindingsFingerprintOnPackageIdentity(t *testing.T) {
 			t.Fatal("trivy-image findings never join the secret collapse")
 		}
 	}
-	want := fingerprint.Image("cavet-scan-0", "CVE-2026-14456", "libcrypto3", "3.5.7-r0")
+	want := fingerprint.Image("Dockerfile", "CVE-2026-14456", "libcrypto3", "3.5.7-r0")
 	if merged[0].Fingerprint != want {
 		t.Fatalf("fingerprint must be the img: identity, got %s want %s", merged[0].Fingerprint, want)
 	}
@@ -153,21 +153,22 @@ func TestImageFindingsFingerprintOnPackageIdentity(t *testing.T) {
 	}
 }
 
-// The same package in two configured images (distinct build tags) is two
-// findings: identity is bound to the tag the scan built the image under.
-func TestImageIdentityBoundToBuildTag(t *testing.T) {
+// The same package in two configured images is two findings: identity is
+// bound to the configured image (its Dockerfile path), which is why
+// reordering the container_images list cannot re-identify anything.
+func TestImageIdentityBoundToConfiguredImage(t *testing.T) {
 	fs := parseFixture(t, "../finding/testdata/trivy-image.sarif", "trivy-image", "Dockerfile")
-	fs[0].ImageName, fs[1].ImageName = "cavet-scan-0", "cavet-scan-0"
+	fs[0].ImageName, fs[1].ImageName = "Dockerfile", "Dockerfile"
 	twin := fs[0]
-	twin.ImageName = "cavet-scan-1" // second configured Dockerfile, same CVE+pkg
+	twin.ImageName = "engine/Dockerfile" // second configured Dockerfile, same CVE+pkg
 
 	merged := Merge([]Finding{fs[0], fs[1], twin})
 	if len(merged) != 3 {
-		t.Fatalf("want 3 findings (2 image namespaces, 1 twin), got %d", len(merged))
+		t.Fatalf("want 3 findings (2 configured images, 1 twin), got %d", len(merged))
 	}
 	sawTwin := false
 	for _, m := range merged {
-		if m.Fingerprint == fingerprint.Image("cavet-scan-1", "CVE-2026-14456", "libcrypto3", "3.5.7-r0") {
+		if m.Fingerprint == fingerprint.Image("engine/Dockerfile", "CVE-2026-14456", "libcrypto3", "3.5.7-r0") {
 			sawTwin = true
 		}
 	}

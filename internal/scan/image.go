@@ -12,11 +12,12 @@ import (
 )
 
 // scanImages runs the image phase: build each configured Dockerfile host-side
-// (tag cavet-scan-<n>), save the image tar to .cavet/tmp, copy it into the
-// engine at /scan, and trivy it offline. The per-image SARIF runs come back
-// stitched into one trivy-image report plus pre-parsed findings (located at
-// each Dockerfile, tagged with the build tag for the img: fingerprint
-// namespace). Any failure aborts the scan loudly, never a silent skip.
+// (transient tag cavet-scan-<n>), save the image tar to .cavet/tmp, copy it
+// into the engine at /scan, and trivy it offline. The per-image SARIF runs
+// come back stitched into one trivy-image report plus pre-parsed findings
+// (located at each Dockerfile, identity-bound to the Dockerfile path for the
+// img: fingerprint namespace). Any failure aborts the scan loudly, never a
+// silent skip.
 func scanImages(ctx context.Context, s *store.Store, r Runner, dockerfiles []string) ([]byte, []projection.Finding, error) {
 	// CopyToContainer needs the destination directory to exist; a pure image
 	// scan never created a scan dir yet.
@@ -41,16 +42,21 @@ func scanImages(ctx context.Context, s *store.Store, r Runner, dockerfiles []str
 }
 
 // scanOneImage builds and scans one Dockerfile, returning its SARIF and its
-// parsed findings (located at the Dockerfile, identity-bound to the build
-// tag). The tar and the built image are transient: both are removed on the
-// way out, best-effort on error.
+// parsed findings (located at the Dockerfile, identity-bound to the
+// Dockerfile path). The tar and the built image are transient: both are
+// removed on the way out, best-effort on error.
 func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfile string) ([]byte, []projection.Finding, error) {
 	host := filepath.Join(s.Root, filepath.FromSlash(dockerfile))
 	if fi, err := os.Stat(host); err != nil || fi.IsDir() {
 		return nil, nil, fmt.Errorf("dockerfile %s not found in the repository; "+
 			"run 'cavet image remove %s' or restore the file", dockerfile, dockerfile)
 	}
-	tag := fmt.Sprintf("cavet-scan-%d", n)
+	tag := fmt.Sprintf("cavet-scan-%d", n) // transient build/remove tag, never identity
+	// The img: fingerprint's imageName is the configured Dockerfile path,
+	// slash-normalised: identity must survive rebuilds and reordering of the
+	// container_images list (design D3) — the ordinal tag would re-identify
+	// every image finding and orphan triage state.
+	identity := filepath.ToSlash(dockerfile)
 	// Context is the Dockerfile's directory, the docker build -f convention;
 	// root Dockerfiles get the repository root, the usual case.
 	// ponytail: Dockerfiles that expect a different context (a repo-root
@@ -81,7 +87,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 	report := raw["trivy-image"]
 	// Parsing happens here, not in parseAndMerge: the per-image report needs
 	// its own Dockerfile as the location target, and the img: fingerprint
-	// namespace binds to the tag this scan built the image under.
+	// namespace binds to the configured image, not the transient build tag.
 	fs, warns, err := projection.Parse("trivy-image", report, dockerfile)
 	if err != nil {
 		return nil, nil, err
@@ -90,7 +96,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
 	for i := range fs {
-		fs[i].ImageName = tag
+		fs[i].ImageName = identity
 	}
 	return report, fs, nil
 }

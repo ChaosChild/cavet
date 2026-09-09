@@ -46,22 +46,23 @@ func TestOfMatchesKnownVector(t *testing.T) {
 }
 
 func TestImageMatchesKnownVector(t *testing.T) {
-	// sha256("img:" + tag + \x00 + vulnID + \x00 + pkg + \x00 + version),
-	// cross-checked against the platform SHA-256; the identity is package
-	// identity, no line context (spec §3.3 img namespace).
-	want := "632b26e2f594a0cf53f5541fcf380fc7af4f71690a8e46497b2385f0a2bffe86"
-	if got := Image("cavet-scan-0", "CVE-2026-14456", "libcrypto3", "3.5.7-r0"); got != want {
+	// sha256("img:" + dockerfilePath + \x00 + vulnID + \x00 + pkg + \x00 +
+	// version), cross-checked against the platform SHA-256; the identity is
+	// package identity under the configured Dockerfile path, no line context
+	// (spec §3.3 img namespace, design D3).
+	want := "c93a8ca2c5e0cf6e1ca3e84258d783a84806b49b3d8f085896e2a950c04e3146"
+	if got := Image("engine/Dockerfile", "CVE-2026-14456", "libcrypto3", "3.5.7-r0"); got != want {
 		t.Fatalf("got %s want %s", got, want)
 	}
 }
 
 func TestImageSeparatesFields(t *testing.T) {
-	base := Image("cavet-scan-0", "CVE-1", "openssl", "1.0")
+	base := Image("Dockerfile", "CVE-1", "openssl", "1.0")
 	for name, got := range map[string]string{
-		"tag":     Image("cavet-scan-1", "CVE-1", "openssl", "1.0"),
-		"vuln":    Image("cavet-scan-0", "CVE-2", "openssl", "1.0"),
-		"pkg":     Image("cavet-scan-0", "CVE-1", "libssl", "1.0"),
-		"version": Image("cavet-scan-0", "CVE-1", "openssl", "1.1"),
+		"image":   Image("engine/Dockerfile", "CVE-1", "openssl", "1.0"),
+		"vuln":    Image("Dockerfile", "CVE-2", "openssl", "1.0"),
+		"pkg":     Image("Dockerfile", "CVE-1", "libssl", "1.0"),
+		"version": Image("Dockerfile", "CVE-1", "openssl", "1.1"),
 	} {
 		if got == base {
 			t.Fatalf("Image must separate %s from the identity", name)

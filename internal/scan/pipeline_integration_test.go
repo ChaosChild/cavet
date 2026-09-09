@@ -175,7 +175,7 @@ func TestRealEngineImageScan(t *testing.T) {
 	}
 	want := map[string]bool{}
 	for _, f := range fs {
-		want[fingerprint.Image("cavet-scan-0", f.RuleID, f.PkgName, f.PkgVersion)] = true
+		want[fingerprint.Image("Dockerfile", f.RuleID, f.PkgName, f.PkgVersion)] = true
 	}
 	st, err := s.LoadState()
 	if err != nil {

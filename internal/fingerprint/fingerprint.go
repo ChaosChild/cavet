@@ -42,10 +42,10 @@ func Secret(matchedSpan, repoPath string) string {
 // Image returns the identity for image findings:
 // sha256("img:" + imageName + \x00 + vulnID + \x00 + pkgName + \x00 + pkgVersion).
 // Image layers have no line context to normalise; package identity is the
-// finding (SPECIFICATION.md §3.3). imageName is the tag the scan built the
-// image under, so the same CVE in two configured images stays two findings.
-// The Dockerfile path and resolved base digests are location/metadata, never
-// identity.
+// finding (SPECIFICATION.md §3.3). imageName is the configured Dockerfile's
+// repo path, so identity survives rebuilds and container_images reordering
+// (design D3) and the same CVE in two configured images stays two findings.
+// Resolved base digests ride as metadata, never identity.
 func Image(imageName, vulnID, pkgName, pkgVersion string) string {
 	h := sha256.Sum256([]byte("img:" + imageName + "\x00" + vulnID + "\x00" + pkgName + "\x00" + pkgVersion))
 	return hex.EncodeToString(h[:])

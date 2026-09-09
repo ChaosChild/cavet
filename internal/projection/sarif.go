@@ -22,7 +22,7 @@ type Finding struct {
 	Snippet  string // matched-span text; feeds fingerprinting and secret collapse
 
 	// Image findings only (scanner trivy-image): package identity replaces
-	// line context, and ImageName is the tag the scan built the image under,
+	// line context, and ImageName is the configured Dockerfile's repo path,
 	// stamped by the caller (image.go) after Parse.
 	ImageName  string
 	PkgName    string
