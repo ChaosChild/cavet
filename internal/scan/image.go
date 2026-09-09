@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -13,8 +14,9 @@ import (
 )
 
 // scanImages runs the image phase: build each configured Dockerfile host-side
-// (transient tag cavet-scan-<repo-hash>-<n>), save the image tar to .cavet/tmp,
-// copy it into the engine at /scan, and trivy it offline. The per-image SARIF
+// (transient tag cavet-scan-<repo-hash>-<n>-<rand>), save the image tar to
+// .cavet/tmp, copy it into the engine at /scan, and trivy it offline. The
+// per-image SARIF
 // runs come back stitched into one trivy-image report plus pre-parsed findings
 // (located at each Dockerfile, identity-bound to the Dockerfile path for the
 // img: fingerprint namespace). Any failure aborts the scan loudly, never a
@@ -52,11 +54,17 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, dockerfi
 		return nil, nil, fmt.Errorf("dockerfile %s not found in the repository; "+
 			"run 'cavet image remove %s' or restore the file", dockerfile, dockerfile)
 	}
-	// Salted with a hash of the repository root: two cavet processes in
-	// different repositories share one daemon, and colliding tags would let
-	// one overwrite the other's image between build and save.
+	// Salted with a hash of the repository root plus a per-scan random
+	// suffix: two cavet processes in different repositories share one daemon,
+	// and two overlapping scans in the SAME repository (a long scan plus a
+	// pre-commit hook) share the root hash, so colliding tags would let one
+	// overwrite the other's image between build and save.
 	salt := fmt.Sprintf("%x", sha256.Sum256([]byte(s.Root)))[:12]
-	tag := fmt.Sprintf("cavet-scan-%s-%d", salt, n) // transient build/remove tag, never identity
+	var rnd [2]byte
+	if _, err := rand.Read(rnd[:]); err != nil {
+		return nil, nil, fmt.Errorf("salting the transient image tag: %w", err)
+	}
+	tag := fmt.Sprintf("cavet-scan-%s-%d-%x", salt, n, rnd) // transient build/remove tag, never identity
 	// The img: fingerprint's imageName is the configured Dockerfile path,
 	// slash-normalised: identity must survive rebuilds and reordering of the
 	// container_images list (design D3): the ordinal tag would re-identify

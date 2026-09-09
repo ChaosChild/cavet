@@ -468,12 +468,13 @@ func TestImageIdentitySurvivesListReordering(t *testing.T) {
 	}
 }
 
-// The transient tag must be repo-unique: two cavet processes in different
-// repositories share one daemon, and colliding cavet-scan-<n> tags would let
-// one overwrite the other's image between build and save.
+// The transient tag must be unique per repository root AND per scan: two
+// cavet processes in different repositories share one daemon, and two
+// overlapping scans in the SAME repository (a long scan plus a pre-commit
+// hook) share the root salt, so colliding tags would let one overwrite the
+// other's image between build and save.
 func TestImageTagSaltedByRepoRoot(t *testing.T) {
-	builtTag := func() string {
-		s := newTestStore(t) // fresh repository root per call
+	buildTag := func(s *store.Store) string {
 		seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 		r := &fakeRunner{reports: map[string][]byte{
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
@@ -491,9 +492,17 @@ func TestImageTagSaltedByRepoRoot(t *testing.T) {
 		t.Fatal("no build command recorded")
 		return ""
 	}
-	a, b := builtTag(), builtTag()
-	if a == b || !strings.HasPrefix(a, "cavet-scan-") || !strings.HasSuffix(a, "-0") {
-		t.Fatalf("tags must follow cavet-scan-<hash>-<n> and differ per repository root: %q vs %q", a, b)
+	// Fresh repository root per call: the tags must differ per root.
+	a, b := buildTag(newTestStore(t)), buildTag(newTestStore(t))
+	if a == b || !strings.HasPrefix(a, "cavet-scan-") || !strings.Contains(a, "-0-") {
+		t.Fatalf("tags must follow cavet-scan-<hash>-<n>-<rand> and differ per repository root: %q vs %q", a, b)
+	}
+	// One repository scanned twice: the root salt matches, the per-scan
+	// randomness must still keep the tags apart.
+	s := newTestStore(t)
+	first, second := buildTag(s), buildTag(s)
+	if first == second {
+		t.Fatal("two scans of one repository must not collide on the transient tag")
 	}
 }
 
