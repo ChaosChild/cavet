@@ -115,6 +115,43 @@ func TestTarDirSkipsSymlinks(t *testing.T) {
 	}
 }
 
+func TestTarDirExcludesGitAndCavet(t *testing.T) {
+	dir := t.TempDir()
+	for _, p := range []string{".git/config", ".cavet/state/findings.json", "Dockerfile"} {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var buf bytes.Buffer
+	if err := tarDir(dir, &buf); err != nil {
+		t.Fatal(err)
+	}
+	entries := map[string]bool{}
+	tr := tar.NewReader(&buf)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries[hdr.Name] = true
+	}
+	if !entries["Dockerfile"] {
+		t.Fatalf("regular files must be archived, got %v", entries)
+	}
+	for name := range entries {
+		if strings.HasPrefix(name, ".git/") || strings.HasPrefix(name, ".cavet/") {
+			t.Fatalf(".git and .cavet must stay out of the build context, got %v", entries)
+		}
+	}
+}
+
 func TestBuildFailure(t *testing.T) {
 	failing := `{"stream":"Step 1/2 : FROM scratch\n"}
 {"stream":" --- > faken\n"}

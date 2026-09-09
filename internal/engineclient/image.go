@@ -190,9 +190,13 @@ func (c *Client) RemoveImage(ctx context.Context, ref string) error {
 
 // tarDir writes dir's contents as an uncompressed tar with dir-relative POSIX
 // entry names, streaming so arbitrarily large build contexts never buffer.
-// ponytail: no .dockerignore and non-regular files (symlinks, fifos) are
-// skipped silently; scan-target images copy real files, and the upgrade path
-// is .dockerignore parsing plus symlink handling in the walk.
+// .git and .cavet are excluded outright: repository metadata and scan state
+// are never build inputs, and both grow with repo history, not with the
+// image, so streaming them wholesale would make upload cost unbounded by
+// repo size and repeat it every scan.
+// ponytail: no general .dockerignore support and non-regular files (symlinks,
+// fifos) are skipped silently; scan-target images copy real files, and the
+// upgrade path is .dockerignore parsing plus symlink handling in the walk.
 func tarDir(dir string, w io.Writer) error {
 	tw := tar.NewWriter(w)
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -205,6 +209,9 @@ func tarDir(dir string, w io.Writer) error {
 		}
 		if rel == "." {
 			return nil // the context root is implicit
+		}
+		if d.IsDir() && (d.Name() == ".git" || d.Name() == ".cavet") {
+			return fs.SkipDir
 		}
 		info, err := d.Info()
 		if err != nil {
