@@ -20,15 +20,21 @@ import (
 )
 
 // Runner is the engine seam: engineclient.Client satisfies it; tests fake it.
+// The image methods are the Task-1 host-side plumbing the image phase drives.
 type Runner interface {
 	Exec(ctx context.Context, cmd []string) (engineclient.ExecResult, error)
 	CopyOut(ctx context.Context, containerPath string) ([]byte, error)
 	NextScanDir() string
+	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag string) error
+	SaveImage(ctx context.Context, ref, destPath string) error
+	CopyToContainer(ctx context.Context, srcPath, dstPath string) error
+	RemoveImage(ctx context.Context, ref string) error
 }
 
 type Options struct {
 	Scope   Scope
 	DiffRef string
+	Images  []string // configured Dockerfiles, repo-relative (scan.container_images)
 	Deep    bool
 	Actor   events.Actor
 	Phase   events.Phase
@@ -125,10 +131,11 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		return nil, fmt.Errorf("engine ref required on every event (artefacts §2.1)")
 	}
 	now := time.Now().UTC()
-	scanners := TierScanners(o.Scope, o.Deep)
+	fsScanners := TierScanners(o.Scope, o.Deep)
 
 	var target string
 	var cov Coverage
+	var images []string // Dockerfiles whose images join this scan
 	label := o.Scope.String()
 	switch o.Scope {
 	case ScopeStaged:
@@ -138,13 +145,16 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		}
 		if len(paths) == 0 {
 			return &Result{NothingStaged: true, ScopeLabel: label,
-				Scanners: scanners, Phase: o.Phase}, nil
+				Scanners: fsScanners, Phase: o.Phase}, nil
 		}
 		scanDir := r.NextScanDir()
 		if err := checkoutIndex(ctx, r, scanDir); err != nil {
 			return nil, err
 		}
 		target, cov = scanDir, Coverage{Paths: toSet(paths)}
+		// The image phase joins a staged scan exactly when a configured
+		// Dockerfile is among the staged paths.
+		images = intersect(o.Images, paths)
 	case ScopeDiff:
 		paths, err := diffPaths(ctx, r, o.DiffRef)
 		if err != nil {
@@ -157,12 +167,36 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		target, cov, label = scanDir, Coverage{Paths: toSet(paths)}, "diff "+o.DiffRef
 	case ScopeFull:
 		target, cov = "/workspace", Coverage{AllPaths: true}
+		images = o.Images // --full runs the image phase when images are configured
+	case ScopeImage:
+		if len(o.Images) == 0 {
+			return nil, fmt.Errorf("no container images configured; run 'cavet image add <dockerfile>' or set scan.container_images")
+		}
+		// The image phase covers the Dockerfile locations; path-based coverage
+		// stays intact (delta.go covered()).
+		cov = Coverage{Paths: toSet(o.Images)}
+		images = o.Images
+	}
+	scanners := fsScanners
+	if len(images) > 0 {
+		scanners = append(scanners, "trivy-image")
 	}
 	cov.Scanners = scanners
 
-	raw, err := runScanners(ctx, r, scanners, target)
-	if err != nil {
-		return nil, err
+	raw := map[string][]byte{}
+	if target != "" {
+		var err error
+		raw, err = runScanners(ctx, r, fsScanners, target)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(images) > 0 {
+		b, err := scanImages(ctx, s, r, images)
+		if err != nil {
+			return nil, err
+		}
+		raw["trivy-image"] = b
 	}
 	merged, err := parseAndMerge(scanners, raw, target)
 	if err != nil {
@@ -223,6 +257,11 @@ func invocation(scanner, target string) []string {
 		return []string{"trivy", "fs", "--scanners", "vuln,misconfig,secret",
 			"--skip-db-update", "--skip-check-update", "--offline-scan",
 			"--format", "sarif", "--output", "/reports/trivy.sarif", target}
+	case "trivy-image":
+		// target is the container-side tar the image phase copied in.
+		return []string{"trivy", "image", "--input", target,
+			"--offline-scan", "--skip-db-update", "--skip-check-update",
+			"--format", "sarif", "--output", "/reports/trivy-image.sarif"}
 	case "opengrep":
 		return []string{"opengrep", "scan", "--config", "/opt/opengrep-rules",
 			"--sarif", "--output", "/reports/opengrep.sarif", target}
@@ -265,25 +304,35 @@ func parseAndMerge(scanners []string, raw map[string][]byte, target string) ([]*
 // writeMergedReport concatenates the scanners' runs into one SARIF document
 // for machines (artefacts §12); raw SARIF never reaches the model.
 func writeMergedReport(s *store.Store, raw map[string][]byte) error {
-	var runs []json.RawMessage
+	var docs [][]byte
 	for _, b := range raw {
-		var doc struct {
-			Runs []json.RawMessage `json:"runs"`
-		}
-		if err := json.Unmarshal(b, &doc); err != nil {
-			return fmt.Errorf("merging reports: %w", err)
-		}
-		runs = append(runs, doc.Runs...)
+		docs = append(docs, b)
 	}
-	out, err := json.Marshal(struct {
-		Version string          `json:"version"`
-		Schema  string          `json:"$schema"`
-		Runs    []json.RawMessage `json:"runs"`
-	}{"2.1.0", "https://json.schemastore.org/sarif-2.1.0.json", runs})
+	out, err := stitchRuns(docs)
 	if err != nil {
 		return err
 	}
 	return store.AtomicWrite(filepath.Join(s.Cavet, "reports", "latest.sarif"), append(out, '\n'))
+}
+
+// stitchRuns concatenates SARIF documents into one carrying all their runs:
+// per-image trivy-image reports merge into a single scanner document this way.
+func stitchRuns(docs [][]byte) ([]byte, error) {
+	var runs []json.RawMessage
+	for _, b := range docs {
+		var doc struct {
+			Runs []json.RawMessage `json:"runs"`
+		}
+		if err := json.Unmarshal(b, &doc); err != nil {
+			return nil, fmt.Errorf("merging reports: %w", err)
+		}
+		runs = append(runs, doc.Runs...)
+	}
+	return json.Marshal(struct {
+		Version string           `json:"version"`
+		Schema  string           `json:"$schema"`
+		Runs    []json.RawMessage `json:"runs"`
+	}{"2.1.0", "https://json.schemastore.org/sarif-2.1.0.json", runs})
 }
 
 func buildResult(merged []*projection.MergedFinding, state *store.State, label string, scanners []string, o Options) *Result {
@@ -348,4 +397,16 @@ func toSet(paths []string) map[string]bool {
 		m[p] = true
 	}
 	return m
+}
+
+// intersect keeps want's order, membership from have.
+func intersect(want, have []string) []string {
+	set := toSet(have)
+	var out []string
+	for _, p := range want {
+		if set[p] {
+			out = append(out, p)
+		}
+	}
+	return out
 }

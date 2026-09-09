@@ -7,7 +7,7 @@ import "strings"
 // rule's default configuration level.
 func rawSeverity(scanner string, rule sarifRule) string {
 	switch scanner {
-	case "trivy":
+	case "trivy", "trivy-image": // image scans emit the same rule tags
 		for _, tag := range rule.Properties.Tags {
 			switch tag {
 			case "CRITICAL", "HIGH", "MEDIUM", "LOW":

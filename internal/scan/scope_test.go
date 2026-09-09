@@ -3,6 +3,8 @@ package scan
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -42,6 +44,31 @@ func (f *fakeRunner) NextScanDir() string {
 	return fmt.Sprintf("/scan/%d", f.scans)
 }
 
+// The image-phase seam: record the call, and make SaveImage real enough that
+// tar cleanup in .cavet/tmp is observable.
+func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag string) error {
+	f.cmds = append(f.cmds, "build "+dockerfilePath+" ctx "+contextDir+" tag "+tag)
+	return nil
+}
+
+func (f *fakeRunner) SaveImage(_ context.Context, ref, destPath string) error {
+	f.cmds = append(f.cmds, "save "+ref+" "+destPath)
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(destPath, []byte("tar"), 0o644)
+}
+
+func (f *fakeRunner) CopyToContainer(_ context.Context, srcPath, dstPath string) error {
+	f.cmds = append(f.cmds, "cp "+srcPath+" "+dstPath)
+	return nil
+}
+
+func (f *fakeRunner) RemoveImage(_ context.Context, ref string) error {
+	f.cmds = append(f.cmds, "rmi "+ref)
+	return nil
+}
+
 func (f *fakeRunner) ran(sub string) bool {
 	for _, c := range f.cmds {
 		if strings.Contains(c, sub) {
@@ -61,6 +88,9 @@ func TestTierSelection(t *testing.T) {
 		{ScopeDiff, false, "gitleaks,trivy"},
 		{ScopeFull, false, "gitleaks,trivy,opengrep"},
 		{ScopeStaged, true, "gitleaks,trivy,opengrep"},
+		// The image scope has no filesystem tier; the image phase is the scan.
+		{ScopeImage, false, ""},
+		{ScopeImage, true, ""},
 	}
 	for _, c := range cases {
 		if got := strings.Join(TierScanners(c.scope, c.deep), ","); got != c.want {

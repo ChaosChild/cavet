@@ -141,7 +141,7 @@ func stripTarget(uri, target string) string {
 func descriptionFor(scanner string, res sarifResult, rule sarifRule) string {
 	msg := res.Message.Text
 	switch scanner {
-	case "trivy":
+	case "trivy", "trivy-image": // same SARIF shape, different origin
 		if rule.ShortDescription.Text != "" {
 			return rule.ShortDescription.Text
 		}
