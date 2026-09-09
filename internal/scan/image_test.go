@@ -52,8 +52,8 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 	if !r.ran("trivy image --input /scan/image-0.tar") || !r.ran("/scan/image-1.tar") {
 		t.Fatalf("trivy must run per image tar, cmds: %v", r.cmds)
 	}
-	if !r.ran("rmi cavet-scan-0") || !r.ran("rmi cavet-scan-1") {
-		t.Fatalf("built images must be removed, cmds: %v", r.cmds)
+	if strings.Count(strings.Join(r.cmds, "\n"), "rmi cavet-scan-") != 2 {
+		t.Fatalf("each built image must be removed under its own tag, cmds: %v", r.cmds)
 	}
 	// The same CVE+package in both images stays two findings: identity is
 	// bound to the configured Dockerfile path each image came from (img:
@@ -418,8 +418,8 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	}
 }
 
-// Reordering container_images changes the transient build tags
-// (cavet-scan-0/1 swap) but must not re-identify image findings: identity
+// Reordering container_images changes the transient build tags (the salted
+// tags swap ordinals) but must not re-identify image findings: identity
 // derives from the Dockerfile path, so the reorder scan emits neither fresh
 // detected nor false remediated events (design D3).
 func TestImageIdentitySurvivesListReordering(t *testing.T) {
@@ -465,6 +465,35 @@ func TestImageIdentitySurvivesListReordering(t *testing.T) {
 	}
 	if len(st.Findings) != 2 {
 		t.Fatalf("one finding per configured image expected, got %+v", st.Findings)
+	}
+}
+
+// The transient tag must be repo-unique: two cavet processes in different
+// repositories share one daemon, and colliding cavet-scan-<n> tags would let
+// one overwrite the other's image between build and save.
+func TestImageTagSaltedByRepoRoot(t *testing.T) {
+	builtTag := func() string {
+		s := newTestStore(t) // fresh repository root per call
+		seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+		r := &fakeRunner{reports: map[string][]byte{
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		}}
+		if _, err := Run(context.Background(), s, r, Options{
+			Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range r.cmds {
+			if strings.HasPrefix(c, "build ") {
+				return c[strings.LastIndex(c, " ")+1:]
+			}
+		}
+		t.Fatal("no build command recorded")
+		return ""
+	}
+	a, b := builtTag(), builtTag()
+	if a == b || !strings.HasPrefix(a, "cavet-scan-") || !strings.HasSuffix(a, "-0") {
+		t.Fatalf("tags must follow cavet-scan-<hash>-<n> and differ per repository root: %q vs %q", a, b)
 	}
 }
 

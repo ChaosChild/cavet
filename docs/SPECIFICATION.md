@@ -258,7 +258,9 @@ tar or in-image file paths, meaningless repo-side. An image finding's identity i
 `sha256("img:" + imageName + "\x00" + vulnID + "\x00" + pkgName + "\x00" + pkgVersion)`,
 where `imageName` is the configured image's Dockerfile repo path,
 slash-normalised. Identity derives from the configuration, not from the transient
-`cavet-scan-<n>` build tag, so it survives rebuilds and reordering of the
+`cavet-scan-<repo-hash>-<n>` build tag (salted with the repository root so concurrent
+scans in different repositories cannot overwrite each other's images on a shared
+daemon), so it survives rebuilds and reordering of the
 configured image list; the build tag exists only to build and remove the image,
 and binding identity to the list ordinal would re-identify every image finding
 and orphan its triage state. The same CVE in two configured images stays two
