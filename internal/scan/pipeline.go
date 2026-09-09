@@ -191,14 +191,16 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 			return nil, err
 		}
 	}
+	var imageFindings []projection.Finding
 	if len(images) > 0 {
-		b, err := scanImages(ctx, s, r, images)
+		b, fs, err := scanImages(ctx, s, r, images)
 		if err != nil {
 			return nil, err
 		}
 		raw["trivy-image"] = b
+		imageFindings = fs
 	}
-	merged, err := parseAndMerge(scanners, raw, target)
+	merged, err := parseAndMerge(scanners, raw, target, imageFindings)
 	if err != nil {
 		return nil, err
 	}
@@ -286,9 +288,14 @@ func runScanners(ctx context.Context, r Runner, scanners []string, target string
 	return out, nil
 }
 
-func parseAndMerge(scanners []string, raw map[string][]byte, target string) ([]*projection.MergedFinding, error) {
+func parseAndMerge(scanners []string, raw map[string][]byte, target string, imageFindings []projection.Finding) ([]*projection.MergedFinding, error) {
 	var findings []projection.Finding
 	for _, sc := range scanners {
+		if sc == "trivy-image" {
+			// Parsed per image in image.go with its Dockerfile location and
+			// build tag; re-parsing here would lose both.
+			continue
+		}
 		fs, warns, err := projection.Parse(sc, raw[sc], target)
 		if err != nil {
 			return nil, err
@@ -298,6 +305,7 @@ func parseAndMerge(scanners []string, raw map[string][]byte, target string) ([]*
 		}
 		findings = append(findings, fs...)
 	}
+	findings = append(findings, imageFindings...)
 	return projection.Merge(findings), nil
 }
 

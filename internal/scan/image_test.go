@@ -3,12 +3,15 @@ package scan
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/events"
+	"github.com/ChaosChild/cavet/internal/fingerprint"
 	"github.com/ChaosChild/cavet/internal/store"
 )
 
@@ -28,7 +31,7 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "engine", "Dockerfile"))
 	r := &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/trivy-image.sarif": fixtureSARIF("trivy", "CVE-2024-9", "app/lib.py", 1),
+			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
 	res, err := Run(context.Background(), s, r, Options{
@@ -51,12 +54,23 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 	if !r.ran("rmi cavet-scan-0") || !r.ran("rmi cavet-scan-1") {
 		t.Fatalf("built images must be removed, cmds: %v", r.cmds)
 	}
-	// Identical per-image findings merge into one run's rows.
-	if len(res.Rows) != 1 || res.Rows[0].Rule != "CVE-2024-9" {
-		t.Fatalf("want the merged trivy-image finding, got %+v", res.Rows)
+	// The same CVE+package in both images stays two findings: identity is
+	// bound to the tag each image was built under (img: namespace).
+	if len(res.Rows) != 2 || res.Rows[0].Rule != "CVE-2024-9" {
+		t.Fatalf("want one row per image, got %+v", res.Rows)
 	}
-	if res.Rows[0].Sev != "high" {
-		t.Fatalf("trivy-image severities must map like trivy, got %q", res.Rows[0].Sev)
+	for _, row := range res.Rows {
+		if row.Sev != "high" {
+			t.Fatalf("trivy-image severities must map like trivy, got %q", row.Sev)
+		}
+		if row.Path != "Dockerfile" && row.Path != "engine/Dockerfile" {
+			t.Fatalf("image rows locate at the Dockerfile, got %q", row.Path)
+		}
+	}
+	fps := map[string]bool{res.Rows[0].FP: true, res.Rows[1].FP: true}
+	if !fps[fingerprint.Image("cavet-scan-0", "CVE-2024-9", "openssl", "3.0.15-r1")] ||
+		!fps[fingerprint.Image("cavet-scan-1", "CVE-2024-9", "openssl", "3.0.15-r1")] {
+		t.Fatalf("fingerprints must be per-image img: identities, got %v", fps)
 	}
 	// Tars are transient: tmp ends empty.
 	entries, err := os.ReadDir(filepath.Join(s.Cavet, "tmp"))
@@ -75,7 +89,7 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(doc.Runs) != 2 {
-		t.Fatalf("merged report must carry one run per image, got %d", len(doc.Runs))
+		t.Fatalf("merged report must carry one run per image, got %d", doc.Runs)
 	}
 }
 
@@ -102,10 +116,10 @@ func TestFullScanIncludesImagePhase(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	r := &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/gitleaks.sarif":   fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":      fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-			"/reports/opengrep.sarif":   fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
-			"/reports/trivy-image.sarif": fixtureSARIF("trivy", "CVE-2024-9", "app/lib.py", 1),
+			"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":    fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
 	res, err := Run(context.Background(), s, r, Options{
@@ -133,10 +147,10 @@ func TestBaselineWriteIncludesImageFindings(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	r := &fakeRunner{
 		reports: map[string][]byte{
-			"/reports/gitleaks.sarif":   fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":      fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-			"/reports/opengrep.sarif":   fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
-			"/reports/trivy-image.sarif": fixtureSARIF("trivy", "CVE-2024-9", "app/lib.py", 1),
+			"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":    fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}
 	if _, err := Run(context.Background(), s, r, Options{
@@ -188,9 +202,9 @@ func TestStagedScanImageTrigger(t *testing.T) {
 	s := newTestStore(t)
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	reports := map[string][]byte{
-		"/reports/gitleaks.sarif":   fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-		"/reports/trivy.sarif":      fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
-		"/reports/trivy-image.sarif": fixtureSARIF("trivy", "CVE-2024-9", "app/lib.py", 1),
+		"/reports/gitleaks.sarif":    fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+		"/reports/trivy.sarif":       fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+		"/reports/trivy-image.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 	}
 	// A configured Dockerfile among the staged paths pulls the image phase in.
 	r := &fakeRunner{
@@ -238,4 +252,151 @@ func TestDiffScanNeverRunsImagePhase(t *testing.T) {
 	if r.ran("trivy image") {
 		t.Fatalf("diff scope must not run the image phase, cmds: %v", r.cmds)
 	}
+}
+
+// The coverage pair at the heart of the img: namespace (spec §3.1): a
+// trivy-image finding is remediated only by an image scan covering its
+// Dockerfile. A plain fs scan covering the same Dockerfile path – even a
+// --full scan – did not run the originating scanner, so it proves nothing
+// (scannerRan gate, delta.go).
+func TestImageFindingDeltaCoverage(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	imageReport := fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH")
+	cleanImageReport := []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy","rules":[]}},"results":[]}]}`)
+	fsReports := func() map[string][]byte {
+		return map[string][]byte{
+			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy-image.sarif": imageReport,
+		}
+	}
+	wantFP := fingerprint.Image("cavet-scan-0", "CVE-2024-9", "openssl", "3.0.15-r1")
+
+	// 1. First image scan: one image finding enters state with its img:
+	// identity, Dockerfile location, and trivy-image as originating scanner.
+	if _, err := Run(context.Background(), s, &fakeRunner{reports: fsReports()}, Options{
+		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(st.Findings) != 1 {
+		t.Fatalf("one image finding expected, got %+v", st.Findings)
+	}
+	f := st.Findings[0]
+	if f.Fingerprint != wantFP || f.OriginatingScanner != "trivy-image" {
+		t.Fatalf("identity/scanner wrong: %s %s", f.Fingerprint, f.OriginatingScanner)
+	}
+	if len(f.Locations) != 1 || f.Locations[0].Path != "Dockerfile" {
+		t.Fatalf("image finding must locate at the Dockerfile, got %+v", f.Locations)
+	}
+
+	// 2. Repeat image scan: same identity, same location – no duplicate
+	// detected events, only surfaced.
+	if _, err := Run(context.Background(), s, &fakeRunner{reports: fsReports()}, Options{
+		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 3. Plain fs scans covering the Dockerfile path must NOT remediate it.
+	// The scannerRan gate: gitleaks+trivy ran, trivy-image did not.
+	if _, err := Run(context.Background(), s, &fakeRunner{
+		stdout: map[string]string{"git diff --name-only": "Dockerfile\x00"},
+		reports: map[string][]byte{
+			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+		},
+	}, Options{
+		Scope: ScopeDiff, DiffRef: "HEAD~1", Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// A --full fs scan (coverage AllPaths, still no trivy-image) is the
+	// stronger case: every path covered, scanner still absent.
+	if _, err := Run(context.Background(), s, &fakeRunner{
+		reports: map[string][]byte{
+			"/reports/gitleaks.sarif":  fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.sarif":     fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":  fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+		},
+	}, Options{Scope: ScopeFull, Engine: "ghcr.io/x@sha256:t"}); err != nil {
+		t.Fatal(err)
+	}
+	evs, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	detected, remediated := 0, 0
+	for _, e := range evs {
+		switch e.Kind {
+		case events.Detected:
+			if e.Fingerprint == wantFP {
+				detected++
+			}
+		case events.Remediated:
+			remediated++
+		}
+	}
+	if detected != 1 || remediated != 0 {
+		t.Fatalf("fs coverage must not remediate an image finding, and repeats must not re-detect: %d detected, %d remediated", detected, remediated)
+	}
+	st, err = s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	survived := false
+	for _, f := range st.Findings {
+		if f.Fingerprint == wantFP {
+			survived = true
+		}
+	}
+	if !survived {
+		t.Fatalf("image finding must survive fs scans, got %+v", st.Findings)
+	}
+
+	// 4. The image scan that covers its Dockerfile remediates it.
+	if _, err := Run(context.Background(), s, &fakeRunner{
+		reports: map[string][]byte{"/reports/trivy-image.sarif": cleanImageReport},
+	}, Options{
+		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	evs, err = s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var remediatedFP string
+	for _, e := range evs {
+		if e.Kind == events.Remediated {
+			remediatedFP = e.Fingerprint
+		}
+	}
+	if remediatedFP != wantFP {
+		t.Fatalf("covering image scan must emit the remediation, last remediated fp %q", remediatedFP)
+	}
+	st, err = s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range st.Findings {
+		if f.Fingerprint == wantFP {
+			t.Fatalf("remediated image finding must leave state, got %+v", st.Findings)
+		}
+	}
+}
+
+// fixtureImageSARIF builds a one-result trivy-image document in the real shape
+// captured from engine trivy 0.74.0 (2026-09-09): package identity rides the
+// result message lines, the SARIF uri is the scan tar, rules carry the
+// severity tag.
+func fixtureImageSARIF(vulnID, pkg, version, severity string) []byte {
+	doc := fmt.Sprintf(`{"runs":[{"tool":{"driver":{"name":"Trivy","rules":[{"id":%q,"shortDescription":{"text":"pkg vuln"},"properties":{"tags":["vulnerability","security",%q]}}]}},"results":[{"ruleId":%q,"ruleIndex":0,"level":"error","message":{"text":"Package: %s\nInstalled Version: %s\nVulnerability %s\nSeverity: %s\nFixed Version: 9.9\nLink: [%s](https://avd.aquasec.com/nvd/%s)"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/scan/image-0.tar","uriBaseId":"ROOTPATH"},"region":{"startLine":1,"startColumn":1,"endLine":1,"endColumn":1}}}]}]}]}`,
+		vulnID, severity, vulnID, pkg, version, vulnID, severity, vulnID, vulnID)
+	return []byte(doc)
 }
