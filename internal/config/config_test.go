@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func writeConfig(t *testing.T, s string) string {
@@ -21,7 +23,7 @@ func TestDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Engine.Variant != "core" || c.Scan.DeepDefault || c.Scan.ContainerImages ||
+	if c.Engine.Variant != "core" || c.Scan.DeepDefault || c.Scan.ContainerImages.Enabled() ||
 		c.Scanners.Checkov || c.Scan.HookExit1 {
 		t.Fatalf("bad defaults: %+v", c)
 	}
@@ -74,5 +76,107 @@ network:
 		!c.Scan.DeepDefault || !c.Scan.HookExit1 || !c.Scanners.Checkov ||
 		c.Network.Proxy != "http://proxy:3128" || c.Network.DBOverrides.TrivyDB != "/db/trivy" {
 		t.Fatalf("values not loaded: %+v", c)
+	}
+}
+
+func TestContainerImagesForms(t *testing.T) {
+	cases := []struct {
+		name, body string
+		mode       string
+		enabled    bool
+		entries    []string
+	}{
+		{"absent", "scan:\n  deep_default: false\n", "false", false, nil},
+		{"false", "scan:\n  container_images: false\n", "false", false, nil},
+		{"true", "scan:\n  container_images: true\n", "true", true, nil},
+		{"list with nested paths", "scan:\n  container_images:\n    - Dockerfile\n    - engine/Dockerfile\n",
+			"list", true, []string{"Dockerfile", "engine/Dockerfile"}},
+		{"empty list", "scan:\n  container_images: []\n", "list", false, []string{}},
+	}
+	for _, c := range cases {
+		cfg, err := Load(writeConfig(t, c.body))
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		got := cfg.Scan.ContainerImages
+		if got.Mode() != c.mode || got.Enabled() != c.enabled {
+			t.Errorf("%s: mode/enabled = %s/%v, want %s/%v", c.name, got.Mode(), got.Enabled(), c.mode, c.enabled)
+		}
+		if len(got.Entries()) != len(c.entries) {
+			t.Errorf("%s: entries %v, want %v", c.name, got.Entries(), c.entries)
+			continue
+		}
+		for i := range c.entries {
+			if got.Entries()[i] != c.entries[i] {
+				t.Errorf("%s: entries %v, want %v", c.name, got.Entries(), c.entries)
+			}
+		}
+	}
+}
+
+func TestContainerImagesInvalidFailsLoud(t *testing.T) {
+	for _, body := range []string{
+		"scan:\n  container_images: 3\n",
+		"scan:\n  container_images: maybe\n",
+		"scan:\n  container_images:\n    trivy: yes\n",
+		"scan:\n  container_images:\n    - 1\n",
+	} {
+		_, err := Load(writeConfig(t, body))
+		if err == nil || !strings.Contains(err.Error(), "container_images") {
+			t.Fatalf("non-bool non-list value must fail loud naming the key, got: %v", err)
+		}
+	}
+}
+
+func TestContainerImagesGlobResolution(t *testing.T) {
+	root := t.TempDir()
+	for _, p := range []string{"Dockerfile", "Dockerfile.prod", "engine/Dockerfile"} {
+		full := filepath.Join(root, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("FROM scratch\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := (ContainerImages{auto: true}).Dockerfiles(root)
+	// Bool mode globs Dockerfile* at the root only: nested and non-files stay out.
+	want := []string{"Dockerfile", "Dockerfile.prod"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("root glob = %v, want %v", got, want)
+	}
+	// List mode uses entries verbatim, existing or not.
+	l := ImageList([]string{"engine/Dockerfile"})
+	if g := l.Dockerfiles(root); len(g) != 1 || g[0] != "engine/Dockerfile" {
+		t.Fatalf("list verbatim = %v", g)
+	}
+}
+
+func TestContainerImagesMarshalRoundTrip(t *testing.T) {
+	for name, ci := range map[string]ContainerImages{
+		"false": {},
+		"true":  {auto: true},
+		"list":  ImageList([]string{"Dockerfile", "engine/Dockerfile"}),
+	} {
+		cfg := Default()
+		cfg.Scan.ContainerImages = ci
+		b, err := yaml.Marshal(cfg)
+		if err != nil {
+			t.Fatalf("%s: marshal: %v", name, err)
+		}
+		p := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(p, b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := Load(p)
+		if err != nil {
+			t.Fatalf("%s: reload: %v", name, err)
+		}
+		if got.Scan.ContainerImages.Mode() != name {
+			t.Errorf("round trip: mode = %s, want %s", got.Scan.ContainerImages.Mode(), name)
+		}
+		if name == "list" && len(got.Scan.ContainerImages.Entries()) != 2 {
+			t.Errorf("round trip: entries = %v", got.Scan.ContainerImages.Entries())
+		}
 	}
 }

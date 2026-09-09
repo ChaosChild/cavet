@@ -132,6 +132,17 @@ Nothing to install by hand: `cavet init` pulls the engine image,
   `config.yaml`.
 - `CAVET_ENGINE_IMAGE` overrides the image reference entirely – local builds,
   mirrors, pinning.
+- **Image scanning** via `scan.container_images`: `false` (default), `true`
+  (every `Dockerfile*` at the repository root), or an explicit list of
+  Dockerfile paths, nested ones included (`engine/Dockerfile`). `cavet image
+  add/remove/list` manages the list, so the file never needs hand-editing.
+  `cavet scan --image` scans just the configured images: each one is built
+  host-side, handed to the engine as a tar, and scanned offline by Trivy. A
+  `--full` scan includes the image phase whenever images are configured, and a
+  staged scan (including the pre-commit hook) includes it when one of the
+  configured Dockerfiles is itself staged. Mind the pre-commit latency: the
+  first build of a changed image takes minutes, and the phase fires only when
+  the Dockerfile itself changed.
 
 The image bundles Opengrep, Gitleaks, Trivy and Checkov. Trivy alone already
 covers dependencies, IaC misconfiguration and containers from one binary;
@@ -290,7 +301,8 @@ scoop install cavet
 | Command | |
 |---|---|
 | `init` | Scaffold `.cavet/`, start the engine, record existing debt as baseline |
-| `scan` | Run scanners for a scope and fold the delta |
+| `scan` | Run scanners for a scope (`--staged`, `--diff`, `--full`, `--image`) and fold the delta |
+| `image` | Manage the Dockerfiles cavet scans as container images: `add`, `remove`, `list` |
 | `finding` | Show one finding: row, locations, verdict |
 | `debt` | The pre-existing baseline, on demand only |
 | `triage` | Record a confirm or dismiss verdict with reason and confidence |

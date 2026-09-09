@@ -15,10 +15,10 @@ import (
 )
 
 func newScanCmd() *cobra.Command {
-	var staged, full, deep bool
+	var staged, full, deep, image bool
 	var diffRef, phase, surfaceCtx string
 	cmd := &cobra.Command{
-		Use:   "scan [--staged|--diff <ref>|--full] [--deep] [--phase <phase>] [--context <ctx>]",
+		Use:   "scan [--staged|--diff <ref>|--full|--image] [--deep] [--phase <phase>] [--context <ctx>]",
 		Short: "Run scanners for a scope and fold the delta",
 		Long: "Run scanners for a scope and fold the delta against recorded state.\n" +
 			"\nExit codes: 0 clean (or nothing staged), 1 findings present, 2 error.\n" +
@@ -29,27 +29,28 @@ func newScanCmd() *cobra.Command {
 			"selection (scopes and --deep do). Default: build.",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			scopes := 0
-			for _, b := range []bool{staged, diffRef != "", full} {
+			for _, b := range []bool{staged, diffRef != "", full, image} {
 				if b {
 					scopes++
 				}
 			}
 			if scopes > 1 {
-				return fail("exactly one scope flag (--staged, --diff, --full)")
+				return fail("exactly one scope flag (--staged, --diff, --full, --image)")
 			}
-			return runScan(staged, full, deep, diffRef, phase, surfaceCtx)
+			return runScan(staged, full, deep, image, diffRef, phase, surfaceCtx)
 		},
 	}
 	cmd.Flags().BoolVar(&staged, "staged", false, "scan staged index content (default when the index is non-empty)")
 	cmd.Flags().StringVar(&diffRef, "diff", "", "scan worktree content of files changed vs <ref>")
 	cmd.Flags().BoolVar(&full, "full", false, "scan the whole workspace, history included")
+	cmd.Flags().BoolVar(&image, "image", false, "scan the configured container images (build, then trivy each)")
 	cmd.Flags().BoolVar(&deep, "deep", false, "add SAST (opengrep) to a staged/diff scan")
 	cmd.Flags().StringVar(&phase, "phase", "", "design|build|test|deploy (default build)")
 	cmd.Flags().StringVar(&surfaceCtx, "context", "", "where the result is shown: pre-commit|dispatch|posture (default dispatch)")
 	return cmd
 }
 
-func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
+func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) error {
 	s, err := openStore()
 	if err != nil {
 		return err
@@ -66,6 +67,8 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 
 	var scope scan.Scope
 	switch {
+	case image:
+		scope = scan.ScopeImage
 	case staged, diffRef != "":
 		if diffRef != "" {
 			scope = scan.ScopeDiff
@@ -97,7 +100,8 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 
 	res, err := scan.Run(ctx, s, c, scan.Options{
 		Scope: scope, DiffRef: diffRef,
-		Deep: deep || cfg.Scan.DeepDefault,
+		Images: cfg.Scan.ContainerImages.Dockerfiles(root),
+		Deep:   deep || cfg.Scan.DeepDefault,
 		Actor: events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 	})
