@@ -5,7 +5,7 @@ of forgetting them exceeds the cost of writing them down, and move to Closed
 when they ship. Ordering is the maintainer's call.
 
 When an item ships, move it below the line with the completion date and the
-version that carried it. Last updated: 2026-09-08.
+version that carried it. Last updated: 2026-09-09.
 
 ## Open
 
@@ -38,7 +38,28 @@ would retire the manual scan-local flow. Design questions when picked up:
 build from the Dockerfile only, or also referenced and composed images; tier
 placement (image builds are slow, own tier or part of `--full`); fingerprint
 and baseline semantics for artifacts (key by Dockerfile plus base-image
-digests, not source lines).
+digests, not source lines). Round-1 design decisions recorded 2026-09-09:
+config gate stays the `container_images` bool covering repo-root Dockerfiles,
+trigger is an explicit `--image` flag plus automatic inclusion in `--full`
+and in `--staged` when a root Dockerfile is staged, and fingerprints use
+package identity (`img:` namespace + image name + vuln id + package name +
+installed version) with the Dockerfile and resolved base digests as metadata.
+
+### Dockerfile auto-discovery for image scanning
+
+Image scanning v1 covers repo-root Dockerfiles only. Discovery beyond the
+root (config-driven globs or recursive search with sensible exclusions)
+unlocks nested Dockerfiles, including this repo's own `engine/Dockerfile`,
+which is when cavet dogfoods image scanning on its engine image and
+`engine/scan-local.ps1` retires.
+
+### Image staleness tracking
+
+A base image can move under an unchanged Dockerfile (`:latest` tags) and
+installed dependencies drift with it. Record resolved base-image digests and
+installed dependency versions at image-scan time; surface drift since the
+last image scan so operators know when to re-run `cavet scan --image`
+without a Dockerfile change.
 
 ### `cavet serve` dashboard
 
