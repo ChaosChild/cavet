@@ -225,6 +225,25 @@ func TestBuildFailureTailTruncation(t *testing.T) {
 	}
 }
 
+// BuildImage stages the context tar in a temp file before uploading; there is
+// no daemon-free seam to observe the request body itself, but the pre-upload
+// failure path is testable: an unwalkable contextDir makes tarDir fail, and
+// the staged temp tar must be cleaned up, not leaked into the temp dir. The
+// file-as-body framing is covered only by the live-daemon test below.
+func TestBuildImageTempContextCleanedOnError(t *testing.T) {
+	c := New("cavet-engine:test", "", t.TempDir())
+	glob := filepath.Join(os.TempDir(), "cavet-build-ctx-*.tar")
+	before, _ := filepath.Glob(glob)
+	err := c.BuildImage(context.Background(), "Dockerfile", filepath.Join(t.TempDir(), "missing"), "cavet-ec-test:x", "")
+	if err == nil {
+		t.Fatal("an unwalkable build context must fail BuildImage")
+	}
+	after, _ := filepath.Glob(glob)
+	if len(after) != len(before) {
+		t.Fatalf("staged context tar leaked: %d before, %d after", len(before), len(after))
+	}
+}
+
 // --- integration: same daemon-unreachable skip pattern as client_test.go ---
 
 func TestImageBuildSaveCopyInRemove(t *testing.T) {

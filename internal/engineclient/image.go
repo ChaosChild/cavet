@@ -74,7 +74,8 @@ func (c *Client) CopyToContainer(ctx context.Context, srcPath, dstPath string) e
 }
 
 // BuildImage builds tag from the dockerfile at dockerfilePath (absolute or
-// contextDir-relative) with contextDir streamed as the build context. target
+// contextDir-relative) with contextDir as the build context, staged through a
+// temp tar for the upload. target
 // names a build stage for multi-stage Dockerfiles; empty means the Dockerfile
 // default (the last stage). Build failures surface the daemon's error plus a
 // truncated build log; the response body is the only place the daemon
@@ -87,11 +88,25 @@ func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag
 	if err != nil {
 		return err
 	}
-	pr, pw := io.Pipe()
-	go func() {
-		_ = pw.CloseWithError(tarDir(contextDir, pw))
-	}()
-	res, err := c.docker.ImageBuild(ctx, pr, client.ImageBuildOptions{
+	// The context tar goes through a temp file, not a piped stream: a piped
+	// body interleaved tar production with the send, so any transient walk
+	// error aborted the upload mid-stream, which the daemon read as an
+	// invalid tar header, an unexpected EOF, or a build hung waiting for
+	// body bytes. Contexts are megabytes, so the file round-trip costs
+	// nothing; the pipe existed to stream unbounded ones.
+	tf, err := os.CreateTemp("", "cavet-build-ctx-*.tar")
+	if err != nil {
+		return fmt.Errorf("image build %s: %w", tag, err)
+	}
+	defer os.Remove(tf.Name()) // after Close: Windows refuses to unlink open files
+	defer tf.Close()
+	if err := tarDir(contextDir, tf); err != nil {
+		return fmt.Errorf("image build %s: %w", tag, err)
+	}
+	if _, err := tf.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("image build %s: %w", tag, err)
+	}
+	res, err := c.docker.ImageBuild(ctx, tf, client.ImageBuildOptions{
 		Dockerfile: dockerfile,
 		Target:     target, // empty option = Dockerfile default stage
 		Tags:       []string{tag},
