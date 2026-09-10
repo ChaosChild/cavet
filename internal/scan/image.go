@@ -91,7 +91,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, img conf
 				"the image build uses WORKING-TREE content while this scan's coverage describes INDEX content\n", dockerfile)
 		}
 	}
-	if err := r.BuildImage(ctx, host, filepath.Dir(host), tag, img.Target); err != nil {
+	if err := r.BuildImage(ctx, host, filepath.Dir(host), tag, img.Target, os.Stderr); err != nil {
 		return nil, nil, fmt.Errorf("image build for %s failed: %w", dockerfile, err)
 	}
 	tarPath := filepath.Join(s.Cavet, "tmp", fmt.Sprintf("image-%d.tar", n))

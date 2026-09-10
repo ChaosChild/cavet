@@ -276,6 +276,13 @@ with a warning (cli-spec §9). The scanner name `trivy-image` is distinct from
 findings (§3.1), because it did not run the scanner that found them. The secret
 pre-collapse never applies to image findings.
 
+**Image builds run through the docker CLI's `buildx` command, not the daemon
+API**, because the daemon's /build endpoint with BuildKit wedges indefinitely
+on long builds on Docker Desktop for Windows while the CLI is the supported
+interface (verified by a standalone probe; the engine build completes in ~9
+minutes cold cache). Root-context builds therefore follow standard Docker
+semantics: `.dockerignore` is the exclusion mechanism.
+
 ### 3.4 Determinism of the delta
 
 If scanner rules or vulnerability databases drift between runs, the delta becomes

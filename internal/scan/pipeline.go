@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ type Runner interface {
 	Exec(ctx context.Context, cmd []string) (engineclient.ExecResult, error)
 	CopyOut(ctx context.Context, containerPath string) ([]byte, error)
 	NextScanDir() string
-	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag, target string) error
+	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag, target string, output io.Writer) error
 	SaveImage(ctx context.Context, ref, destPath string) error
 	CopyToContainer(ctx context.Context, srcPath, dstPath string) error
 	RemoveImage(ctx context.Context, ref string) error
@@ -60,10 +61,10 @@ type Row struct {
 }
 
 type Counts struct {
-	Confirmed                            int
-	ConfirmedHigh, ConfirmedLow          int
-	Critical, High, Medium, Low, Info    int
-	Dismissed, Suppressed, Baseline      int
+	Confirmed                         int
+	ConfirmedHigh, ConfirmedLow       int
+	Critical, High, Medium, Low, Info int
+	Dismissed, Suppressed, Baseline   int
 }
 
 type Result struct {
@@ -359,8 +360,8 @@ func stitchRuns(docs [][]byte) ([]byte, error) {
 		runs = append(runs, doc.Runs...)
 	}
 	return json.Marshal(struct {
-		Version string           `json:"version"`
-		Schema  string           `json:"$schema"`
+		Version string            `json:"version"`
+		Schema  string            `json:"$schema"`
 		Runs    []json.RawMessage `json:"runs"`
 	}{"2.1.0", "https://json.schemastore.org/sarif-2.1.0.json", runs})
 }

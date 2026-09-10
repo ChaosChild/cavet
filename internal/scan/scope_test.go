@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +53,7 @@ func (f *fakeRunner) NextScanDir() string {
 
 // The image-phase seam: record the call, and make SaveImage real enough that
 // tar cleanup in .cavet/tmp is observable.
-func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag, target string) error {
+func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag, target string, _ io.Writer) error {
 	cmd := "build " + dockerfilePath + " ctx " + contextDir + " tag " + tag
 	if target != "" {
 		cmd += " target " + target
