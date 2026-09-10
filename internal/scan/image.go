@@ -91,6 +91,14 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, img conf
 				"the image build uses WORKING-TREE content while this scan's coverage describes INDEX content\n", dockerfile)
 		}
 	}
+	// buildx ships the whole context directory to the daemon; without a
+	// .dockerignore here, .git and .cavet ride along in the build context
+	// (SPECIFICATION documents the trade). Runs once per configured image,
+	// so the line needs no dedup state.
+	if _, err := os.Stat(filepath.Join(filepath.Dir(host), ".dockerignore")); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "warning: %s has no .dockerignore; .git and .cavet are part of the build context\n",
+			filepath.ToSlash(filepath.Dir(host)))
+	}
 	if err := r.BuildImage(ctx, host, filepath.Dir(host), tag, img.Target, os.Stderr); err != nil {
 		return nil, nil, fmt.Errorf("image build for %s failed: %w", dockerfile, err)
 	}

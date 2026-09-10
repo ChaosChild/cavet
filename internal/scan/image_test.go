@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -603,6 +604,48 @@ func TestStagedImageScanProceedsOnDivergence(t *testing.T) {
 	}
 	if !r.ran("trivy image --input /scan/image-0.tar") {
 		t.Fatalf("divergent staged Dockerfile must still build and scan, cmds: %v", r.cmds)
+	}
+}
+
+// The buildx context follows standard Docker semantics: without a
+// .dockerignore in the Dockerfile's directory, .git and .cavet are part of
+// the build context (the old silent exclusion is gone). The operator gets
+// exactly one warning line per image, on the stream the build writes to.
+func TestImageScanWarnsOnMissingDockerignore(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	reports := map[string][]byte{
+		"/reports/trivy-image-0.sarif": []byte(`{"runs":[{"tool":{"driver":{"name":"Trivy","rules":[]}},"results":[]}]}`),
+	}
+	run := func() string {
+		t.Helper()
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := os.Stderr
+		os.Stderr = w
+		_, _, err = scanOneImage(context.Background(), s, &fakeRunner{reports: reports}, 0,
+			config.ImageEntry{Dockerfile: "Dockerfile"}, false)
+		os.Stderr = old
+		w.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	if out := run(); !strings.Contains(out, "has no .dockerignore; .git and .cavet are part of the build context") {
+		t.Fatalf("context without .dockerignore must warn, got %q", out)
+	}
+	if err := os.WriteFile(filepath.Join(s.Root, ".dockerignore"), []byte(".git\n.cavet\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out := run(); strings.Contains(out, ".dockerignore") {
+		t.Fatalf("context with .dockerignore must stay silent, got %q", out)
 	}
 }
 
