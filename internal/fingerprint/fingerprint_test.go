@@ -45,6 +45,34 @@ func TestOfMatchesKnownVector(t *testing.T) {
 	}
 }
 
+func TestImageMatchesKnownVector(t *testing.T) {
+	// sha256("img:" + dockerfilePath + \x00 + vulnID + \x00 + pkg + \x00 +
+	// version), cross-checked against the platform SHA-256; the identity is
+	// package identity under the configured Dockerfile path, no line context
+	// (spec §3.3 img namespace, design D3).
+	want := "c93a8ca2c5e0cf6e1ca3e84258d783a84806b49b3d8f085896e2a950c04e3146"
+	if got := Image("engine/Dockerfile", "CVE-2026-14456", "libcrypto3", "3.5.7-r0"); got != want {
+		t.Fatalf("got %s want %s", got, want)
+	}
+}
+
+func TestImageSeparatesFields(t *testing.T) {
+	base := Image("Dockerfile", "CVE-1", "openssl", "1.0")
+	for name, got := range map[string]string{
+		"image":   Image("engine/Dockerfile", "CVE-1", "openssl", "1.0"),
+		"vuln":    Image("Dockerfile", "CVE-2", "openssl", "1.0"),
+		"pkg":     Image("Dockerfile", "CVE-1", "libssl", "1.0"),
+		"version": Image("Dockerfile", "CVE-1", "openssl", "1.1"),
+	} {
+		if got == base {
+			t.Fatalf("Image must separate %s from the identity", name)
+		}
+	}
+	if base == Of("CVE-1", "") {
+		t.Fatal("img: namespace must never collide with line-context fingerprints")
+	}
+}
+
 func TestKeysSeparateFields(t *testing.T) {
 	if Of("ab", "") == Of("a", "b") {
 		t.Fatal("Of must separate rule key from context")

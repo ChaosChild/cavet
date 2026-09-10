@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/ChaosChild/cavet/internal/engineclient"
+	"github.com/ChaosChild/cavet/internal/fingerprint"
+	"github.com/ChaosChild/cavet/internal/projection"
 	"github.com/ChaosChild/cavet/internal/store"
 )
 
@@ -117,6 +119,80 @@ func TestRealEngineWorktreeStagedScan(t *testing.T) {
 	for _, row := range res.Rows {
 		if strings.HasPrefix(row.Path, "/") || strings.Contains(row.Path, `\`) {
 			t.Fatalf("rows must be repo-relative: %+v", row)
+		}
+	}
+}
+
+// TestRealEngineImageScan proves the image phase end to end against the real
+// engine: host-side build, tar copy-in, offline trivy, and img: fingerprints
+// landing in state/findings.json with Dockerfile locations. The scan image's
+// base is the engine image itself – guaranteed present by the same gate that
+// decides the skip, and known to carry CVEs.
+func TestRealEngineImageScan(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "Dockerfile"), []byte("FROM cavet-engine:dev\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := engineclient.New("cavet-engine:dev", "", root)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	t.Cleanup(func() {
+		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccancel()
+		_ = c.Remove(cctx)
+	})
+	if err := c.Ping(ctx); err != nil {
+		t.Skipf("docker daemon unreachable: %v", err)
+	}
+	if err := c.ImagePresent(ctx); err != nil {
+		t.Skipf("dev image not built: %v", err)
+	}
+	if err := c.EnsureRunning(ctx); err != nil {
+		t.Fatalf("EnsureRunning: %v", err)
+	}
+
+	s, err := store.Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := Run(ctx, s, c, Options{Scope: ScopeImage, Images: imgs("Dockerfile"), Engine: "cavet-engine:dev"})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if len(res.Rows) == 0 {
+		t.Skip("engine image carries no known CVEs; nothing to assert")
+	}
+
+	// Every state finding must be an img: identity recomputable from the
+	// merged report's package identity, located at the Dockerfile.
+	report, err := os.ReadFile(filepath.Join(s.Cavet, "reports", "latest.sarif"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs, _, err := projection.Parse("trivy-image", report, "Dockerfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{}
+	for _, f := range fs {
+		want[fingerprint.Image("Dockerfile", f.RuleID, f.PkgName, f.PkgVersion)] = true
+	}
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(st.Findings) == 0 {
+		t.Fatalf("image findings must reach state, rows were %d", len(res.Rows))
+	}
+	for _, f := range st.Findings {
+		if f.OriginatingScanner != "trivy-image" {
+			t.Fatalf("originating scanner must be trivy-image, got %q", f.OriginatingScanner)
+		}
+		if len(f.Locations) != 1 || f.Locations[0].Path != "Dockerfile" {
+			t.Fatalf("image findings locate at the Dockerfile, got %+v", f.Locations)
+		}
+		if !want[f.Fingerprint] {
+			t.Fatalf("fingerprint %s (%s) is not an img: identity from the report", f.Fingerprint, f.RuleID)
 		}
 	}
 }

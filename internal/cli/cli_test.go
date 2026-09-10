@@ -212,3 +212,12 @@ func TestExcerpt(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestScanTimeout(t *testing.T) {
+	if got := scanTimeout(false); got != 30*time.Minute {
+		t.Fatalf("filesystem scan cap = %v, want 30m", got)
+	}
+	if got := scanTimeout(true); got != 2*time.Hour {
+		t.Fatalf("image scan cap = %v, want 2h", got)
+	}
+}

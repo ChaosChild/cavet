@@ -79,7 +79,8 @@ persists between sessions, what it costs.
 ### Prerequisites
 
 1. **Docker**, with a running daemon – `cavet init` probes it first and tells you
-   if it is unreachable.
+   if it is unreachable. Image scanning additionally uses the `docker` CLI's
+   `buildx` plugin (bundled with Docker Desktop) to build images.
 2. **A `cavet` binary** – the one-liner below installs it, or any channel in
    [Advanced: other install channels](#advanced-other-install-channels).
 3. **A git repository you want covered.**
@@ -134,10 +135,15 @@ Nothing to install by hand: `cavet init` pulls the engine image,
   mirrors, pinning.
 - **Image scanning** via `scan.container_images`: `false` (default), `true`
   (every `Dockerfile*` at the repository root), or an explicit list of
-  Dockerfile paths, nested ones included (`engine/Dockerfile`). `cavet image
+  Dockerfile paths, nested ones included (`engine/Dockerfile`). A list entry
+  may also be a map with a build target: `{dockerfile: engine/Dockerfile,
+  target: final-core}` – multi-stage Dockerfiles default to the last stage,
+  and the stage you actually ship is usually the one worth scanning. `cavet
+  image add <path> --target <stage>` writes that form. `cavet image
   add/remove/list` manages the list, so the file never needs hand-editing.
   `cavet scan --image` scans just the configured images: each one is built
-  host-side, handed to the engine as a tar, and scanned offline by Trivy. A
+  host-side via `docker buildx build` (build progress streams to your
+  terminal), handed to the engine as a tar, and scanned offline by Trivy. A
   `--full` scan includes the image phase whenever images are configured, and a
   staged scan (including the pre-commit hook) includes it when one of the
   configured Dockerfiles is itself staged. Mind the pre-commit latency: the
