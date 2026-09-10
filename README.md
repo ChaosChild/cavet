@@ -134,7 +134,11 @@ Nothing to install by hand: `cavet init` pulls the engine image,
   mirrors, pinning.
 - **Image scanning** via `scan.container_images`: `false` (default), `true`
   (every `Dockerfile*` at the repository root), or an explicit list of
-  Dockerfile paths, nested ones included (`engine/Dockerfile`). `cavet image
+  Dockerfile paths, nested ones included (`engine/Dockerfile`). A list entry
+  may also be a map with a build target: `{dockerfile: engine/Dockerfile,
+  target: final-core}` – multi-stage Dockerfiles default to the last stage,
+  and the stage you actually ship is usually the one worth scanning. `cavet
+  image add <path> --target <stage>` writes that form. `cavet image
   add/remove/list` manages the list, so the file never needs hand-editing.
   `cavet scan --image` scans just the configured images: each one is built
   host-side, handed to the engine as a tar, and scanned offline by Trivy. A

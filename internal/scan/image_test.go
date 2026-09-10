@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/config"
 	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/fingerprint"
 	"github.com/ChaosChild/cavet/internal/store"
@@ -25,6 +26,15 @@ func seedDockerfile(t *testing.T, s string) {
 	}
 }
 
+// imgs builds target-less image entries, the common test shape.
+func imgs(paths ...string) []config.ImageEntry {
+	es := make([]config.ImageEntry, 0, len(paths))
+	for _, p := range paths {
+		es = append(es, config.ImageEntry{Dockerfile: p})
+	}
+	return es
+}
+
 func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 	s := newTestStore(t)
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
@@ -36,7 +46,7 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 		},
 	}
 	res, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeImage, Images: []string{"Dockerfile", "engine/Dockerfile"},
+		Scope: ScopeImage, Images: imgs("Dockerfile", "engine/Dockerfile"),
 		Engine: "ghcr.io/x@sha256:t",
 	})
 	if err != nil {
@@ -95,6 +105,45 @@ func TestImageScanBuildsAndScansConfiguredImages(t *testing.T) {
 	}
 }
 
+// A configured per-entry build target must reach the build invocation; an
+// entry without one must build with no target (Dockerfile default stage).
+func TestImageScanPassesTargetToBuild(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "engine", "Dockerfile"))
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	r := &fakeRunner{reports: map[string][]byte{
+		"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		"/reports/trivy-image-1.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+	}}
+	if _, err := Run(context.Background(), s, r, Options{
+		Scope: ScopeImage,
+		Images: []config.ImageEntry{
+			{Dockerfile: "engine/Dockerfile", Target: "final-core"},
+			{Dockerfile: "Dockerfile"},
+		},
+		Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	builds := 0
+	for _, c := range r.cmds {
+		if !strings.HasPrefix(c, "build ") {
+			continue
+		}
+		builds++
+		if strings.Contains(c, "engine"+string(filepath.Separator)+"Dockerfile") {
+			if !strings.Contains(c, " target final-core") {
+				t.Fatalf("configured target must reach the build invocation: %q", c)
+			}
+		} else if strings.Contains(c, " target ") {
+			t.Fatalf("target-less entry must build with no target option: %q", c)
+		}
+	}
+	if builds != 2 {
+		t.Fatalf("both Dockerfiles must build, cmds: %v", r.cmds)
+	}
+}
+
 func TestImageScanWithoutConfigurationFails(t *testing.T) {
 	s := newTestStore(t)
 	_, err := Run(context.Background(), s, &fakeRunner{}, Options{Scope: ScopeImage, Engine: "ghcr.io/x@sha256:t"})
@@ -106,7 +155,7 @@ func TestImageScanWithoutConfigurationFails(t *testing.T) {
 func TestImageScanMissingDockerfileFails(t *testing.T) {
 	s := newTestStore(t)
 	_, err := Run(context.Background(), s, &fakeRunner{}, Options{
-		Scope: ScopeImage, Images: []string{"gone/Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeImage, Images: imgs("gone/Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	})
 	if err == nil || !strings.Contains(err.Error(), "gone/Dockerfile") {
 		t.Fatalf("missing Dockerfile must fail naming it, got %v", err)
@@ -130,7 +179,7 @@ func TestImageScanFailedExecCannotReuseStaleReport(t *testing.T) {
 		},
 	}
 	_, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeImage, Images: []string{"Dockerfile", "engine/Dockerfile"},
+		Scope: ScopeImage, Images: imgs("Dockerfile", "engine/Dockerfile"),
 		Engine: "ghcr.io/x@sha256:t",
 	})
 	if err == nil || !strings.Contains(err.Error(), "trivy-image scan failed (exit 1)") {
@@ -150,7 +199,7 @@ func TestFullScanIncludesImagePhase(t *testing.T) {
 		},
 	}
 	res, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeFull, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeFull, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +230,7 @@ func TestBaselineWriteIncludesImageFindings(t *testing.T) {
 		},
 	}
 	if _, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeFull, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeFull, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +288,7 @@ func TestStagedScanImageTrigger(t *testing.T) {
 		reports: reports,
 	}
 	if _, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeStaged, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeStaged, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +301,7 @@ func TestStagedScanImageTrigger(t *testing.T) {
 		reports: reports,
 	}
 	if _, err := Run(context.Background(), s, r2, Options{
-		Scope: ScopeStaged, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeStaged, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +321,7 @@ func TestDiffScanNeverRunsImagePhase(t *testing.T) {
 		},
 	}
 	if _, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeDiff, DiffRef: "HEAD~1", Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeDiff, DiffRef: "HEAD~1", Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +352,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	// 1. First image scan: one image finding enters state with its img:
 	// identity, Dockerfile location, and trivy-image as originating scanner.
 	if _, err := Run(context.Background(), s, &fakeRunner{reports: fsReports()}, Options{
-		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeImage, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +374,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	// 2. Repeat image scan: same identity, same location – no duplicate
 	// detected events, only surfaced.
 	if _, err := Run(context.Background(), s, &fakeRunner{reports: fsReports()}, Options{
-		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeImage, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +388,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
 		},
 	}, Options{
-		Scope: ScopeDiff, DiffRef: "HEAD~1", Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeDiff, DiffRef: "HEAD~1", Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +439,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	if _, err := Run(context.Background(), s, &fakeRunner{
 		reports: map[string][]byte{"/reports/trivy-image-0.sarif": cleanImageReport},
 	}, Options{
-		Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeImage, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +481,7 @@ func TestImageIdentitySurvivesListReordering(t *testing.T) {
 			"/reports/trivy-image-1.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		}
 	}
-	run := func(images []string) {
+	run := func(images []config.ImageEntry) {
 		t.Helper()
 		if _, err := Run(context.Background(), s, &fakeRunner{reports: reports()}, Options{
 			Scope: ScopeImage, Images: images, Engine: "ghcr.io/x@sha256:t",
@@ -440,8 +489,8 @@ func TestImageIdentitySurvivesListReordering(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run([]string{"Dockerfile", "engine/Dockerfile"})
-	run([]string{"engine/Dockerfile", "Dockerfile"}) // reordered
+	run(imgs("Dockerfile", "engine/Dockerfile"))
+	run(imgs("engine/Dockerfile", "Dockerfile")) // reordered
 
 	evs, err := s.ReadLog()
 	if err != nil {
@@ -480,7 +529,7 @@ func TestImageTagSaltedByRepoRoot(t *testing.T) {
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		}}
 		if _, err := Run(context.Background(), s, r, Options{
-			Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+			Scope: ScopeImage, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -548,7 +597,7 @@ func TestStagedImageScanProceedsOnDivergence(t *testing.T) {
 		},
 	}
 	if _, err := Run(context.Background(), s, r, Options{
-		Scope: ScopeStaged, Images: []string{"Dockerfile"}, Engine: "ghcr.io/x@sha256:t",
+		Scope: ScopeStaged, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
 	}); err != nil {
 		t.Fatal(err)
 	}

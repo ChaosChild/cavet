@@ -249,7 +249,7 @@ func TestImageBuildSaveCopyInRemove(t *testing.T) {
 		_ = c.RemoveImage(cctx, tag)
 	})
 
-	if err := c.BuildImage(ctx, dockerfile, ctxDir, tag); err != nil {
+	if err := c.BuildImage(ctx, dockerfile, ctxDir, tag, ""); err != nil {
 		t.Fatalf("BuildImage: %v", err)
 	}
 	dest := filepath.Join(t.TempDir(), "nested", "image.tar")

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/config"
 	"github.com/ChaosChild/cavet/internal/engineclient"
 	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/lookup"
@@ -26,7 +27,7 @@ type Runner interface {
 	Exec(ctx context.Context, cmd []string) (engineclient.ExecResult, error)
 	CopyOut(ctx context.Context, containerPath string) ([]byte, error)
 	NextScanDir() string
-	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag string) error
+	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag, target string) error
 	SaveImage(ctx context.Context, ref, destPath string) error
 	CopyToContainer(ctx context.Context, srcPath, dstPath string) error
 	RemoveImage(ctx context.Context, ref string) error
@@ -35,7 +36,7 @@ type Runner interface {
 type Options struct {
 	Scope   Scope
 	DiffRef string
-	Images  []string // configured Dockerfiles, repo-relative (scan.container_images)
+	Images  []config.ImageEntry // configured Dockerfiles plus build targets (scan.container_images)
 	Deep    bool
 	Actor   events.Actor
 	Phase   events.Phase
@@ -136,7 +137,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 
 	var target string
 	var cov Coverage
-	var images []string // Dockerfiles whose images join this scan
+	var images []config.ImageEntry // Dockerfiles whose images join this scan
 	label := o.Scope.String()
 	switch o.Scope {
 	case ScopeStaged:
@@ -155,7 +156,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		target, cov = scanDir, Coverage{Paths: toSet(paths)}
 		// The image phase joins a staged scan exactly when a configured
 		// Dockerfile is among the staged paths.
-		images = intersect(o.Images, paths)
+		images = intersectEntries(o.Images, paths)
 	case ScopeDiff:
 		paths, err := diffPaths(ctx, r, o.DiffRef)
 		if err != nil {
@@ -175,7 +176,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		}
 		// The image phase covers the Dockerfile locations; path-based coverage
 		// stays intact (delta.go covered()).
-		cov = Coverage{Paths: toSet(o.Images)}
+		cov = Coverage{Paths: toSet(entryPaths(o.Images))}
 		images = o.Images
 	}
 	scanners := fsScanners
@@ -428,14 +429,22 @@ func toSet(paths []string) map[string]bool {
 	return m
 }
 
-// intersect keeps want's order, membership from have.
-func intersect(want, have []string) []string {
+// intersectEntries keeps want's order, membership from have.
+func intersectEntries(want []config.ImageEntry, have []string) []config.ImageEntry {
 	set := toSet(have)
-	var out []string
-	for _, p := range want {
-		if set[p] {
-			out = append(out, p)
+	var out []config.ImageEntry
+	for _, e := range want {
+		if set[e.Dockerfile] {
+			out = append(out, e)
 		}
 	}
 	return out
+}
+
+func entryPaths(es []config.ImageEntry) []string {
+	paths := make([]string, 0, len(es))
+	for _, e := range es {
+		paths = append(paths, e.Dockerfile)
+	}
+	return paths
 }

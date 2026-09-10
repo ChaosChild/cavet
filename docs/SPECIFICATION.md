@@ -264,7 +264,10 @@ daemon), so it survives rebuilds and reordering of the
 configured image list; the build tag exists only to build and remove the image,
 and binding identity to the list ordinal would re-identify every image finding
 and orphan its triage state. The same CVE in two configured images stays two
-findings with separate triage. The finding locates at the configured Dockerfile's
+findings with separate triage. A per-entry build target (the `target` key of
+the container_images map-entry form) selects which stage of a multi-stage
+Dockerfile is built and scanned; it never enters the identity, since it
+describes the build, not the image's provenance. The finding locates at the configured Dockerfile's
 repo path, never an in-image path; resolved base-image digests, when available,
 ride as metadata, never identity. Non-package results inside images (e.g. Trivy
 secret findings in layers) carry no package identity and are dropped entirely

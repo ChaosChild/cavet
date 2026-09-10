@@ -33,8 +33,9 @@ func newImageCmd() *cobra.Command {
 		Use:   "add <path>",
 		Short: "Add a Dockerfile to the scanned image list",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			msg, err := imageAdd(args[0])
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target, _ := cmd.Flags().GetString("target")
+			msg, err := imageAdd(args[0], target)
 			if err != nil {
 				return fail(err.Error())
 			}
@@ -42,6 +43,7 @@ func newImageCmd() *cobra.Command {
 			return nil
 		},
 	}
+	add.Flags().String("target", "", "build stage to scan (multi-stage Dockerfiles; default is the last stage)")
 	remove := &cobra.Command{
 		Use:   "remove <path>",
 		Short: "Remove a Dockerfile from the scanned image list",
@@ -65,11 +67,12 @@ func newImageCmd() *cobra.Command {
 	return cmd
 }
 
-// imageAdd appends a Dockerfile to the configured list. When the key is true,
-// it converts to an explicit list seeded with the root Dockerfiles currently
-// present plus the new entry, and says so: future root Dockerfiles stop being
-// auto-included.
-func imageAdd(arg string) (string, error) {
+// imageAdd appends a Dockerfile to the configured list, optionally with a
+// build target. Re-adding an existing path updates its target when --target
+// is given. When the key is true, it converts to an explicit list seeded with
+// the root Dockerfiles currently present plus the new entry, and says so:
+// future root Dockerfiles stop being auto-included.
+func imageAdd(arg, target string) (string, error) {
 	root, s, err := imageStore()
 	if err != nil {
 		return "", err
@@ -85,8 +88,10 @@ func imageAdd(arg string) (string, error) {
 	cur := cfg.Scan.ContainerImages
 	if cur.Mode() == "true" {
 		entries := cur.Dockerfiles(root)
-		if !sliceContains(entries, rel) {
-			entries = append(entries, rel)
+		if i := indexOfEntry(entries, rel); i >= 0 {
+			entries[i].Target = target
+		} else {
+			entries = append(entries, config.ImageEntry{Dockerfile: rel, Target: target})
 		}
 		cfg.Scan.ContainerImages = config.ImageList(entries)
 		if err := writeImageConfig(s, cfg); err != nil {
@@ -95,21 +100,47 @@ func imageAdd(arg string) (string, error) {
 		var b strings.Builder
 		b.WriteString("converted container_images from true to an explicit list:\n")
 		for _, e := range entries {
-			fmt.Fprintf(&b, "  %s\n", e)
+			fmt.Fprintf(&b, "  %s\n", imageEntryLine(e))
 		}
 		b.WriteString("future Dockerfiles added at the repository root will no longer be auto-included\n")
 		return b.String(), nil
 	}
 	entries := cur.Entries()
-	if sliceContains(entries, rel) {
-		return fmt.Sprintf("%s is already configured\n", rel), nil
+	if i := indexOfEntry(entries, rel); i >= 0 {
+		if target == "" || entries[i].Target == target {
+			return fmt.Sprintf("%s is already configured\n", rel), nil
+		}
+		old := entries[i].Target
+		entries[i].Target = target
+		cfg.Scan.ContainerImages = config.ImageList(entries)
+		if err := writeImageConfig(s, cfg); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("updated %s target: %s -> %s\n", rel, orNone(old), target), nil
 	}
-	entries = append(entries, rel)
+	entries = append(entries, config.ImageEntry{Dockerfile: rel, Target: target})
 	cfg.Scan.ContainerImages = config.ImageList(entries)
 	if err := writeImageConfig(s, cfg); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("added %s\n", rel), nil
+	return fmt.Sprintf("added %s\n", imageEntryLine(config.ImageEntry{Dockerfile: rel, Target: target})), nil
+}
+
+// imageEntryLine renders one entry with its target when set.
+func imageEntryLine(e config.ImageEntry) string {
+	if e.Target == "" {
+		return e.Dockerfile
+	}
+	return fmt.Sprintf("%s (target %s)", e.Dockerfile, e.Target)
+}
+
+func indexOfEntry(entries []config.ImageEntry, dockerfile string) int {
+	for i, e := range entries {
+		if e.Dockerfile == dockerfile {
+			return i
+		}
+	}
+	return -1
 }
 
 // imageRemove drops an entry; removing the last one writes false. The path
@@ -133,17 +164,21 @@ func imageRemove(arg string) (string, error) {
 			"'cavet image add <path>' starts a list", cur.Mode())
 	}
 	entries := cur.Entries()
-	var keep []string
+	var keep []config.ImageEntry
 	found := false
 	for _, e := range entries {
-		if e == rel {
+		if e.Dockerfile == rel {
 			found = true
 			continue
 		}
 		keep = append(keep, e)
 	}
 	if !found {
-		return "", fmt.Errorf("%s is not configured; entries: %s", rel, orNone(strings.Join(entries, ", ")))
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Dockerfile)
+		}
+		return "", fmt.Errorf("%s is not configured; entries: %s", rel, orNone(strings.Join(names, ", ")))
 	}
 	cfg.Scan.ContainerImages = config.ImageList(keep) // empty list marshals as false
 	if err := writeImageConfig(s, cfg); err != nil {
@@ -167,13 +202,13 @@ func imageList() (string, error) {
 	switch cur.Mode() {
 	case "true":
 		b.WriteString("container_images: true (every Dockerfile at the repository root)\n")
-		for _, df := range cur.Dockerfiles(root) {
-			fmt.Fprintf(&b, "%s\n", df)
+		for _, e := range cur.Dockerfiles(root) {
+			fmt.Fprintf(&b, "%s\n", imageEntryLine(e))
 		}
 	case "list":
 		b.WriteString("container_images: list\n")
 		for _, e := range cur.Entries() {
-			fmt.Fprintf(&b, "%s\n", e)
+			fmt.Fprintf(&b, "%s\n", imageEntryLine(e))
 		}
 	default:
 		b.WriteString("container_images: false\n")
@@ -239,13 +274,4 @@ func writeImageConfig(s *store.Store, cfg config.Config) error {
 		return err
 	}
 	return store.AtomicWrite(filepath.Join(s.Cavet, "config.yaml"), b)
-}
-
-func sliceContains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
 }

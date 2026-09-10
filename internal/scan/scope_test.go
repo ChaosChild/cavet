@@ -52,8 +52,12 @@ func (f *fakeRunner) NextScanDir() string {
 
 // The image-phase seam: record the call, and make SaveImage real enough that
 // tar cleanup in .cavet/tmp is observable.
-func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag string) error {
-	f.cmds = append(f.cmds, "build "+dockerfilePath+" ctx "+contextDir+" tag "+tag)
+func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag, target string) error {
+	cmd := "build " + dockerfilePath + " ctx " + contextDir + " tag " + tag
+	if target != "" {
+		cmd += " target " + target
+	}
+	f.cmds = append(f.cmds, cmd)
 	return nil
 }
 

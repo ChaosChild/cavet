@@ -155,7 +155,7 @@ func TestRealEngineImageScan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := Run(ctx, s, c, Options{Scope: ScopeImage, Images: []string{"Dockerfile"}, Engine: "cavet-engine:dev"})
+	res, err := Run(ctx, s, c, Options{Scope: ScopeImage, Images: imgs("Dockerfile"), Engine: "cavet-engine:dev"})
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}

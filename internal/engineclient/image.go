@@ -74,10 +74,12 @@ func (c *Client) CopyToContainer(ctx context.Context, srcPath, dstPath string) e
 }
 
 // BuildImage builds tag from the dockerfile at dockerfilePath (absolute or
-// contextDir-relative) with contextDir streamed as the build context. Build
-// failures surface the daemon's error plus a truncated build log; the
-// response body is the only place the daemon reports them.
-func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag string) error {
+// contextDir-relative) with contextDir streamed as the build context. target
+// names a build stage for multi-stage Dockerfiles; empty means the Dockerfile
+// default (the last stage). Build failures surface the daemon's error plus a
+// truncated build log; the response body is the only place the daemon
+// reports them.
+func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag, target string) error {
 	if err := c.connect(); err != nil {
 		return err
 	}
@@ -91,6 +93,7 @@ func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag
 	}()
 	res, err := c.docker.ImageBuild(ctx, pr, client.ImageBuildOptions{
 		Dockerfile: dockerfile,
+		Target:     target, // empty option = Dockerfile default stage
 		Tags:       []string{tag},
 		// BuildKit, unconditionally: the classic builder does not populate
 		// the automatic platform args (TARGETARCH/TARGETOS/...), so any
