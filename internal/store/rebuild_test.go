@@ -32,9 +32,9 @@ func TestRebuildDeterministicUnderShuffle(t *testing.T) {
 			t.Fatal(err)
 		}
 		questions := map[time.Duration]string{
-			time.Hour:       "a?",
-			2 * time.Hour:   "b?",
-			3 * time.Hour:   "c?",
+			time.Hour:     "a?",
+			2 * time.Hour: "b?",
+			3 * time.Hour: "c?",
 		}
 		for _, off := range order {
 			ev, err := events.NewRaised(baseTS.Add(off), events.ActorAgent, events.PhaseBuild,
