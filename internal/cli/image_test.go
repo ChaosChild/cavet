@@ -58,7 +58,7 @@ scan:
   container_images: false
 `)
 	touchFile(t, filepath.Join(root, "engine", "Dockerfile"))
-	msg, err := imageAdd("engine/Dockerfile")
+	msg, err := imageAdd("engine/Dockerfile", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ scan:
 		t.Fatalf("add must say what it did: %q", msg)
 	}
 	ci := imageConfig(t, root)
-	if ci.Mode() != "list" || len(ci.Entries()) != 1 || ci.Entries()[0] != "engine/Dockerfile" {
+	if ci.Mode() != "list" || len(ci.Entries()) != 1 || ci.Entries()[0].Dockerfile != "engine/Dockerfile" {
 		t.Fatalf("config after add: mode %s entries %v", ci.Mode(), ci.Entries())
 	}
 	// Other keys ride along untouched.
@@ -79,7 +79,7 @@ scan:
 func TestImageAddAbsentKeyCreatesList(t *testing.T) {
 	root := initImageRepo(t, "")
 	touchFile(t, filepath.Join(root, "Dockerfile"))
-	if _, err := imageAdd("Dockerfile"); err != nil {
+	if _, err := imageAdd("Dockerfile", ""); err != nil {
 		t.Fatal(err)
 	}
 	if ci := imageConfig(t, root); ci.Mode() != "list" || len(ci.Entries()) != 1 {
@@ -94,7 +94,7 @@ func TestImageAddTrueConvertsToList(t *testing.T) {
 		filepath.Join(root, "Dockerfile.dev"),
 		filepath.Join(root, "engine", "Dockerfile"),
 	)
-	msg, err := imageAdd("engine/Dockerfile")
+	msg, err := imageAdd("engine/Dockerfile", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestImageAddTrueConvertsToList(t *testing.T) {
 		t.Fatalf("conversion must say exactly what it did: %q", msg)
 	}
 	ci := imageConfig(t, root)
-	want := []string{"Dockerfile", "Dockerfile.dev", "engine/Dockerfile"}
+	want := []config.ImageEntry{{Dockerfile: "Dockerfile"}, {Dockerfile: "Dockerfile.dev"}, {Dockerfile: "engine/Dockerfile"}}
 	got := ci.Entries()
 	if len(got) != len(want) {
 		t.Fatalf("converted list = %v, want %v", got, want)
@@ -118,7 +118,7 @@ func TestImageAddTrueConvertsToList(t *testing.T) {
 func TestImageAddDuplicateIsNoOp(t *testing.T) {
 	root := initImageRepo(t, "scan:\n  container_images:\n    - Dockerfile\n")
 	touchFile(t, filepath.Join(root, "Dockerfile"))
-	msg, err := imageAdd("Dockerfile")
+	msg, err := imageAdd("Dockerfile", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,28 +134,77 @@ func TestImageAddFromNestedCwd(t *testing.T) {
 	root := initImageRepo(t, "")
 	touchFile(t, filepath.Join(root, "pkg", "Dockerfile"))
 	t.Chdir(filepath.Join(root, "pkg"))
-	if _, err := imageAdd("Dockerfile"); err != nil {
+	if _, err := imageAdd("Dockerfile", ""); err != nil {
 		t.Fatal(err)
 	}
-	if ci := imageConfig(t, root); len(ci.Entries()) != 1 || ci.Entries()[0] != "pkg/Dockerfile" {
+	if ci := imageConfig(t, root); len(ci.Entries()) != 1 || ci.Entries()[0].Dockerfile != "pkg/Dockerfile" {
 		t.Fatalf("cwd-relative arg must land repo-relative: %v", ci.Entries())
+	}
+}
+
+// add --target writes the map form; re-add with a new --target updates it
+// and says what changed; re-add without --target leaves it alone.
+func TestImageAddWithTarget(t *testing.T) {
+	root := initImageRepo(t, "")
+	touchFile(t, filepath.Join(root, "engine", "Dockerfile"))
+	msg, err := imageAdd("engine/Dockerfile", "final-core")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(msg, "added engine/Dockerfile (target final-core)") {
+		t.Fatalf("add with target must say it: %q", msg)
+	}
+	ci := imageConfig(t, root)
+	want := config.ImageEntry{Dockerfile: "engine/Dockerfile", Target: "final-core"}
+	if len(ci.Entries()) != 1 || ci.Entries()[0] != want {
+		t.Fatalf("map form after add: %v", ci.Entries())
+	}
+
+	msg, err = imageAdd("engine/Dockerfile", "final-slim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(msg, "updated engine/Dockerfile target: final-core -> final-slim") {
+		t.Fatalf("target update must say what changed: %q", msg)
+	}
+	ci = imageConfig(t, root)
+	if len(ci.Entries()) != 1 || ci.Entries()[0].Target != "final-slim" {
+		t.Fatalf("target must update in place: %v", ci.Entries())
+	}
+
+	// No --target on an existing entry: no change, no error.
+	msg, err = imageAdd("engine/Dockerfile", "")
+	if err != nil || !strings.Contains(msg, "already configured") {
+		t.Fatalf("re-add without target must be a no-op: %q %v", msg, err)
+	}
+	if ci = imageConfig(t, root); ci.Entries()[0].Target != "final-slim" {
+		t.Fatalf("re-add without target must keep the target: %v", ci.Entries())
+	}
+}
+
+func TestImageListShowsTargets(t *testing.T) {
+	root := initImageRepo(t, "scan:\n  container_images:\n    - Dockerfile\n    - dockerfile: engine/Dockerfile\n      target: final-core\n")
+	touchFile(t, filepath.Join(root, "Dockerfile"))
+	msg, err := imageList()
+	if err != nil || msg != "container_images: list\nDockerfile\nengine/Dockerfile (target final-core)\n" {
+		t.Fatalf("list must show targets when set: %q %v", msg, err)
 	}
 }
 
 func TestImageAddRejectsBadPaths(t *testing.T) {
 	root := initImageRepo(t, "")
-	if _, err := imageAdd("missing/Dockerfile"); err == nil || !strings.Contains(err.Error(), "does not exist") {
+	if _, err := imageAdd("missing/Dockerfile", ""); err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("missing file must error: %v", err)
 	}
 	outside := t.TempDir()
 	touchFile(t, filepath.Join(outside, "Dockerfile"))
-	if _, err := imageAdd(filepath.Join(outside, "Dockerfile")); err == nil || !strings.Contains(err.Error(), "outside the repository") {
+	if _, err := imageAdd(filepath.Join(outside, "Dockerfile"), ""); err == nil || !strings.Contains(err.Error(), "outside the repository") {
 		t.Fatalf("outside file must error: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Join(root, "engine"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := imageAdd("engine"); err == nil || !strings.Contains(err.Error(), "directory") {
+	if _, err := imageAdd("engine", ""); err == nil || !strings.Contains(err.Error(), "directory") {
 		t.Fatalf("directory arg must error: %v", err)
 	}
 }
@@ -170,7 +219,7 @@ func TestImageRemove(t *testing.T) {
 		t.Fatalf("remove must say what it did: %q", msg)
 	}
 	ci := imageConfig(t, root)
-	if ci.Mode() != "list" || len(ci.Entries()) != 1 || ci.Entries()[0] != "Dockerfile" {
+	if ci.Mode() != "list" || len(ci.Entries()) != 1 || ci.Entries()[0].Dockerfile != "Dockerfile" {
 		t.Fatalf("after remove: mode %s entries %v", ci.Mode(), ci.Entries())
 	}
 	if _, err := imageRemove("Dockerfile"); err != nil {

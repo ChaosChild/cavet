@@ -127,6 +127,56 @@ func TestDistinctContextsStayDistinct(t *testing.T) {
 	}
 }
 
+// Image findings fingerprint on package identity in the img: namespace, never
+// on line context (spec §3.3); the secret pre-collapse never applies.
+func TestImageFindingsFingerprintOnPackageIdentity(t *testing.T) {
+	fs := parseFixture(t, "../finding/testdata/trivy-image.sarif", "trivy-image", "Dockerfile")
+	fs[0].ImageName, fs[1].ImageName = "Dockerfile", "Dockerfile"
+	merged := Merge(fs)
+	if len(merged) != 2 {
+		t.Fatalf("distinct packages stay distinct, got %d", len(merged))
+	}
+	for _, m := range merged {
+		if m.Secret {
+			t.Fatal("trivy-image findings never join the secret collapse")
+		}
+	}
+	want := fingerprint.Image("Dockerfile", "CVE-2026-14456", "libcrypto3", "3.5.7-r0")
+	if merged[0].Fingerprint != want {
+		t.Fatalf("fingerprint must be the img: identity, got %s want %s", merged[0].Fingerprint, want)
+	}
+	if merged[0].Fingerprint == fingerprint.Of(fingerprint.RuleKey("", "CVE-2026-14456"), "") {
+		t.Fatal("img: namespace must not collide with line-context fingerprints")
+	}
+	if len(merged[0].Locations) != 1 || merged[0].Locations[0].Path != "Dockerfile" {
+		t.Fatalf("image findings locate at the Dockerfile, got %+v", merged[0].Locations)
+	}
+}
+
+// The same package in two configured images is two findings: identity is
+// bound to the configured image (its Dockerfile path), which is why
+// reordering the container_images list cannot re-identify anything.
+func TestImageIdentityBoundToConfiguredImage(t *testing.T) {
+	fs := parseFixture(t, "../finding/testdata/trivy-image.sarif", "trivy-image", "Dockerfile")
+	fs[0].ImageName, fs[1].ImageName = "Dockerfile", "Dockerfile"
+	twin := fs[0]
+	twin.ImageName = "engine/Dockerfile" // second configured Dockerfile, same CVE+pkg
+
+	merged := Merge([]Finding{fs[0], fs[1], twin})
+	if len(merged) != 3 {
+		t.Fatalf("want 3 findings (2 configured images, 1 twin), got %d", len(merged))
+	}
+	sawTwin := false
+	for _, m := range merged {
+		if m.Fingerprint == fingerprint.Image("engine/Dockerfile", "CVE-2026-14456", "libcrypto3", "3.5.7-r0") {
+			sawTwin = true
+		}
+	}
+	if !sawTwin {
+		t.Fatalf("the second image's finding must keep its own identity, got %+v", merged)
+	}
+}
+
 func readLocal(t *testing.T, path string) []byte {
 	t.Helper()
 	b, err := os.ReadFile(path)

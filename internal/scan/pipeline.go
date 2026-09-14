@@ -8,10 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/config"
 	"github.com/ChaosChild/cavet/internal/engineclient"
 	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/lookup"
@@ -25,7 +28,7 @@ type Runner interface {
 	Exec(ctx context.Context, cmd []string) (engineclient.ExecResult, error)
 	CopyOut(ctx context.Context, containerPath string) ([]byte, error)
 	NextScanDir() string
-	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag string) error
+	BuildImage(ctx context.Context, dockerfilePath, contextDir, tag, target string, output io.Writer) error
 	SaveImage(ctx context.Context, ref, destPath string) error
 	CopyToContainer(ctx context.Context, srcPath, dstPath string) error
 	RemoveImage(ctx context.Context, ref string) error
@@ -34,7 +37,7 @@ type Runner interface {
 type Options struct {
 	Scope   Scope
 	DiffRef string
-	Images  []string // configured Dockerfiles, repo-relative (scan.container_images)
+	Images  []config.ImageEntry // configured Dockerfiles plus build targets (scan.container_images)
 	Deep    bool
 	Actor   events.Actor
 	Phase   events.Phase
@@ -58,10 +61,10 @@ type Row struct {
 }
 
 type Counts struct {
-	Confirmed                            int
-	ConfirmedHigh, ConfirmedLow          int
-	Critical, High, Medium, Low, Info    int
-	Dismissed, Suppressed, Baseline      int
+	Confirmed                         int
+	ConfirmedHigh, ConfirmedLow       int
+	Critical, High, Medium, Low, Info int
+	Dismissed, Suppressed, Baseline   int
 }
 
 type Result struct {
@@ -135,7 +138,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 
 	var target string
 	var cov Coverage
-	var images []string // Dockerfiles whose images join this scan
+	var images []config.ImageEntry // Dockerfiles whose images join this scan
 	label := o.Scope.String()
 	switch o.Scope {
 	case ScopeStaged:
@@ -154,7 +157,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		target, cov = scanDir, Coverage{Paths: toSet(paths)}
 		// The image phase joins a staged scan exactly when a configured
 		// Dockerfile is among the staged paths.
-		images = intersect(o.Images, paths)
+		images = intersectEntries(o.Images, paths)
 	case ScopeDiff:
 		paths, err := diffPaths(ctx, r, o.DiffRef)
 		if err != nil {
@@ -174,7 +177,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		}
 		// The image phase covers the Dockerfile locations; path-based coverage
 		// stays intact (delta.go covered()).
-		cov = Coverage{Paths: toSet(o.Images)}
+		cov = Coverage{Paths: toSet(entryPaths(o.Images))}
 		images = o.Images
 	}
 	scanners := fsScanners
@@ -191,14 +194,18 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 			return nil, err
 		}
 	}
+	var imageFindings []projection.Finding
 	if len(images) > 0 {
-		b, err := scanImages(ctx, s, r, images)
+		// staged: the image phase joined a staged scan, so coverage credits
+		// index content while builds compile the working tree (image.go).
+		b, fs, err := scanImages(ctx, s, r, images, o.Scope == ScopeStaged)
 		if err != nil {
 			return nil, err
 		}
 		raw["trivy-image"] = b
+		imageFindings = fs
 	}
-	merged, err := parseAndMerge(scanners, raw, target)
+	merged, err := parseAndMerge(scanners, raw, target, imageFindings)
 	if err != nil {
 		return nil, err
 	}
@@ -258,15 +265,30 @@ func invocation(scanner, target string) []string {
 			"--skip-db-update", "--skip-check-update", "--offline-scan",
 			"--format", "sarif", "--output", "/reports/trivy.sarif", target}
 	case "trivy-image":
-		// target is the container-side tar the image phase copied in.
+		// target is the container-side tar the image phase copied in; the
+		// per-image ordinal rides it, so every image writes its own report
+		// file (see reportPath).
 		return []string{"trivy", "image", "--input", target,
 			"--offline-scan", "--skip-db-update", "--skip-check-update",
-			"--format", "sarif", "--output", "/reports/trivy-image.sarif"}
+			"--format", "sarif", "--output", reportPath("trivy-image", target)}
 	case "opengrep":
 		return []string{"opengrep", "scan", "--config", "/opt/opengrep-rules",
 			"--sarif", "--output", "/reports/opengrep.sarif", target}
 	}
 	return nil
+}
+
+// reportPath is the container path a scanner's report lands at. trivy-image
+// runs once per image, so its report name carries the image ordinal derived
+// from the target tar (image-<n>.tar): /reports persists in the container
+// across scans, and a shared name would let a failed exec copy out the
+// previous image's or previous scan's report.
+func reportPath(scanner, target string) string {
+	if scanner == "trivy-image" {
+		return "/reports/trivy-image-" +
+			strings.TrimSuffix(strings.TrimPrefix(target, "/scan/image-"), ".tar") + ".sarif"
+	}
+	return "/reports/" + scanner + ".sarif"
 }
 
 func runScanners(ctx context.Context, r Runner, scanners []string, target string) (map[string][]byte, error) {
@@ -276,9 +298,12 @@ func runScanners(ctx context.Context, r Runner, scanners []string, target string
 		if err != nil {
 			return nil, err
 		}
-		b, cerr := r.CopyOut(ctx, "/reports/"+sc+".sarif")
-		if cerr != nil {
-			// Non-zero exit without a report is the anomaly contract (§10.3).
+		b, cerr := r.CopyOut(ctx, reportPath(sc, target))
+		// Non-zero exit without a report is the anomaly contract (§10.3). A
+		// trivy-image run also fails on a non-zero exit with a report: the
+		// file on disk can be a stale one from an earlier scan, and reusing
+		// it would mis-attribute findings or mask the failure as clean.
+		if cerr != nil || (sc == "trivy-image" && res.Code != 0) {
 			return nil, fmt.Errorf("%s scan failed (exit %d): %.300s", sc, res.Code, res.Stderr)
 		}
 		out[sc] = b
@@ -286,9 +311,14 @@ func runScanners(ctx context.Context, r Runner, scanners []string, target string
 	return out, nil
 }
 
-func parseAndMerge(scanners []string, raw map[string][]byte, target string) ([]*projection.MergedFinding, error) {
+func parseAndMerge(scanners []string, raw map[string][]byte, target string, imageFindings []projection.Finding) ([]*projection.MergedFinding, error) {
 	var findings []projection.Finding
 	for _, sc := range scanners {
+		if sc == "trivy-image" {
+			// Parsed per image in image.go with its Dockerfile location and
+			// path-derived identity; re-parsing here would lose both.
+			continue
+		}
 		fs, warns, err := projection.Parse(sc, raw[sc], target)
 		if err != nil {
 			return nil, err
@@ -298,6 +328,7 @@ func parseAndMerge(scanners []string, raw map[string][]byte, target string) ([]*
 		}
 		findings = append(findings, fs...)
 	}
+	findings = append(findings, imageFindings...)
 	return projection.Merge(findings), nil
 }
 
@@ -329,8 +360,8 @@ func stitchRuns(docs [][]byte) ([]byte, error) {
 		runs = append(runs, doc.Runs...)
 	}
 	return json.Marshal(struct {
-		Version string           `json:"version"`
-		Schema  string           `json:"$schema"`
+		Version string            `json:"version"`
+		Schema  string            `json:"$schema"`
 		Runs    []json.RawMessage `json:"runs"`
 	}{"2.1.0", "https://json.schemastore.org/sarif-2.1.0.json", runs})
 }
@@ -399,14 +430,22 @@ func toSet(paths []string) map[string]bool {
 	return m
 }
 
-// intersect keeps want's order, membership from have.
-func intersect(want, have []string) []string {
+// intersectEntries keeps want's order, membership from have.
+func intersectEntries(want []config.ImageEntry, have []string) []config.ImageEntry {
 	set := toSet(have)
-	var out []string
-	for _, p := range want {
-		if set[p] {
-			out = append(out, p)
+	var out []config.ImageEntry
+	for _, e := range want {
+		if set[e.Dockerfile] {
+			out = append(out, e)
 		}
 	}
 	return out
+}
+
+func entryPaths(es []config.ImageEntry) []string {
+	paths := make([]string, 0, len(es))
+	for _, e := range es {
+		paths = append(paths, e.Dockerfile)
+	}
+	return paths
 }

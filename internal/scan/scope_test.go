@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,15 +15,21 @@ import (
 // fakeRunner records commands and serves canned outputs; the one producer of
 // the Runner seam (plan Task 14).
 type fakeRunner struct {
-	cmds   []string
-	stdout map[string]string // command substring → stdout
+	cmds    []string
+	stdout  map[string]string // command substring → stdout
+	exit    map[string]int    // command substring → non-zero exit code
 	reports map[string][]byte
-	scans  int
+	scans   int
 }
 
 func (f *fakeRunner) Exec(_ context.Context, cmd []string) (engineclient.ExecResult, error) {
 	joined := strings.Join(cmd, " ")
 	f.cmds = append(f.cmds, joined)
+	for sub, code := range f.exit {
+		if strings.Contains(joined, sub) {
+			return engineclient.ExecResult{Code: code}, nil
+		}
+	}
 	for sub, out := range f.stdout {
 		if strings.Contains(joined, sub) {
 			return engineclient.ExecResult{Stdout: []byte(out)}, nil
@@ -46,8 +53,12 @@ func (f *fakeRunner) NextScanDir() string {
 
 // The image-phase seam: record the call, and make SaveImage real enough that
 // tar cleanup in .cavet/tmp is observable.
-func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag string) error {
-	f.cmds = append(f.cmds, "build "+dockerfilePath+" ctx "+contextDir+" tag "+tag)
+func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag, target string, _ io.Writer) error {
+	cmd := "build " + dockerfilePath + " ctx " + contextDir + " tag " + tag
+	if target != "" {
+		cmd += " target " + target
+	}
+	f.cmds = append(f.cmds, cmd)
 	return nil
 }
 

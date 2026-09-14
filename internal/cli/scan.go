@@ -59,7 +59,11 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	root, _ := repoRoot()
 	ref := engineRef(cfg)
 	c := engineclient.New(ref, cfg.Engine.Digest, root)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	images := cfg.Scan.ContainerImages.Dockerfiles(root)
+	// image or images configured is the conservative proxy for the pipeline's
+	// image-phase trigger; those runs build scanners from source and pull
+	// databases, so they get the longer cap.
+	ctx, cancel := context.WithTimeout(context.Background(), scanTimeout(image || len(images) > 0))
 	defer cancel()
 	if err := c.EnsureRunning(ctx); err != nil {
 		return fail(err.Error())
@@ -100,7 +104,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 
 	res, err := scan.Run(ctx, s, c, scan.Options{
 		Scope: scope, DiffRef: diffRef,
-		Images: cfg.Scan.ContainerImages.Dockerfiles(root),
+		Images: images,
 		Deep:   deep || cfg.Scan.DeepDefault,
 		Actor: events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
@@ -143,6 +147,16 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		return &exitErr{code: 1} // findings present — informational, not gating
 	}
 	return nil
+}
+
+// scanTimeout caps a scan run; filesystem scans stay at thirty minutes,
+// while a run with an image phase builds scanners from source and downloads
+// vulnerability databases, so it legitimately needs two hours.
+func scanTimeout(imagePhase bool) time.Duration {
+	if imagePhase {
+		return 2 * time.Hour
+	}
+	return 30 * time.Minute
 }
 
 // hints picks next steps from the result's state, at most three, in fixed

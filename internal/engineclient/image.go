@@ -3,11 +3,10 @@ package engineclient
 import (
 	"archive/tar"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -71,83 +70,88 @@ func (c *Client) CopyToContainer(ctx context.Context, srcPath, dstPath string) e
 	return nil
 }
 
+// tailLimit is the output tail kept for the error path (house style): the
+// failure reason lives at the end of a build log.
+const tailLimit = 300
+
 // BuildImage builds tag from the dockerfile at dockerfilePath (absolute or
-// contextDir-relative) with contextDir streamed as the build context. Build
-// failures surface the daemon's error plus a truncated build log; the
-// response body is the only place the daemon reports them.
-func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag string) error {
-	if err := c.connect(); err != nil {
-		return err
-	}
-	dockerfile, err := buildDockerfileRef(dockerfilePath, contextDir)
+// contextDir-relative) with contextDir as the build context by execing
+// `docker buildx build --load`. The daemon API's /build endpoint with BuildKit
+// wedges indefinitely on large builds on Docker Desktop for Windows (verified
+// by a standalone probe with zero cavet code; the CLI path completes the same
+// build, ~9 minutes cold cache), so the CLI is the one deliberate exception to
+// this package's SDK-only daemon access. target names a build stage for
+// multi-stage Dockerfiles; empty means the Dockerfile default (the last
+// stage). output receives the child's combined stdout/stderr live (nil means
+// discard); buildx runs with --progress=plain so that stream is parseable and
+// timestamped. The context is sent by buildx per standard Docker semantics:
+// .dockerignore is the exclusion mechanism. On failure the error carries only
+// the tail of the output.
+func (c *Client) BuildImage(ctx context.Context, dockerfilePath, contextDir, tag, target string, output io.Writer) error {
+	docker, err := exec.LookPath("docker")
 	if err != nil {
-		return err
+		return fmt.Errorf("image build %s: the docker CLI was not found; Docker (with the buildx plugin, bundled with Docker Desktop) is required to build scan images: %w", tag, err)
 	}
-	pr, pw := io.Pipe()
-	go func() {
-		_ = pw.CloseWithError(tarDir(contextDir, pw))
-	}()
-	res, err := c.docker.ImageBuild(ctx, pr, client.ImageBuildOptions{
-		Dockerfile: dockerfile,
-		Tags:       []string{tag},
-	})
+	absContext, err := filepath.Abs(contextDir)
 	if err != nil {
 		return fmt.Errorf("image build %s: %w", tag, err)
 	}
-	defer res.Body.Close()
-	if err := buildFailure(res.Body); err != nil {
+	absDockerfile, err := filepath.Abs(dockerfilePath)
+	if err != nil {
+		return fmt.Errorf("image build %s: %w", tag, err)
+	}
+	cmd := exec.CommandContext(ctx, docker, buildxArgs(absDockerfile, absContext, tag, target)...)
+	var tail tailWriter
+	var w io.Writer = &tail
+	if output != nil {
+		w = io.MultiWriter(output, &tail)
+	}
+	cmd.Stdout, cmd.Stderr = w, w
+	if err := cmd.Run(); err != nil {
+		if out := tail.String(); out != "" {
+			return fmt.Errorf("image build %s: %w; output: %s", tag, err, out)
+		}
 		return fmt.Errorf("image build %s: %w", tag, err)
 	}
 	return nil
 }
 
-// buildDockerfileRef reduces dockerfilePath to a contextDir-relative POSIX
-// path for the Dockerfile option: the daemon locates the dockerfile inside
-// the context tar, not on the host.
-func buildDockerfileRef(dockerfilePath, contextDir string) (string, error) {
-	base, err := filepath.Abs(contextDir)
-	if err != nil {
-		return "", fmt.Errorf("build context: %w", err)
+// buildxArgs assembles the `docker buildx build` argument vector; absolute
+// paths for both the dockerfile and the context, plain progress for a
+// parseable stream.
+func buildxArgs(dockerfilePath, contextDir, tag, target string) []string {
+	args := []string{"buildx", "build", "--load", "--progress=plain", "-t", tag, "-f", dockerfilePath}
+	if target != "" {
+		args = append(args, "--target", target)
 	}
-	p := dockerfilePath
-	if !filepath.IsAbs(p) {
-		p = filepath.Join(base, p)
-	}
-	rel, err := filepath.Rel(base, p)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("dockerfile %s outside build context %s", dockerfilePath, contextDir)
-	}
-	return toContainerPath(rel), nil
+	return append(args, contextDir)
 }
 
-// buildFailure scans the build log's NDJSON stream for an error event. The
-// daemon reports build failures in a 200 response body, so reading it is the
-// only way to see them; the log tail is truncated per house style (~300 chars).
-func buildFailure(r io.Reader) error {
-	var log strings.Builder
-	var failure string
-	dec := json.NewDecoder(r)
-	for {
-		var ev struct {
-			Stream string `json:"stream"`
-			Error  string `json:"error"`
-		}
-		if err := dec.Decode(&ev); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return fmt.Errorf("build log: %w", err)
-		}
-		log.WriteString(ev.Stream)
-		if ev.Error != "" {
-			failure = ev.Error
-		}
-	}
-	if failure != "" {
-		return fmt.Errorf("%s; output: %.300s", failure, log.String())
-	}
-	return nil
+// tailWriter keeps the last tailLimit bytes written to it, so the failure
+// reason at the end of an unbounded build stream survives without buffering
+// the whole stream.
+type tailWriter struct {
+	buf [tailLimit]byte
+	n   int // bytes buffered
 }
+
+func (t *tailWriter) Write(p []byte) (int, error) {
+	if len(p) >= tailLimit {
+		copy(t.buf[:], p[len(p)-tailLimit:])
+		t.n = tailLimit
+		return len(p), nil
+	}
+	keep := tailLimit - len(p)
+	if t.n > keep {
+		copy(t.buf[:], t.buf[t.n-keep:t.n]) // shift the kept tail left
+		t.n = keep
+	}
+	copy(t.buf[t.n:], p)
+	t.n += len(p)
+	return len(p), nil
+}
+
+func (t *tailWriter) String() string { return string(t.buf[:t.n]) }
 
 // SaveImage streams ref from the daemon to destPath as a tar, creating parent
 // directories (mirrors how report paths are laid out).
@@ -186,59 +190,4 @@ func (c *Client) RemoveImage(ctx context.Context, ref string) error {
 		return nil
 	}
 	return err
-}
-
-// tarDir writes dir's contents as an uncompressed tar with dir-relative POSIX
-// entry names, streaming so arbitrarily large build contexts never buffer.
-// ponytail: no .dockerignore and non-regular files (symlinks, fifos) are
-// skipped silently; scan-target images copy real files, and the upgrade path
-// is .dockerignore parsing plus symlink handling in the walk.
-func tarDir(dir string, w io.Writer) error {
-	tw := tar.NewWriter(w)
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(dir, p)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil // the context root is implicit
-		}
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		switch {
-		case info.IsDir(), info.Mode().IsRegular():
-		default:
-			return nil // see ponytail note above
-		}
-		hdr, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return err
-		}
-		hdr.Name = filepath.ToSlash(rel)
-		if info.IsDir() {
-			hdr.Name += "/" // extractor convention: directories end in /
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() {
-			return nil
-		}
-		f, err := os.Open(p)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		_, err = io.Copy(tw, f)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	return tw.Close()
 }
