@@ -63,7 +63,7 @@ async function loadOverview() {
     .filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(' · ');
   document.getElementById('medlow-sub').textContent = mli || 'none open';
   document.getElementById('open-sub').textContent = 'open + confirmed · ' + (o.trend_known && o.trend.total !== 0
-    ? 'trajectory ' + (o.trend.total > 0 ? 'rising' : 'falling') : 'trajectory steady';
+    ? 'trajectory ' + (o.trend.total > 0 ? 'rising' : 'falling') : 'trajectory steady');
   trendChip(document.getElementById('open-trend'), o.trend_known ? o.trend.total : 0, o.trend_known);
   trendChip(document.getElementById('critical-trend'), o.trend_known ? o.trend.critical : 0, o.trend_known);
   trendChip(document.getElementById('high-trend'), o.trend_known ? o.trend.high : 0, o.trend_known);
