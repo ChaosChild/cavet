@@ -30,18 +30,24 @@ func (s Scope) String() string {
 }
 
 // TierScanners implements the scope→scanner table (cli-spec §6): the fast
-// tier is gitleaks+trivy; --full and --deep add opengrep. There is no --fast
-// and no --no-deep – --full already asks for everything (spec §5.2). The
-// image scope has no filesystem tier: its only scanner, trivy-image, is run
-// by the image phase itself.
-func TierScanners(scope Scope, deep bool) []string {
+// tier is gitleaks+trivy; --full and --deep add opengrep. checkov joins the
+// filesystem tier only where the repository opts in (scanners.checkov), on
+// every scope it applies to, so coverage claims stay honest (spec §5.2).
+// There is no --fast and no --no-deep – --full already asks for everything.
+// The image scope has no filesystem tier: its only scanner, trivy-image, is
+// run by the image phase itself.
+func TierScanners(scope Scope, deep, checkov bool) []string {
 	if scope == ScopeImage {
 		return nil
 	}
-	if scope == ScopeFull || deep {
-		return []string{"gitleaks", "trivy", "opengrep"}
+	scanners := []string{"gitleaks", "trivy"}
+	if checkov {
+		scanners = append(scanners, "checkov")
 	}
-	return []string{"gitleaks", "trivy"}
+	if scope == ScopeFull || deep {
+		scanners = append(scanners, "opengrep")
+	}
+	return scanners
 }
 
 func splitNUL(b []byte) []string {

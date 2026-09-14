@@ -118,3 +118,50 @@ func TestFullScanTargetsWorkspace(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckovOptsInPerRepository(t *testing.T) {
+	mk := func() (*store.Store, *fakeRunner) {
+		return newTestStore(t), &fakeRunner{
+			stdout: map[string]string{"git diff --cached": "infra/main.tf\x00"},
+			reports: map[string][]byte{
+				"/reports/gitleaks.sarif":              fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+				"/reports/trivy.sarif":                 fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+				"/reports/checkov/results_sarif.sarif": fixtureSARIF("checkov", "CKV_AWS_20", "infra/main.tf", 1),
+			},
+		}
+	}
+
+	s, r := mk()
+	res, err := Run(context.Background(), s, r, Options{Scope: ScopeStaged, Checkov: true, Engine: "ghcr.io/x@sha256:t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.ran("checkov -d") {
+		t.Fatalf("opted-in checkov must join the tier, cmds: %v", r.cmds)
+	}
+	if !r.ran("--skip-framework secrets sast") {
+		t.Fatalf("checkov's secret framework must stay off, cmds: %v", r.cmds)
+	}
+	if !r.ran("--soft-fail") {
+		t.Fatalf("checkov must run soft-fail so found issues never look like engine failures, cmds: %v", r.cmds)
+	}
+	if strings.Join(res.Scanners, ",") != "gitleaks,trivy,checkov" {
+		t.Fatalf("header must name checkov: %+v", res)
+	}
+	if len(res.Rows) != 3 {
+		t.Fatalf("want 3 rows, got %+v", res.Rows)
+	}
+
+	// Off by default: the same scan must not exec checkov anywhere.
+	s2, r2 := mk()
+	res2, err := Run(context.Background(), s2, r2, Options{Scope: ScopeStaged, Engine: "ghcr.io/x@sha256:t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r2.ran("checkov") {
+		t.Fatalf("checkov must not run without the opt-in, cmds: %v", r2.cmds)
+	}
+	if strings.Join(res2.Scanners, ",") != "gitleaks,trivy" {
+		t.Fatalf("header must stay default: %+v", res2)
+	}
+}

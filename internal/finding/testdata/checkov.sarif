@@ -1,0 +1,107 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Checkov",
+          "version": "3.3.16",
+          "informationUri": "https://www.prisma.io/cloud",
+          "rules": [
+            {
+              "id": "CKV_AWS_20",
+              "name": "Ensure S3 bucket does not allow public READ access",
+              "shortDescription": {
+                "text": "Ensure S3 bucket does not allow public READ access"
+              },
+              "fullDescription": {
+                "text": "Ensure S3 bucket does not allow public READ access"
+              },
+              "help": {
+                "text": "Ensure S3 bucket does not allow public READ access\nResource: aws_s3_bucket.data"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "CKV_DOCKER_3",
+              "name": "Ensure that a user for the container has been created",
+              "shortDescription": {
+                "text": "Ensure that a user for the container has been created"
+              },
+              "fullDescription": {
+                "text": "Ensure that a user for the container has been created"
+              },
+              "help": {
+                "text": "Ensure that a user for the container has been created\nResource: /Dockerfile."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "CKV_AWS_20",
+          "ruleIndex": 0,
+          "level": "error",
+          "attachments": [],
+          "message": {
+            "text": "Ensure S3 bucket does not allow public READ access"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "workspace/main.tf"
+                },
+                "region": {
+                  "startLine": 1,
+                  "endLine": 4,
+                  "snippet": {
+                    "text": "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"example-data\"\n  acl    = \"public-read\"\n}\n"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CKV_DOCKER_3",
+          "ruleIndex": 1,
+          "level": "error",
+          "attachments": [],
+          "message": {
+            "text": "Ensure that a user for the container has been created"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "workspace/Dockerfile"
+                },
+                "region": {
+                  "startLine": 1,
+                  "endLine": 3,
+                  "snippet": {
+                    "text": "FROM alpine:3.19\nCOPY . /app\nCMD [\"/app/run.sh\"]\n"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

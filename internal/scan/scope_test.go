@@ -91,21 +91,28 @@ func (f *fakeRunner) ran(sub string) bool {
 
 func TestTierSelection(t *testing.T) {
 	cases := []struct {
-		scope Scope
-		deep  bool
-		want  string
+		scope   Scope
+		deep    bool
+		checkov bool
+		want    string
 	}{
-		{ScopeStaged, false, "gitleaks,trivy"},
-		{ScopeDiff, false, "gitleaks,trivy"},
-		{ScopeFull, false, "gitleaks,trivy,opengrep"},
-		{ScopeStaged, true, "gitleaks,trivy,opengrep"},
+		{ScopeStaged, false, false, "gitleaks,trivy"},
+		{ScopeDiff, false, false, "gitleaks,trivy"},
+		{ScopeFull, false, false, "gitleaks,trivy,opengrep"},
+		{ScopeStaged, true, false, "gitleaks,trivy,opengrep"},
+		// The opt-in second IaC scanner joins every filesystem scope, fast
+		// tier included: coverage must stay honest about what ran (spec §5.2).
+		{ScopeStaged, false, true, "gitleaks,trivy,checkov"},
+		{ScopeDiff, false, true, "gitleaks,trivy,checkov"},
+		{ScopeFull, false, true, "gitleaks,trivy,checkov,opengrep"},
+		{ScopeStaged, true, true, "gitleaks,trivy,checkov,opengrep"},
 		// The image scope has no filesystem tier; the image phase is the scan.
-		{ScopeImage, false, ""},
-		{ScopeImage, true, ""},
+		{ScopeImage, false, false, ""},
+		{ScopeImage, true, true, ""},
 	}
 	for _, c := range cases {
-		if got := strings.Join(TierScanners(c.scope, c.deep), ","); got != c.want {
-			t.Errorf("TierScanners(%v, %v) = %q, want %q", c.scope, c.deep, got, c.want)
+		if got := strings.Join(TierScanners(c.scope, c.deep, c.checkov), ","); got != c.want {
+			t.Errorf("TierScanners(%v, %v, %v) = %q, want %q", c.scope, c.deep, c.checkov, got, c.want)
 		}
 	}
 }
@@ -171,6 +178,10 @@ func fixtureSARIF(scanner, ruleID, path string, line int) []byte {
 		doc = fmt.Sprintf(`{"runs":[{"tool":{"driver":{"name":"gitleaks","rules":[{"id":%q}]}},"results":[{"ruleId":%q,"message":{"text":"detected"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":%q},"region":{"startLine":%d,"snippet":{"text":"leaky"}}}}]}]}]}`, ruleID, ruleID, path, line)
 	case "trivy":
 		doc = fmt.Sprintf(`{"runs":[{"tool":{"driver":{"name":"Trivy","rules":[{"id":%q,"shortDescription":{"text":"pkg vuln"},"properties":{"tags":["vulnerability","security","HIGH"]}}]}},"results":[{"ruleId":%q,"ruleIndex":0,"level":"error","message":{"text":"P"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":%q},"region":{"startLine":%d}}}]}]}]}`, ruleID, ruleID, path, line)
+	case "checkov":
+		// checkov strips the leading slash from scanned paths and always
+		// carries a snippet (captured from engine checkov 3.3.16).
+		doc = fmt.Sprintf(`{"runs":[{"tool":{"driver":{"name":"Checkov","rules":[{"id":%q,"defaultConfiguration":{"level":"error"}}]}},"results":[{"ruleId":%q,"ruleIndex":0,"level":"error","message":{"text":"policy"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":%q},"region":{"startLine":%d,"snippet":{"text":"resource"}}}}]}]}]}`, ruleID, ruleID, path, line)
 	default:
 		doc = fmt.Sprintf(`{"runs":[{"tool":{"driver":{"name":"Opengrep OSS","rules":[{"id":%q,"defaultConfiguration":{"level":"error"},"properties":{"tags":["CWE-89: x"]}}]}},"results":[{"ruleId":%q,"message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/workspace/%s"},"region":{"startLine":%d,"snippet":{"text":"code"}}}}]}]}]}`, ruleID, ruleID, path, line)
 	}

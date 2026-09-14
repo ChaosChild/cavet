@@ -106,6 +106,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Scope: scope, DiffRef: diffRef,
 		Images: images,
 		Deep:   deep || cfg.Scan.DeepDefault,
+		Checkov: cfg.Scanners.Checkov,
 		Actor: events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 	})

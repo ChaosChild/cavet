@@ -24,8 +24,17 @@ func rawSeverity(scanner string, rule sarifRule) string {
 
 // NormalizeSeverity maps scanner scales onto critical|high|medium|low|info
 // (artefacts §2.3). Gitleaks findings are high until triaged otherwise — a
-// committed credential is high by definition.
+// committed credential is high by definition. Checkov findings are medium:
+// its SARIF marks every failed check "error" regardless of the check's own
+// severity, so no native signal exists, and a blanket high would inflate the
+// counts while info would bury failed-policy findings.
 func NormalizeSeverity(scanner, raw string) string {
+	if scanner == "gitleaks" {
+		return "high"
+	}
+	if scanner == "checkov" {
+		return "medium"
+	}
 	switch strings.ToLower(raw) {
 	case "critical":
 		return "critical"
@@ -37,9 +46,6 @@ func NormalizeSeverity(scanner, raw string) string {
 		return "low"
 	case "info", "note", "unknown":
 		return "info"
-	}
-	if scanner == "gitleaks" {
-		return "high"
 	}
 	return "info"
 }
