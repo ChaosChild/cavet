@@ -106,7 +106,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Scope: scope, DiffRef: diffRef,
 		Images: images,
 		Deep:   deep || cfg.Scan.DeepDefault,
-		Actor: events.ActorAgent, Phase: events.Phase(phase),
+		Actor:  events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 	})
 	if err != nil {
@@ -121,7 +121,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Scope: res.ScopeLabel, Scanners: res.Scanners, Phase: string(res.Phase),
 		EngineShort: shortEngine(ref),
 		Counts: output.Counts{
-			Confirmed: res.Counts.Confirmed,
+			Confirmed:     res.Counts.Confirmed,
 			ConfirmedHigh: res.Counts.ConfirmedHigh, ConfirmedLow: res.Counts.ConfirmedLow,
 			Critical: res.Counts.Critical,
 			High:     res.Counts.High, Medium: res.Counts.Medium, Low: res.Counts.Low,

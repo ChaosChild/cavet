@@ -354,6 +354,7 @@ to sell something built on this:
 | Component | Licence |
 |---|---|
 | `cavet` CLI, skills, subagent, installers | MIT |
+| Chart.js *(vendored dashboard bundle, `internal/serve/assets/`)* | MIT |
 | Gitleaks | MIT |
 | Trivy | Apache-2.0 |
 | Checkov *(optional, off by default)* | Apache-2.0 |
