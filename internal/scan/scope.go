@@ -12,6 +12,7 @@ const (
 	ScopeStaged Scope = iota
 	ScopeDiff
 	ScopeFull
+	ScopeImage
 )
 
 func (s Scope) String() string {
@@ -22,14 +23,21 @@ func (s Scope) String() string {
 		return "diff"
 	case ScopeFull:
 		return "full"
+	case ScopeImage:
+		return "image"
 	}
 	return "unknown"
 }
 
 // TierScanners implements the scope→scanner table (cli-spec §6): the fast
 // tier is gitleaks+trivy; --full and --deep add opengrep. There is no --fast
-// and no --no-deep — --full already asks for everything (spec §5.2).
+// and no --no-deep – --full already asks for everything (spec §5.2). The
+// image scope has no filesystem tier: its only scanner, trivy-image, is run
+// by the image phase itself.
 func TierScanners(scope Scope, deep bool) []string {
+	if scope == ScopeImage {
+		return nil
+	}
 	if scope == ScopeFull || deep {
 		return []string{"gitleaks", "trivy", "opengrep"}
 	}

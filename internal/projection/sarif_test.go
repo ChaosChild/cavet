@@ -97,6 +97,74 @@ func TestParseTrivyFixture(t *testing.T) {
 	}
 }
 
+func TestParseTrivyImageFixture(t *testing.T) {
+	// Captured from the engine's trivy (0.74.0) over a real image tar,
+	// 2026-09-09. Two location shapes: the scan tar (OS packages) and in-image
+	// file paths (language packages) – both meaningless repo-side, both must
+	// yield the caller's Dockerfile path.
+	fs, warns, err := Parse("trivy-image", fixture(t, "trivy-image.sarif"), "Dockerfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warns) != 0 {
+		t.Fatalf("warnings: %v", warns)
+	}
+	if len(fs) != 2 {
+		t.Fatalf("fixture has 2 findings, got %d", len(fs))
+	}
+	for _, f := range fs {
+		if f.Path != "Dockerfile" || f.Line != 1 {
+			t.Fatalf("image findings locate at the Dockerfile, got %+v", f)
+		}
+		if f.PkgName == "" || f.PkgVersion == "" {
+			t.Fatalf("package identity must parse from the message, got %+v", f)
+		}
+		if f.Snippet != "" {
+			t.Fatalf("image findings carry no line context, got snippet %q", f.Snippet)
+		}
+	}
+	os0 := fs[0]
+	if os0.RuleID != "CVE-2026-14456" || os0.PkgName != "libcrypto3" || os0.PkgVersion != "3.5.7-r0" {
+		t.Fatalf("OS package identity wrong: %+v", os0)
+	}
+	if os0.Severity != "high" {
+		t.Fatalf("severity maps from rule tags, got %q", os0.Severity)
+	}
+	lang := fs[1]
+	if lang.RuleID != "CVE-2025-8869" || lang.PkgName != "pip" || lang.PkgVersion != "25.0.1" {
+		t.Fatalf("language package identity wrong: %+v", lang)
+	}
+	if lang.Severity != "medium" {
+		t.Fatalf("severity maps from rule tags, got %q", lang.Severity)
+	}
+}
+
+func TestParseTrivyImageDropsRowWithoutPackageIdentity(t *testing.T) {
+	doc := []byte(`{"runs":[{"tool":{"driver":{"rules":[{"id":"CVE-1","properties":{"tags":["vulnerability","security","HIGH"]}}]}},"results":[
+		{"ruleId":"CVE-1","ruleIndex":0,"message":{"text":"Package: openssl\nInstalled Version: 3.0.15-r1\nVulnerability CVE-1\nSeverity: HIGH"},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"x.tar"},"region":{"startLine":1}}}]},
+		{"ruleId":"CVE-2","ruleIndex":0,"message":{"text":"Package: openssl\nVulnerability CVE-2\nSeverity: HIGH"},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"x.tar"},"region":{"startLine":1}}}]},
+		{"ruleId":"CVE-3","ruleIndex":0,"message":{"text":"not a vulnerability result"},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"x.tar"},"region":{"startLine":1}}}]}
+	]}]}`)
+	fs, warns, err := Parse("trivy-image", doc, "Dockerfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) != 1 || fs[0].PkgName != "openssl" || fs[0].PkgVersion != "3.0.15-r1" {
+		t.Fatalf("incomplete package identity must drop the row, got %+v", fs)
+	}
+	if len(warns) != 2 {
+		t.Fatalf("both incomplete rows drop with warnings, got %v", warns)
+	}
+	for _, w := range warns {
+		if !strings.Contains(w, "trivy-image") {
+			t.Fatalf("warnings must name the scanner: %v", warns)
+		}
+	}
+}
+
 func TestSeverityMaps(t *testing.T) {
 	cases := []struct{ scanner, in, want string }{
 		{"trivy", "CRITICAL", "critical"},

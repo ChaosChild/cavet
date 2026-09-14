@@ -35,7 +35,7 @@ func Init(root string) (*Store, error) {
 	files := map[string]string{
 		"config.yaml":    defaultConfigYAML,
 		".gitattributes": "log/*.jsonl merge=union\n",
-		".gitignore":     "state/\ncache/\nreports/\n",
+		".gitignore":     "state/\ncache/\nreports/\ntmp/\n",
 	}
 	for name, body := range files {
 		p := filepath.Join(c, name)

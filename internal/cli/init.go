@@ -84,7 +84,8 @@ func runInit(hooks bool) error {
 	// The baseline scan is always full-tier, however long it takes (spec §5.1).
 	progress("running full baseline scan (this can take a minute)")
 	if _, err := scan.Run(ctx, s, c, scan.Options{
-		Scope: scan.ScopeFull, Actor: events.ActorOperator, Phase: events.PhaseBuild,
+		Scope: scan.ScopeFull, Images: cfg.Scan.ContainerImages.Dockerfiles(root),
+		Actor: events.ActorOperator, Phase: events.PhaseBuild,
 		Context: events.ContextPosture, Engine: ref,
 	}); err != nil {
 		return fail(err.Error())

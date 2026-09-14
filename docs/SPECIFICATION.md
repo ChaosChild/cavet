@@ -252,6 +252,37 @@ This applies to secret findings specifically. SAST and SCA findings do not overl
 across the default scanner set, and inventing a general cross-scanner identity for
 them would be speculative — revisit if a second SAST engine is ever enabled.
 
+**Image findings fingerprint on package identity, not code context.** `trivy image`
+scans layers where line context does not exist: the SARIF locations are the scan
+tar or in-image file paths, meaningless repo-side. An image finding's identity is
+`sha256("img:" + imageName + "\x00" + vulnID + "\x00" + pkgName + "\x00" + pkgVersion)`,
+where `imageName` is the configured image's Dockerfile repo path,
+slash-normalised. Identity derives from the configuration, not from the transient
+`cavet-scan-<repo-hash>-<n>` build tag (salted with the repository root so concurrent
+scans in different repositories cannot overwrite each other's images on a shared
+daemon), so it survives rebuilds and reordering of the
+configured image list; the build tag exists only to build and remove the image,
+and binding identity to the list ordinal would re-identify every image finding
+and orphan its triage state. The same CVE in two configured images stays two
+findings with separate triage. A per-entry build target (the `target` key of
+the container_images map-entry form) selects which stage of a multi-stage
+Dockerfile is built and scanned; it never enters the identity, since it
+describes the build, not the image's provenance. The finding locates at the configured Dockerfile's
+repo path, never an in-image path; resolved base-image digests, when available,
+ride as metadata, never identity. Non-package results inside images (e.g. Trivy
+secret findings in layers) carry no package identity and are dropped entirely
+with a warning (cli-spec §9). The scanner name `trivy-image` is distinct from
+`trivy`: a filesystem scan covering the Dockerfile proves nothing about image
+findings (§3.1), because it did not run the scanner that found them. The secret
+pre-collapse never applies to image findings.
+
+**Image builds run through the docker CLI's `buildx` command, not the daemon
+API**, because the daemon's /build endpoint with BuildKit wedges indefinitely
+on long builds on Docker Desktop for Windows while the CLI is the supported
+interface (verified by a standalone probe; the engine build completes in ~9
+minutes cold cache). Root-context builds therefore follow standard Docker
+semantics: `.dockerignore` is the exclusion mechanism.
+
 ### 3.4 Determinism of the delta
 
 If scanner rules or vulnerability databases drift between runs, the delta becomes
@@ -596,7 +627,7 @@ warm-up — which is a further reason SAST does not belong on the fast path.
 |---|---|---|---|
 | SAST | **Opengrep** | Engine LGPL-2.1; **rules LGPL-2.1 + Commons Clause** | Default engine, deep tier only (§5.2) |
 | Secrets | **Gitleaks** | MIT | Requires git history |
-| SCA, IaC, containers | **Trivy** | Apache-2.0 | One binary, one startup. Container image scanning is a separate opt-in (§7.6) |
+| SCA, IaC, containers | **Trivy** | Apache-2.0 | One binary, one startup. Container image scanning is a separate opt-in under the distinct `trivy-image` scanner identity (§3.3, §7.6) |
 | IaC *(optional, off by default)* | **Checkov** | Apache-2.0 | Enabled per repository in `config.yaml`; broader IaC coverage than Trivy at a real startup cost |
 | VCS | **git** | GPL-2.0 | Read operations, sandboxed |
 
@@ -769,10 +800,11 @@ visible; `cavet engine status` reports the baked database's build date.
 Missing capability → report it in `cavet engine status`, skip it, note the gap in scan
 output. Never hard-fail.
 
-Container **image** scanning requires mounting the Docker socket into the engine,
-which is a meaningful privilege escalation. Off by default, opt-in per repository,
-documented honestly. Filesystem and configuration scanning need no such access and
-stay on.
+Container **image** scanning never mounts the Docker socket into the engine; the
+engine keeps `NetworkMode: none`. Builds run on the host through the Docker (moby)
+SDK, and the built image is handed to the engine as a tar that trivy scans offline
+like any other artefact. Off by default, opt-in per repository, documented honestly.
+Filesystem and configuration scanning need no Docker access at all.
 
 If the Docker daemon is unreachable, `cavet` says so plainly and exits 2. There is no
 degraded host-scanner fallback — that would reintroduce exactly the version drift the

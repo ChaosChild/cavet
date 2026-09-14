@@ -15,10 +15,10 @@ import (
 )
 
 func newScanCmd() *cobra.Command {
-	var staged, full, deep bool
+	var staged, full, deep, image bool
 	var diffRef, phase, surfaceCtx string
 	cmd := &cobra.Command{
-		Use:   "scan [--staged|--diff <ref>|--full] [--deep] [--phase <phase>] [--context <ctx>]",
+		Use:   "scan [--staged|--diff <ref>|--full|--image] [--deep] [--phase <phase>] [--context <ctx>]",
 		Short: "Run scanners for a scope and fold the delta",
 		Long: "Run scanners for a scope and fold the delta against recorded state.\n" +
 			"\nExit codes: 0 clean (or nothing staged), 1 findings present, 2 error.\n" +
@@ -29,27 +29,28 @@ func newScanCmd() *cobra.Command {
 			"selection (scopes and --deep do). Default: build.",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			scopes := 0
-			for _, b := range []bool{staged, diffRef != "", full} {
+			for _, b := range []bool{staged, diffRef != "", full, image} {
 				if b {
 					scopes++
 				}
 			}
 			if scopes > 1 {
-				return fail("exactly one scope flag (--staged, --diff, --full)")
+				return fail("exactly one scope flag (--staged, --diff, --full, --image)")
 			}
-			return runScan(staged, full, deep, diffRef, phase, surfaceCtx)
+			return runScan(staged, full, deep, image, diffRef, phase, surfaceCtx)
 		},
 	}
 	cmd.Flags().BoolVar(&staged, "staged", false, "scan staged index content (default when the index is non-empty)")
 	cmd.Flags().StringVar(&diffRef, "diff", "", "scan worktree content of files changed vs <ref>")
 	cmd.Flags().BoolVar(&full, "full", false, "scan the whole workspace, history included")
+	cmd.Flags().BoolVar(&image, "image", false, "scan the configured container images (build, then trivy each)")
 	cmd.Flags().BoolVar(&deep, "deep", false, "add SAST (opengrep) to a staged/diff scan")
 	cmd.Flags().StringVar(&phase, "phase", "", "design|build|test|deploy (default build)")
 	cmd.Flags().StringVar(&surfaceCtx, "context", "", "where the result is shown: pre-commit|dispatch|posture (default dispatch)")
 	return cmd
 }
 
-func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
+func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) error {
 	s, err := openStore()
 	if err != nil {
 		return err
@@ -58,7 +59,11 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 	root, _ := repoRoot()
 	ref := engineRef(cfg)
 	c := engineclient.New(ref, cfg.Engine.Digest, root)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	images := cfg.Scan.ContainerImages.Dockerfiles(root)
+	// image or images configured is the conservative proxy for the pipeline's
+	// image-phase trigger; those runs build scanners from source and pull
+	// databases, so they get the longer cap.
+	ctx, cancel := context.WithTimeout(context.Background(), scanTimeout(image || len(images) > 0))
 	defer cancel()
 	if err := c.EnsureRunning(ctx); err != nil {
 		return fail(err.Error())
@@ -66,6 +71,8 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 
 	var scope scan.Scope
 	switch {
+	case image:
+		scope = scan.ScopeImage
 	case staged, diffRef != "":
 		if diffRef != "" {
 			scope = scan.ScopeDiff
@@ -97,7 +104,8 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 
 	res, err := scan.Run(ctx, s, c, scan.Options{
 		Scope: scope, DiffRef: diffRef,
-		Deep: deep || cfg.Scan.DeepDefault,
+		Images: images,
+		Deep:   deep || cfg.Scan.DeepDefault,
 		Actor: events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 	})
@@ -139,6 +147,16 @@ func runScan(staged, full, deep bool, diffRef, phase, surfaceCtx string) error {
 		return &exitErr{code: 1} // findings present — informational, not gating
 	}
 	return nil
+}
+
+// scanTimeout caps a scan run; filesystem scans stay at thirty minutes,
+// while a run with an image phase builds scanners from source and downloads
+// vulnerability databases, so it legitimately needs two hours.
+func scanTimeout(imagePhase bool) time.Duration {
+	if imagePhase {
+		return 2 * time.Hour
+	}
+	return 30 * time.Minute
 }
 
 // hints picks next steps from the result's state, at most three, in fixed

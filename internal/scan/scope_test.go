@@ -3,6 +3,9 @@ package scan
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,15 +15,21 @@ import (
 // fakeRunner records commands and serves canned outputs; the one producer of
 // the Runner seam (plan Task 14).
 type fakeRunner struct {
-	cmds   []string
-	stdout map[string]string // command substring → stdout
+	cmds    []string
+	stdout  map[string]string // command substring → stdout
+	exit    map[string]int    // command substring → non-zero exit code
 	reports map[string][]byte
-	scans  int
+	scans   int
 }
 
 func (f *fakeRunner) Exec(_ context.Context, cmd []string) (engineclient.ExecResult, error) {
 	joined := strings.Join(cmd, " ")
 	f.cmds = append(f.cmds, joined)
+	for sub, code := range f.exit {
+		if strings.Contains(joined, sub) {
+			return engineclient.ExecResult{Code: code}, nil
+		}
+	}
 	for sub, out := range f.stdout {
 		if strings.Contains(joined, sub) {
 			return engineclient.ExecResult{Stdout: []byte(out)}, nil
@@ -42,6 +51,35 @@ func (f *fakeRunner) NextScanDir() string {
 	return fmt.Sprintf("/scan/%d", f.scans)
 }
 
+// The image-phase seam: record the call, and make SaveImage real enough that
+// tar cleanup in .cavet/tmp is observable.
+func (f *fakeRunner) BuildImage(_ context.Context, dockerfilePath, contextDir, tag, target string, _ io.Writer) error {
+	cmd := "build " + dockerfilePath + " ctx " + contextDir + " tag " + tag
+	if target != "" {
+		cmd += " target " + target
+	}
+	f.cmds = append(f.cmds, cmd)
+	return nil
+}
+
+func (f *fakeRunner) SaveImage(_ context.Context, ref, destPath string) error {
+	f.cmds = append(f.cmds, "save "+ref+" "+destPath)
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(destPath, []byte("tar"), 0o644)
+}
+
+func (f *fakeRunner) CopyToContainer(_ context.Context, srcPath, dstPath string) error {
+	f.cmds = append(f.cmds, "cp "+srcPath+" "+dstPath)
+	return nil
+}
+
+func (f *fakeRunner) RemoveImage(_ context.Context, ref string) error {
+	f.cmds = append(f.cmds, "rmi "+ref)
+	return nil
+}
+
 func (f *fakeRunner) ran(sub string) bool {
 	for _, c := range f.cmds {
 		if strings.Contains(c, sub) {
@@ -61,6 +99,9 @@ func TestTierSelection(t *testing.T) {
 		{ScopeDiff, false, "gitleaks,trivy"},
 		{ScopeFull, false, "gitleaks,trivy,opengrep"},
 		{ScopeStaged, true, "gitleaks,trivy,opengrep"},
+		// The image scope has no filesystem tier; the image phase is the scan.
+		{ScopeImage, false, ""},
+		{ScopeImage, true, ""},
 	}
 	for _, c := range cases {
 		if got := strings.Join(TierScanners(c.scope, c.deep), ","); got != c.want {

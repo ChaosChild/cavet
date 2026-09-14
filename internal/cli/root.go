@@ -105,6 +105,7 @@ func newRoot() (*cobra.Command, error) {
 		newRebuildCmd(),
 		newRebaselineCmd(),
 		newEngineCmd(),
+		newImageCmd(),
 		newLookupCmd(),
 		newDescribeCmd(),
 		newUpdateCmd(),
