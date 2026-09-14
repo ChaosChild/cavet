@@ -130,19 +130,21 @@ jobs:
             printf '%s %s\n' "$v" "$digest" >> "$RUNNER_TEMP/engine-digests"
           done
       # retag path skips the scan gate on purpose: image bytes are unchanged
-      # since the release that already passed it. minor-<variant> and rolling
-      # tags already point at this manifest from the prior release, and the
-      # digest is already signed, so only the versioned tags are created and
-      # nothing is re-signed.
+      # since the release that already passed it. The digest is already
+      # signed (cosign signs by digest), so nothing is re-signed. The minor
+      # and rolling tags are recreated for THIS release: the CLI resolves
+      # the engine by <major.minor>-<variant> (engineTag, cli-spec), so the
+      # prior release's minor tag does not cover the new version.
       - name: Retag engine from prior release
         if: env.ENGINE_MODE == 'retag'
         env:
           REG: ghcr.io/chaoschild/cavet-engine
         run: |
           set -euo pipefail
+          minor=$(echo "$RELEASE_VERSION" | cut -d. -f1-2)
           : > "$RUNNER_TEMP/engine-digests"
           for v in core full; do
-            docker buildx imagetools create -t "$REG:${RELEASE_VERSION}-$v" "$REG:${RETAG_FROM_VERSION}-$v"
+            docker buildx imagetools create -t "$REG:${RELEASE_VERSION}-$v" -t "$REG:${minor}-$v" -t "$REG:$v" "$REG:${RETAG_FROM_VERSION}-$v"
             # digest via --raw + sha256: the OCI digest is sha256 of the raw
             # manifest bytes. Template fields vary across buildx versions
             # ({{.Descriptor.Digest}} fails on current runners), --raw does not.
