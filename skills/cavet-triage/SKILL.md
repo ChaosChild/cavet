@@ -35,7 +35,10 @@ clean.
 **Dispatch.** Send the security subagent with three things: scope (staged / diff /
 full / path), phase (build / test / deploy), and any parent context that bears on
 reconciliation — files the operator said not to touch, prior decisions, current
-intent. Keep that context to a few lines.
+intent. Keep that context to a few lines. If the change under review already fixes
+known findings, put that in `context` as information. Never instruct the subagent
+to record the remediation: fixed is not a verdict, and the next scan records it
+(see Remediate).
 
 **Receive verbatim.** The subagent returns the CLI's aggregate line, table, next-step
 hints, and any `verify` block, unchanged. Do not ask it for a summary; do not
@@ -78,7 +81,10 @@ context: <optional, a few lines — files not to touch, prior decisions, intent>
 2. For every finding in the table, decide **confirmed** or **dismissed**. To decide,
    read the code at the location — reachability, whether the input is untrusted,
    whether it is a fixture. Category-specific guidance in `references/verdicts.md`;
-   read it once at the start.
+   read it once at the start. If the code is already fixed in what you scanned (the
+   fix is in the branch or commit under review), record **no verdict**: fixed is not
+   yours to assert, and a dismissal would misfile a fix as an accepted risk. Leave
+   the finding alone and the next covering scan records `remediated`.
 3. For dependency findings (CVE / GHSA / OSV ids), run `cavet lookup` on the
    identifiers before deciding. Affected range, fixed version, and known-exploited
    status change the verdict; guessing them does not.
