@@ -130,6 +130,39 @@ func TestOverview(t *testing.T) {
 	}
 }
 
+// An unexpected severity must not add a stray key to open or oldest; the
+// finding still counts toward total (api.go overview guard).
+func TestOverviewUnknownSeverityNoStrayKeys(t *testing.T) {
+	s := fixture(t)
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Findings = append(st.Findings, &store.Finding{
+		Fingerprint: strings.Repeat("d4", 32), Severity: "catastrophic",
+		Status: "open", DetectedAt: time.Now().UTC(), LastSeen: time.Now().UTC(),
+	})
+	if err := s.WriteState(st); err != nil {
+		t.Fatal(err)
+	}
+	var o struct {
+		Open   map[string]int        `json:"open"`
+		Oldest map[string]*time.Time `json:"oldest"`
+	}
+	if code := getJSON(t, New(s).Handler(), "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	if o.Open["total"] != 2 || o.Open["high"] != 1 {
+		t.Errorf("open = %v", o.Open)
+	}
+	if _, ok := o.Open["catastrophic"]; ok {
+		t.Errorf("stray open key: %v", o.Open)
+	}
+	if _, ok := o.Oldest["catastrophic"]; ok {
+		t.Errorf("stray oldest key: %v", o.Oldest)
+	}
+}
+
 func TestFindingsFilteringAndPagination(t *testing.T) {
 	h := New(fixture(t)).Handler()
 	var all struct {

@@ -101,11 +101,18 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 			continue
 		}
 		resp.Open["total"]++
-		resp.Open[f.Severity]++
-		if f.Severity == "info" || f.Severity == "" {
+		sev := f.Severity
+		if sev == "" {
+			sev = "info"
+		}
+		if _, known := sevRank[sev]; !known {
+			continue // unexpected severity: total only, never a stray JSON key
+		}
+		resp.Open[sev]++
+		if sev == "info" {
 			continue
 		}
-		cur, ok := resp.Oldest[f.Severity]
+		cur, ok := resp.Oldest[sev]
 		if !ok || f.DetectedAt.Before(*cur) {
 			t := f.DetectedAt
 			resp.Oldest[f.Severity] = &t

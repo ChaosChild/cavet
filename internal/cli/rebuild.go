@@ -41,6 +41,9 @@ func newRebuildCmd() *cobra.Command {
 			if err != nil {
 				return fail(err.Error())
 			}
+			// Still inside the artefact lock taken above (same contract as
+			// scan end, serve-task-1 D5): the log ReplayMetrics reads is the
+			// one Rebuild just rewrote state from.
 			if err := s.RefreshMetrics(); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: metrics refresh failed: %v\n", err)
 			}
