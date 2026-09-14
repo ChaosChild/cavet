@@ -1,4 +1,4 @@
-// cavet serve dashboard — the approved mock's behaviour with dummy data
+// cavet serve dashboard – the approved mock's behaviour with dummy data
 // replaced by fetch() wiring. Load on open, manual Refresh, no polling.
 'use strict';
 
@@ -175,7 +175,7 @@ function flowConfig(m, n) {
       scales: { x: { stacked: true, grid: { display: false }, ticks }, y: { stacked: true, grid, ticks, beginAtZero: true, border: { display: false } } } }
   };
 }
-// ponytail: exposure lag cut from v1 — advisory publish dates are not in
+// ponytail: exposure lag cut from v1 – advisory publish dates are not in
 // cavet's events, so the third line has no offline data source.
 function ttvConfig(m, n) {
   return {

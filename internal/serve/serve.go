@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/ChaosChild/cavet/internal/store"
 )
@@ -82,5 +83,6 @@ func Run(s *store.Store, port int) error {
 	}
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	fmt.Printf("cavet serve: http://%s (loopback only; Ctrl+C to stop)\n", addr)
-	return http.ListenAndServe(addr, New(s).Handler())
+	srv := &http.Server{Addr: addr, Handler: New(s).Handler(), ReadHeaderTimeout: 10 * time.Second}
+	return srv.ListenAndServe()
 }

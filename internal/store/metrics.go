@@ -24,7 +24,7 @@ type FlowRec struct {
 }
 
 // ResolveRec is one remediation: when, by whom, and how long the finding had
-// been open (hours from its first in-log detection — baseline findings' true
+// been open (hours from its first in-log detection – baseline findings' true
 // detection predates the log, so this is a lower bound).
 type ResolveRec struct {
 	TS    time.Time `json:"ts"`
@@ -97,7 +97,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 	type liveRec struct {
 		first      time.Time
 		sev        string
-		actionable bool // open or confirmed — the posture view's counting rule
+		actionable bool // open or confirmed – the posture view's counting rule
 	}
 	live := map[string]*liveRec{}
 	openBySev := doc.Trend.Current
