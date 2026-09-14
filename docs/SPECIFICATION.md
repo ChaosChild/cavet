@@ -914,7 +914,12 @@ Optional, operator-installed, **off by default, advisory only**.
 A git `pre-commit` hook that runs `cavet scan --staged`. It does not invoke a model — a
 git hook is a subprocess with no channel into a running agent session. It runs the
 deterministic scan, prints the compact result, and **exits 0 regardless** unless the
-operator configures otherwise.
+operator configures otherwise. That guarantee covers every failure class, not only
+findings: an engine that cannot start, or a fresh clone of a repository that tracks
+`.cavet/`, where the gitignored `state/` directory does not exist yet, prints a warning
+and exits 0. The store meets the scan halfway by creating derived directories
+(`state/`, `reports/`, `log/`) on demand — `LoadState` already treated missing files
+as fresh state.
 
 `--staged` is the fast tier (§5.2): Gitleaks and Trivy, ~1.8s warm. A hook is the one
 place where latency is not negotiable — it sits between the operator and every commit

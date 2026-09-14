@@ -35,7 +35,13 @@ type Enriched struct {
 // its timestamp (artefacts §§2, 7.2).
 func (s *Store) Append(e events.Event) error {
 	name := "events-" + e.TS.UTC().Format("2006-01") + ".jsonl"
-	f, err := os.OpenFile(filepath.Join(s.Cavet, "log", name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	dir := filepath.Join(s.Cavet, "log")
+	// log/ is usually tracked, but nothing requires it to exist on a fresh
+	// checkout; create it rather than failing the scan that appends (artefacts §1.1).
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(dir, name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
