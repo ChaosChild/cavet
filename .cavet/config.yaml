@@ -1,14 +1,16 @@
 engine:
-  variant: core
-  digest: "sha256:cdaa96cc243d18e434033fd1a95917d4760c7fc8f27caeeebd7102a71676a62f"
+    variant: core
+    digest: sha256:cdaa96cc243d18e434033fd1a95917d4760c7fc8f27caeeebd7102a71676a62f
 scan:
-  deep_default: false
-  container_images: false
-  hook_exit_1: false
+    deep_default: false
+    container_images:
+        - dockerfile: engine/Dockerfile
+          target: final-core
+    hook_exit_1: false
 scanners:
-  checkov: false
+    checkov: false
 network:
-  proxy: ""
-  db_overrides:
-    trivy_db: ""
-    trivy_java_db: ""
+    proxy: ""
+    db_overrides:
+        trivy_db: ""
+        trivy_java_db: ""

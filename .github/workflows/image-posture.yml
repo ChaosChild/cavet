@@ -1,8 +1,9 @@
 name: image-posture
 # Weekly alarm on the SHIPPED engine: the rolling :core/:full tags resolve to
 # the latest release, so this catches criticals published AFTER an image
-# shipped. The dev-machine process (engine/scan-local.ps1) and the release-time
-# gate (release.yml) cover what is being built; this is the posture backstop.
+# shipped. The in-repo dogfood (`cavet scan --image` on engine/Dockerfile,
+# enabled in .cavet/config.yaml) and the release-time gate (release.yml)
+# cover what is being built; this is the posture backstop.
 # Findings update ONE tracked issue (new comment per run); zero findings stay
 # silent. The run itself stays green either way - the issue is the alarm.
 on:
