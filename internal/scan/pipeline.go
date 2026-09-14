@@ -247,6 +247,12 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		Phase: string(o.Phase), Engine: o.Engine, At: now.UTC().Format(time.RFC3339)}); err == nil {
 		_ = store.AtomicWrite(filepath.Join(s.Cavet, "state", "last-scan.json"), append(ls, '\n'))
 	}
+	// Metrics cache refresh, still inside the critical section: the log the
+	// aggregates replay was just appended to. Failure degrades the dashboard
+	// (serve start recomputes when stale), never the scan.
+	if err := s.RefreshMetrics(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: metrics refresh failed: %v\n", err)
+	}
 	return buildResult(merged, state, label, scanners, o), nil
 }
 

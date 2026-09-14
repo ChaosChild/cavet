@@ -41,6 +41,9 @@ func newRebuildCmd() *cobra.Command {
 			if err != nil {
 				return fail(err.Error())
 			}
+			if err := s.RefreshMetrics(); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: metrics refresh failed: %v\n", err)
+			}
 			fmt.Printf("replayed %d events from %d files; %d findings, %d items, baseline %d.\n",
 				len(evs), len(files), len(st.Findings), len(st.Items), len(st.Baseline.Fingerprints))
 			return nil
