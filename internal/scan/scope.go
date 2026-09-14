@@ -54,10 +54,11 @@ func splitNUL(b []byte) []string {
 	return out
 }
 
-// stagedPaths lists the index content. All git runs inside the container —
-// the host needs no git (cli-spec §6).
+// stagedPaths lists the index content, deletions excluded: a deleted path is
+// not in the index and cannot be staged for scanning. All git runs inside the
+// container — the host needs no git (cli-spec §6).
 func stagedPaths(ctx context.Context, r Runner) ([]string, error) {
-	res, err := r.Exec(ctx, []string{"sh", "-c", "git diff --cached --name-only -z"})
+	res, err := r.Exec(ctx, []string{"sh", "-c", "git diff --cached --name-only --diff-filter=ACMRT -z"})
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func stagedPaths(ctx context.Context, r Runner) ([]string, error) {
 // crosses the shell, so there is no quoting hazard.
 func checkoutIndex(ctx context.Context, r Runner, scanDir string) error {
 	cmd := fmt.Sprintf(
-		"mkdir -p %[1]s && git diff --cached --name-only -z | git checkout-index -z --prefix=%[1]s/ --stdin",
+		"mkdir -p %[1]s && git diff --cached --name-only --diff-filter=ACMRT -z | git checkout-index -z --prefix=%[1]s/ --stdin",
 		scanDir)
 	res, err := r.Exec(ctx, []string{"sh", "-c", cmd})
 	if err != nil {

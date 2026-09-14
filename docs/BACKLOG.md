@@ -5,7 +5,7 @@ of forgetting them exceeds the cost of writing them down, and move to Closed
 when they ship. Ordering is the maintainer's call.
 
 When an item ships, move it below the line with the completion date and the
-version that carried it. Last updated: 2026-09-09.
+version that carried it. Last updated: 2026-09-10.
 
 ## Open
 
@@ -26,25 +26,6 @@ non-workspace scans live in report files while only the decisions get recorded
 (via `cavet raise` / `cavet resolve`). An import path would turn external
 findings into detected events with a distinct provenance and make them
 first-class citizens of the audit trail.
-
-### Native Docker image scanning
-
-When a project has a Dockerfile, `cavet scan` should build and scan the image
-and report image vulnerabilities like any other finding (detected event ->
-triage -> remediation or debt). The engine already bundles Trivy, so the work
-is scan-pipeline scope, config gating and findings plumbing. This generalizes
-the weekly posture cron and `cavet import` for the engine-image use case, and
-would retire the manual scan-local flow. Design questions when picked up:
-build from the Dockerfile only, or also referenced and composed images; tier
-placement (image builds are slow, own tier or part of `--full`); fingerprint
-and baseline semantics for artifacts (key by Dockerfile plus base-image
-digests, not source lines). Design decisions recorded 2026-09-09: the
-`container_images` config key is bool or list (`true` covers repo-root
-Dockerfiles, a list names explicit paths, nested ones included), the trigger
-is an explicit `--image` flag plus automatic inclusion in `--full` and in
-`--staged` when a configured Dockerfile is staged, and fingerprints use
-package identity (`img:` namespace + image name + vuln id + package name +
-installed version) with the Dockerfile and resolved base digests as metadata.
 
 ### Dockerfile auto-discovery for image scanning
 
@@ -70,6 +51,19 @@ localhost-only bind vs LAN, live event log vs snapshot, and what velocity
 metrics need captured at event time.
 
 ## Closed
+
+### Native Docker image scanning (2026-09-10, v0.2.0)
+
+`cavet scan --image` builds configured images host-side via `docker buildx`
+and scans them inside the offline engine with Trivy: `scan.container_images`
+is bool or list (with optional per-entry `target:`), managed by
+`cavet image add/remove/list`; image scans also fire automatically in `--full`
+and in `--staged` when a configured Dockerfile is staged. Findings carry
+package-identity fingerprints in the `img:` namespace, locate at their
+Dockerfile, and only an image scan can remediate them by absence. Dogfooded on
+this repository's own engine image (`engine/Dockerfile`, target `final-core`,
+565 findings folded into the baseline), which retired the manual
+`engine/scan-local.ps1` flow. Decision trail: PR #31.
 
 ### Digest-pin the golang build stage (2026-09-08, unreleased)
 
