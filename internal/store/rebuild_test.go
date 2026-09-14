@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -194,11 +195,6 @@ func TestRebuildRemediatedRemovesFinding(t *testing.T) {
 
 func TestRebuildDanglingRefsFailLoud(t *testing.T) {
 	cases := map[string]events.Event{}
-	triaged, _ := events.NewTriaged(baseTS, events.ActorAgent, events.PhaseBuild,
-		testEngine, fpB(), events.TriagedData{
-			Verdict: events.VerdictConfirmed, Confidence: events.ConfidenceLow, Reason: "r",
-		})
-	cases["triaged without detection"] = triaged
 	resolved, _ := events.NewResolved(baseTS, events.ActorOperator, events.PhaseBuild,
 		testEngine, events.ResolvedData{Item: "it-00000000", Answer: "a"})
 	cases["resolved without raise"] = resolved
@@ -215,6 +211,74 @@ func TestRebuildDanglingRefsFailLoud(t *testing.T) {
 		if _, err := s.Rebuild(); err == nil {
 			t.Errorf("%s: expected error", name)
 		}
+	}
+}
+
+func TestRebuildToleratesBaselineEraVerdicts(t *testing.T) {
+	root := t.TempDir()
+	s, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detected, err := events.NewDetected(baseTS, events.ActorAgent, events.PhaseBuild,
+		testEngine, fpA(), events.DetectedData{
+			Rule: "generic.weak-hash", Severity: events.SevMedium,
+			Path: "auth/tokens.py", Line: 23, Scanner: "opengrep",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Ghost verdicts for fingerprints the replay never saw: legitimate for
+	// baseline debt, whose detections emit no detected events.
+	triaged, err := events.NewTriaged(baseTS.Add(time.Minute), events.ActorAgent, events.PhaseBuild,
+		testEngine, fpB(), events.TriagedData{
+			Verdict: events.VerdictConfirmed, Confidence: events.ConfidenceHigh, Reason: "baseline debt",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	remediated, err := events.NewRemediated(baseTS.Add(2*time.Minute), events.ActorAgent, events.PhaseBuild,
+		testEngine, fpC(), "fixed pre-log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range []events.Event{detected, triaged, remediated} {
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Capture stderr, the warning channel rebuild already uses.
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stderr
+	os.Stderr = w
+	st, err := s.Rebuild()
+	w.Close()
+	os.Stderr = orig
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(st.Findings) != 1 || st.Findings[0].Fingerprint != fpA() {
+		t.Fatalf("want only finding A, got %+v", st.Findings)
+	}
+	if st.Findings[0].Status != "open" || st.Findings[0].Verdict != nil {
+		t.Fatalf("finding A must be untouched, got %+v", st.Findings[0])
+	}
+	for _, p := range []string{fpB()[:6], fpC()[:6]} {
+		if !strings.Contains(string(out), p) {
+			t.Errorf("warning must name ghost fingerprint %s, got %q", p, out)
+		}
+	}
+	if !strings.Contains(string(out), "warning:") {
+		t.Errorf("warning must be on stderr, got %q", out)
 	}
 }
 

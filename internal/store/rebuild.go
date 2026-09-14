@@ -39,6 +39,7 @@ func (s *Store) Rebuild() (*State, error) {
 		itemsByID:    map[string]bool{}}
 	seen := map[string]bool{}
 	unknownKinds := 0
+	ghosts := map[string]bool{}
 
 	for _, en := range log {
 		// Identical lines collapse silently — expected after branch merges
@@ -77,14 +78,20 @@ func (s *Store) Rebuild() (*State, error) {
 			st.findingsByFP[f.Fingerprint] = f
 
 		case events.Triaged:
-			f, ok := st.findingsByFP[en.Fingerprint]
-			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("triaged references unknown fingerprint %s", short(en.Fingerprint))}
-			}
 			d, ok := en.Payload().(events.TriagedData)
 			if !ok {
 				return nil, &ParseError{File: en.File, Err: fmt.Errorf("triaged payload mismatch")}
+			}
+			f, ok := st.findingsByFP[en.Fingerprint]
+			if !ok {
+				// A verdict for a fingerprint the replay does not know is
+				// legitimate: triaging a baseline finding produces a triaged
+				// event with no detected event (baseline detections emit
+				// nothing on the scan path), and the log replay cannot know
+				// pre-log findings — that is what preserved baseline.json
+				// covers. Skip and warn; payload mismatches above stay fatal.
+				ghosts[en.Fingerprint] = true
+				continue
 			}
 			f.Verdict = &Verdict{Verdict: string(d.Verdict), Confidence: string(d.Confidence),
 				Reason: d.Reason, Sources: d.Sources, At: en.TS, By: string(en.Actor)}
@@ -95,19 +102,19 @@ func (s *Store) Rebuild() (*State, error) {
 			}
 
 		case events.Suppressed:
-			if err := setStatus(st, en, "suppressed"); err != nil {
-				return nil, err
+			if !setStatus(st, en, "suppressed") {
+				ghosts[en.Fingerprint] = true // baseline-era verdict, see triaged above
 			}
 		case events.Deferred:
-			if err := setStatus(st, en, "deferred"); err != nil {
-				return nil, err
+			if !setStatus(st, en, "deferred") {
+				ghosts[en.Fingerprint] = true // baseline-era verdict, see triaged above
 			}
 
 		case events.Remediated:
 			f, ok := st.findingsByFP[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("remediated references unknown fingerprint %s", short(en.Fingerprint))}
+				ghosts[en.Fingerprint] = true // baseline-era verdict, see triaged above
+				continue
 			}
 			removeFinding(st, f)
 
@@ -146,6 +153,15 @@ func (s *Store) Rebuild() (*State, error) {
 	if unknownKinds > 0 {
 		fmt.Fprintf(os.Stderr, "warning: %d unknown-kind events preserved, excluded from fold\n", unknownKinds)
 	}
+	if len(ghosts) > 0 {
+		fps := make([]string, 0, len(ghosts))
+		for fp := range ghosts {
+			fps = append(fps, short(fp))
+		}
+		sort.Strings(fps)
+		fmt.Fprintf(os.Stderr, "warning: verdict event(s) skipped for unknown fingerprint(s) %s (baseline-era findings emit no detected events; preserved baseline.json covers them)\n",
+			strings.Join(fps, ", "))
+	}
 
 	if err := s.loadBaseline(st); err != nil {
 		return nil, err
@@ -173,14 +189,16 @@ func (s *Store) WriteBaseline(b Baseline) error {
 	return AtomicWrite(filepath.Join(s.Cavet, "state", "baseline.json"), append(out, '\n'))
 }
 
-func setStatus(st *State, en Enriched, status string) error {
+// setStatus folds suppressed/deferred. Returns false when the fingerprint is
+// unknown to the replay (legitimate for baseline-era verdicts — see the
+// triaged case); nothing else here can fail.
+func setStatus(st *State, en Enriched, status string) bool {
 	f, ok := st.findingsByFP[en.Fingerprint]
 	if !ok {
-		return &ParseError{File: en.File,
-			Err: fmt.Errorf("%s references unknown fingerprint %s", en.Kind, short(en.Fingerprint))}
+		return false
 	}
 	f.Status = status
-	return nil
+	return true
 }
 
 func removeFinding(st *State, f *Finding) {
