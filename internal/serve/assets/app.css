@@ -232,10 +232,13 @@ body::after {
 .expand-btn:hover { border-color: rgba(174,191,212,0.55); color: var(--steel); }
 .expand-btn:active { transform: scale(0.93); }
 
-.rise { opacity: 0; transform: translateY(18px); animation: rise 0.9s var(--ease) forwards; }
-/* to { transform: none } matters: a retained translateY(0) would keep the
-   section a containing block and break the fixed-position dropdown menus. */
-@keyframes rise { to { opacity: 1; transform: none; } }
+/* backwards fill only: the base state (no transform, opacity 1) IS the end
+   state, so nothing is retained after the animation. A forwards fill keeps
+   an identity matrix computed even when the keyframe ends at none, and any
+   retained transform on a section makes it a containing block that breaks
+   the fixed-position dropdown menus. */
+.rise { animation: rise 0.9s var(--ease) backwards; }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } }
 .d1 { animation-delay: 0.05s; } .d2 { animation-delay: 0.12s; } .d3 { animation-delay: 0.19s; }
 .d4 { animation-delay: 0.26s; } .d5 { animation-delay: 0.33s; } .d6 { animation-delay: 0.40s; }
 
