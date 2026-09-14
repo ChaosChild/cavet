@@ -237,6 +237,28 @@ Exit codes are informational, never gating: `0` clean (or nothing staged),
 `1` findings present, `2` error. `cavet --help` lists everything;
 `cavet describe --json` emits the machine contract for tooling that wants it.
 
+### `cavet serve`
+
+```sh
+cavet serve             # add --port to change it (default 8765)
+```
+
+Opens the dashboard at `http://127.0.0.1:8765`: posture cards, findings
+with filters and pagination, per-finding history, open items, and trend
+charts. The bind address is `127.0.0.1`, hard-coded: the dashboard has no
+authentication, so it must never be reachable off-host. Remote access is the
+operator's front door, not cavet's – an SSH tunnel
+(`ssh -L 8765:127.0.0.1:8765`) or an HTTPS proxy you trust, in front of the
+loopback listener. cavet itself never listens beyond loopback.
+
+Data loads when the page opens and on the manual Refresh button; there is no
+polling. Every read goes against `state/` as it exists on disk, so a scan or
+triage in another terminal shows up on the next Refresh. Charts read a
+precomputed metrics cache (`state/metrics.json`), rebuilt inside the scan and
+rebuild critical sections and recomputed at serve start when stale, so no
+request replays the log. Chart.js is vendored into the binary
+(`internal/serve/assets/`); the page fetches nothing from any CDN.
+
 ### Advanced: other install channels
 
 <details>
@@ -322,6 +344,7 @@ scoop install cavet
 | `engine` | Control the long-lived scanner container; `prune` removes containers whose repository is gone |
 | `rebaseline` | After a deliberate engine change: regenerate the baseline |
 | `rebuild` | Regenerate `state/` from the log (the source of truth) |
+| `serve` | Dashboard on loopback: posture, findings, metrics (`--port`) |
 | `describe` | Machine contract for third-party installers |
 | `update` | Update the cavet binary in place from GitHub releases, checksum and Sigstore verified |
 

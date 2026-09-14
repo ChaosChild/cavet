@@ -380,6 +380,7 @@ cavet lookup <identifier>... [--refresh]   # advisory / rule lookup, allowlisted
 cavet items                         # open items: design concerns + verification requests
 cavet engine (status|start|stop|pull|prune|shell)   # prune: remove containers whose repo root is gone
 cavet rebuild                       # regenerate state/ from log/
+cavet serve [--port <port>]         # loopback dashboard (default 8765)
 cavet rebaseline                    # after a deliberate engine image change
 cavet describe --json               # machine contract for third-party installers
 cavet update [--check]              # in-place self-update from GitHub releases
@@ -533,6 +534,38 @@ not a cost to be discovered later. The client surface stays deliberately thin â€
 adapter per source, no shared abstraction â€” so a source that breaks is a contained
 repair. A source that begins requiring authentication is a candidate for removal rather
 than a reason to start handling credentials.
+
+### 5.4 Serve
+
+`cavet serve` runs the dashboard: the posture cards, findings table, finding
+history, open items, and trend charts, as a single page served out of the
+binary. The page is converted from the operator-locked mock, so what the
+operator approved is what ships; Chart.js is vendored into
+`internal/serve/assets/` and the page fetches nothing from any CDN.
+
+**Loopback only, structurally.** The bind address is `127.0.0.1`, hard-coded
+rather than configurable: the dashboard has no authentication, so it must
+never be reachable off-host. There is no `--bind` flag to get wrong. Remote
+access is the operator's front door, not cavet's: an SSH tunnel
+(`ssh -L 8765:127.0.0.1:8765`) or an HTTPS reverse proxy the operator trusts,
+in front of the loopback listener. `--port` (default 8765) exists only to
+dodge a local collision.
+
+**Reads never take the artefact lock.** The JSON endpoints (`/api/overview`,
+`/api/findings` with filter and pagination parameters, `/api/findings/{id}`
+with full history, `/api/items`, `/api/metrics`) read `state/` as it exists on
+disk. The page loads on open and on the manual Refresh button; there is no
+polling, so a scan or triage in another terminal appears on the next Refresh.
+State files are written atomically, and a read racing a rename gets one
+retry, not an error page.
+
+**Charts read a cache, not the log.** `state/metrics.json` carries the flat
+aggregates the charts need (verdict flow, triage and resolve lags, scan
+times, trend snapshot), computed by a single log replay inside the scan and
+rebuild critical sections, and recomputed at serve start under the artefact
+lock when stale. No dashboard request replays the log; an absent or stale
+cache degrades the charts (`/api/metrics` answers 503 with a note) and never
+the posture cards, which stay state-authoritative.
 
 ---
 
