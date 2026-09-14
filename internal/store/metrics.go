@@ -159,8 +159,11 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Triaged:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("triaged references unknown fingerprint %s", short(en.Fingerprint))}
+				// Stale verdict for a finding the replay no longer knows
+				// (e.g. remediated and re-baselined earlier). It cannot
+				// affect any aggregate, so skip it; the log is the source
+				// of truth and malformed input still errors below.
+				continue
 			}
 			d, ok := en.Payload().(events.TriagedData)
 			if !ok {
@@ -177,8 +180,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Suppressed:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("suppressed references unknown fingerprint %s", short(en.Fingerprint))}
+				continue // stale verdict: cannot affect any aggregate
 			}
 			setActionable(lr, false)
 			delete(live, en.Fingerprint)
@@ -186,8 +188,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Deferred:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("deferred references unknown fingerprint %s", short(en.Fingerprint))}
+				continue // stale verdict: cannot affect any aggregate
 			}
 			setActionable(lr, false)
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "deferred"})
@@ -195,8 +196,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Remediated:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("remediated references unknown fingerprint %s", short(en.Fingerprint))}
+				continue // stale remediation: no live finding, no flow record
 			}
 			setActionable(lr, false)
 			delete(live, en.Fingerprint)

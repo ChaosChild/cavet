@@ -116,6 +116,60 @@ func TestComputeMetricsFromSyntheticLog(t *testing.T) {
 	}
 }
 
+// Stale verdict events (triaged/suppressed/deferred) for fingerprints the
+// replay never saw – e.g. findings remediated and re-baselined out of an
+// earlier log segment – must not block the metrics cache: they cannot affect
+// any aggregate, so ComputeMetrics skips them and still succeeds.
+func TestComputeMetricsToleratesStaleVerdicts(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Now().UTC().Truncate(time.Hour)
+	if err := synthLog(s, base); err != nil {
+		t.Fatal(err)
+	}
+	ghost := strings.Repeat("9f", 32)
+	ts := base.Add(-10 * time.Hour)
+	app := func(ev events.Event, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	app(events.NewTriaged(ts, events.ActorOperator, events.PhaseBuild, "eng", ghost,
+		events.TriagedData{Verdict: events.VerdictConfirmed, Confidence: events.ConfidenceHigh, Reason: "stale"}))
+	app(events.NewSuppressed(ts.Add(time.Minute), events.ActorOperator, events.PhaseBuild, "eng", ghost, "stale"))
+	app(events.NewDeferred(ts.Add(2*time.Minute), events.ActorOperator, events.PhaseBuild, "eng", ghost, "stale"))
+	app(events.NewRemediated(ts.Add(3*time.Minute), events.ActorAgent, events.PhaseBuild, "eng", ghost, "stale"))
+
+	log, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ComputeMetrics(log, "cursor")
+	if err != nil {
+		t.Fatalf("stale verdicts must not error the fold: %v", err)
+	}
+	// The ghost events fold to nothing: same aggregates as without them.
+	counts := map[string]int{}
+	for _, fr := range doc.Flow {
+		counts[fr.Kind]++
+	}
+	if counts["new"] != 3 || counts["dismissed"] != 1 || counts["fixed"] != 1 || counts["deferred"] != 0 {
+		t.Errorf("flow = %v, ghost events leaked in", counts)
+	}
+	if doc.Trend.Current["total"] != 1 || doc.Trend.Current["high"] != 1 {
+		t.Errorf("trend current = %v", doc.Trend.Current)
+	}
+	if len(doc.Triage) != 2 || len(doc.Resolve) != 1 {
+		t.Errorf("triage %d resolve %d, want 2 and 1", len(doc.Triage), len(doc.Resolve))
+	}
+}
+
 func TestMetricsStalenessAndRefresh(t *testing.T) {
 	s, err := Init(t.TempDir())
 	if err != nil {

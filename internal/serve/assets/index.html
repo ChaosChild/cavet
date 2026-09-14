@@ -60,7 +60,7 @@
       <p class="text-[11px] opacity-50 mt-auto">oldest&nbsp;&nbsp;<span class="mono" id="oldest-high">–</span></p>
     </div></div>
     <div class="bezel"><div class="core gap-3">
-      <p class="eyebrow">Medium + low</p>
+      <p class="eyebrow">Medium, low, info</p>
       <div class="flex items-baseline gap-3 flex-wrap">
         <p class="num text-5xl font-medium leading-none" id="open-medlow">–</p>
         <span id="medlow-trend"></span>
@@ -165,11 +165,11 @@
               <button class="dd-opt" data-val="low">low</button>
             </div>
           </div>
-          <div class="dd" data-dd data-filter="status" data-value="">
-            <button class="dd-btn" type="button">all statuses <span class="dd-chev">▾</span></button>
+          <div class="dd" data-dd data-filter="status" data-value="actionable">
+            <button class="dd-btn" type="button">open + confirmed <span class="dd-chev">▾</span></button>
             <div class="dd-menu">
-              <button class="dd-opt" data-val="" aria-selected="true">all statuses</button>
-              <button class="dd-opt" data-val="open">open</button>
+              <button class="dd-opt" data-val="actionable" aria-selected="true">open + confirmed</button>
+              <button class="dd-opt" data-val="open">open (untriaged)</button>
               <button class="dd-opt" data-val="confirmed">confirmed</button>
               <button class="dd-opt" data-val="dismissed">dismissed</button>
               <button class="dd-opt" data-val="deferred">deferred</button>

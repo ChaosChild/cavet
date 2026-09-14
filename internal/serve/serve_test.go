@@ -344,6 +344,72 @@ func TestMetricsAbsentIs503(t *testing.T) {
 	}
 }
 
+// Card vs filter reconciliation (field-test finding): on a mixed fixture the
+// overview's per-severity actionable counts must equal the findings endpoint's
+// actionable-filtered per-severity row counts, by construction.
+func TestOverviewMatchesActionableFilter(t *testing.T) {
+	s := fixture(t)
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	more := []struct {
+		fp, sev, status string
+	}{
+		{strings.Repeat("d4", 32), "critical", "open"},
+		{strings.Repeat("e5", 32), "medium", "confirmed"},
+		{strings.Repeat("f6", 32), "low", "deferred"},
+		{strings.Repeat("07", 32), "info", "dismissed"},
+		{strings.Repeat("18", 32), "info", "open"},
+		{"", "info", "open"}, // empty severity folds to info
+	}
+	for i, m := range more {
+		fp := m.fp
+		if fp == "" {
+			fp = strings.Repeat("28", 32)
+			more[i].fp = fp
+		}
+		st.Findings = append(st.Findings, &store.Finding{Fingerprint: fp, Severity: m.sev,
+			Status: m.status, DetectedAt: now, LastSeen: now})
+	}
+	if err := s.WriteState(st); err != nil {
+		t.Fatal(err)
+	}
+
+	h := New(s).Handler()
+	var o struct {
+		Open map[string]int `json:"open"`
+	}
+	if code := getJSON(t, h, "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	var act struct {
+		Total int `json:"total"`
+	}
+	getJSON(t, h, "/api/findings?status=actionable&per_page=100", &act)
+	if act.Total != o.Open["total"] {
+		t.Errorf("actionable total %d != overview total %d", act.Total, o.Open["total"])
+	}
+	for _, sev := range []string{"critical", "high", "medium", "low", "info"} {
+		var fr struct {
+			Total int `json:"total"`
+		}
+		getJSON(t, h, "/api/findings?status=actionable&severity="+sev+"&per_page=100", &fr)
+		if fr.Total != o.Open[sev] {
+			t.Errorf("severity %s: actionable rows %d != overview card %d", sev, fr.Total, o.Open[sev])
+		}
+	}
+	// Sum of the per-severity cards equals the total card.
+	sum := 0
+	for _, sev := range []string{"critical", "high", "medium", "low", "info"} {
+		sum += o.Open[sev]
+	}
+	if sum != o.Open["total"] {
+		t.Errorf("per-severity sum %d != total %d", sum, o.Open["total"])
+	}
+}
+
 func TestServeStartRecompute(t *testing.T) {
 	s := fixture(t)
 	// Stale the cache (log append moved the cursor), then run the serve-start

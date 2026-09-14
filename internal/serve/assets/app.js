@@ -4,7 +4,7 @@
 
 const state = {
   period: 'weeks',
-  filters: { scanner: '', severity: '', status: '' },
+  filters: { scanner: '', severity: '', status: 'actionable' },
   page: 1,
   perPage: 6,
   metrics: null,
@@ -58,15 +58,17 @@ async function loadOverview() {
   document.getElementById('open-total').textContent = o.open.total;
   document.getElementById('open-critical').textContent = o.open.critical;
   document.getElementById('open-high').textContent = o.open.high;
-  document.getElementById('open-medlow').textContent = o.open.medium + o.open.low;
-  document.getElementById('medlow-sub').textContent = `${o.open.medium} medium · ${o.open.low} low`;
-  document.getElementById('open-sub').textContent = o.trend_known && o.trend.total !== 0
+  document.getElementById('open-medlow').textContent = o.open.medium + o.open.low + o.open.info;
+  const mli = [['medium', o.open.medium], ['low', o.open.low], ['info', o.open.info]]
+    .filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(' · ');
+  document.getElementById('medlow-sub').textContent = mli || 'none open';
+  document.getElementById('open-sub').textContent = 'open + confirmed · ' + (o.trend_known && o.trend.total !== 0
     ? 'trajectory ' + (o.trend.total > 0 ? 'rising' : 'falling') : 'trajectory steady';
   trendChip(document.getElementById('open-trend'), o.trend_known ? o.trend.total : 0, o.trend_known);
   trendChip(document.getElementById('critical-trend'), o.trend_known ? o.trend.critical : 0, o.trend_known);
   trendChip(document.getElementById('high-trend'), o.trend_known ? o.trend.high : 0, o.trend_known);
   trendChip(document.getElementById('medlow-trend'),
-    o.trend_known ? o.trend.medium + o.trend.low : 0, o.trend_known);
+    o.trend_known ? o.trend.medium + o.trend.low + o.trend.info : 0, o.trend_known);
   document.getElementById('oldest-critical').textContent = humanAge(o.oldest && o.oldest.critical);
   document.getElementById('oldest-high').textContent = humanAge(o.oldest && o.oldest.high);
   document.getElementById('baseline-count').textContent = o.baseline;

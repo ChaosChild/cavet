@@ -216,11 +216,25 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 		if scanner != "" && !matchesScanner(f, scanner) {
 			continue
 		}
-		if severity != "" && f.Severity != severity {
-			continue
+		if severity != "" {
+			sev := f.Severity
+			if sev == "" {
+				sev = "info" // same fold as the overview cards
+			}
+			if sev != severity {
+				continue
+			}
 		}
-		if status != "" && f.Status != status {
-			continue
+		if status != "" {
+			// "actionable" matches the overview cards' counting rule (open or
+			// confirmed), so card counts and this filter agree by construction.
+			if status == "actionable" {
+				if !actionable(f) {
+					continue
+				}
+			} else if f.Status != status {
+				continue
+			}
 		}
 		filtered = append(filtered, f)
 	}
