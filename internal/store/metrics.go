@@ -14,8 +14,9 @@ import (
 // MetricsCacheVersion is the schema version of state/metrics.json. A mismatch
 // with the file on disk marks the cache stale (serve-task-1: full recompute is
 // always correct, incremental is never attempted). Version 2 adds the
-// Remediated records (serve-task-2: resolved rows come from the cache).
-const MetricsCacheVersion = 2
+// Remediated records (serve-task-2: resolved rows come from the cache);
+// version 3 adds their locations.
+const MetricsCacheVersion = 3
 
 // FlowRec is one verdict-flow event, bucketed serve-side by its timestamp.
 // Kind is new|fixed|dismissed|deferred.
@@ -43,12 +44,13 @@ type LagRec struct {
 // shape for the findings table's resolved filter and the detail panel (state
 // holds current findings only, so the cache is their only serve-side home).
 type RemediatedRec struct {
-	Fingerprint  string    `json:"fingerprint"`
-	Rule         string    `json:"rule"`
-	Severity     string    `json:"severity"`
-	Scanner      string    `json:"scanner"`
-	DetectedAt   time.Time `json:"detected_at"`
-	RemediatedAt time.Time `json:"remediated_at"`
+	Fingerprint  string     `json:"fingerprint"`
+	Rule         string     `json:"rule"`
+	Severity     string     `json:"severity"`
+	Scanner      string     `json:"scanner"`
+	Locations    []Location `json:"locations"`
+	DetectedAt   time.Time  `json:"detected_at"`
+	RemediatedAt time.Time  `json:"remediated_at"`
 }
 
 // MetricsTrend holds actionable (open+confirmed) finding counts by severity
@@ -114,6 +116,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		sev        string
 		rule       string
 		scanner    string
+		locs       []Location
 		actionable bool // open or confirmed – the posture view's counting rule
 	}
 	live := map[string]*liveRec{}
@@ -161,15 +164,18 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 
 		switch en.Kind {
 		case events.Detected:
-			if _, ok := live[en.Fingerprint]; ok {
-				continue // re-detection of a live finding: a location add, not a new one
-			}
 			d, ok := en.Payload().(events.DetectedData)
 			if !ok {
 				return nil, &ParseError{File: en.File, Err: fmt.Errorf("detected payload mismatch")}
 			}
+			if lr, ok := live[en.Fingerprint]; ok {
+				// re-detection of a live finding: a location add, not a new one
+				appendUniqueLoc(&lr.locs, Location{Path: d.Path, Line: d.Line})
+				continue
+			}
 			live[en.Fingerprint] = &liveRec{first: en.TS.UTC(), sev: string(d.Severity),
-				rule: d.Rule, scanner: d.Scanner, actionable: true}
+				rule: d.Rule, scanner: d.Scanner, locs: []Location{{Path: d.Path, Line: d.Line}},
+				actionable: true}
 			openBySev[string(d.Severity)]++
 			openBySev["total"]++
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "new"})
@@ -222,7 +228,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 			doc.Resolve = append(doc.Resolve, ResolveRec{TS: en.TS.UTC(),
 				Actor: string(en.Actor), Hours: hours(lr.first, en.TS.UTC())})
 			doc.Remediated = append(doc.Remediated, RemediatedRec{Fingerprint: en.Fingerprint,
-				Rule: lr.rule, Severity: lr.sev, Scanner: lr.scanner,
+				Rule: lr.rule, Severity: lr.sev, Scanner: lr.scanner, Locations: lr.locs,
 				DetectedAt: lr.first, RemediatedAt: en.TS.UTC()})
 
 		case events.Raised, events.Resolved, events.Rebaselined, events.Surfaced:

@@ -196,7 +196,7 @@ func matchesScanner(f *store.Finding, sc string) bool {
 // remediation time as the finding's most recent activity.
 func resolvedRowOf(r store.RemediatedRec) findingRow {
 	return findingRow{ID: r.Fingerprint, Severity: r.Severity, Rule: r.Rule,
-		Scanner: r.Scanner, Locations: []store.Location{}, Status: "resolved",
+		Scanner: r.Scanner, Locations: r.Locations, Status: "resolved",
 		DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
 }
 
@@ -370,7 +370,7 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 					r := doc.Remediated[i]
 					f = &store.Finding{Fingerprint: r.Fingerprint, Severity: r.Severity,
 						RuleID: r.Rule, OriginatingScanner: r.Scanner, Status: "resolved",
-						Locations: []store.Location{}, DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
+						Locations: r.Locations, DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
 					break
 				}
 			}

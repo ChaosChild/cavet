@@ -328,6 +328,15 @@ async function openDetail(id) {
     sev.textContent = f.severity;
     sev.className = 'sev ' + ({ critical: 'crit', medium: 'med' }[f.severity] || f.severity);
     document.getElementById('detail-status').textContent = f.status;
+    // Resolution provenance: only what the log recorded. The remediated event's
+    // envelope carries the actor and phase (no surface context, no commit ref);
+    // the history replay below is the single source for both.
+    const rem = (d.history || []).filter(h => h.kind === 'remediated').pop();
+    const res = document.getElementById('detail-resolved');
+    res.textContent = rem
+      ? `Resolved by ${rem.actor || '?'}${rem.phase ? ' (' + rem.phase + ')' : ''} at ${fmtStamp(rem.ts)}`
+      : '';
+    res.hidden = !rem;
     document.getElementById('detail-desc').textContent = f.description || '';
     document.getElementById('detail-locations').innerHTML = (f.locations || [])
       .map(l => `<li>${esc(l.path)}:${esc(String(l.line ?? '?'))}</li>`).join('') ||

@@ -128,6 +128,65 @@ func TestComputeMetricsFromSyntheticLog(t *testing.T) {
 	}
 }
 
+// The remediated record snapshots the finding's locations at remediation time:
+// a re-detection that adds a location lands in the resolved row, and the
+// locations schema bump forces older caches to recompute.
+func TestComputeMetricsRemediatedCapturesLocations(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Now().UTC().Truncate(time.Hour)
+	const eng = "ghcr.io/chaoschild/cavet-engine:0.2-core"
+	app := func(ev events.Event, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	app(events.NewDetected(base.Add(-48*time.Hour), events.ActorAgent, events.PhaseBuild, eng, fpC(),
+		events.DetectedData{Rule: "go.err", Severity: events.SevMedium, Path: "b.go", Line: 1, Scanner: "opengrep"}))
+	app(events.NewDetected(base.Add(-47*time.Hour), events.ActorAgent, events.PhaseBuild, eng, fpC(),
+		events.DetectedData{Rule: "go.err", Severity: events.SevMedium, Path: "b.go", Line: 7, Scanner: "opengrep"}))
+	app(events.NewRemediated(base.Add(-24*time.Hour), events.ActorAgent, events.PhaseBuild, eng, fpC(), "fixed"))
+
+	log, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ComputeMetrics(log, "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Remediated) != 1 {
+		t.Fatalf("remediated recs = %d, want 1", len(doc.Remediated))
+	}
+	locs := doc.Remediated[0].Locations
+	if len(locs) != 2 || locs[0] != (Location{Path: "b.go", Line: 1}) ||
+		locs[1] != (Location{Path: "b.go", Line: 7}) {
+		t.Errorf("locations = %v, want b.go:1 and b.go:7", locs)
+	}
+
+	// The schema bump: a cache written by the previous version must recompute.
+	if err := s.RefreshMetrics(); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := s.LoadMetrics()
+	if err != nil || stored == nil {
+		t.Fatal(err)
+	}
+	stored.SchemaVersion = MetricsCacheVersion - 1
+	if err := s.WriteMetrics(stored); err != nil {
+		t.Fatal(err)
+	}
+	if !s.MetricsStale() {
+		t.Fatal("pre-locations schema must mark the cache stale")
+	}
+}
+
 // A v1 cache (before the remediated records) must be stale so serve start
 // recomputes it into the v2 shape.
 func TestMetricsV1SchemaIsStale(t *testing.T) {

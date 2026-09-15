@@ -317,6 +317,10 @@ func TestFindingsResolvedAndAll(t *testing.T) {
 		row["scanner"] != "opengrep" || row["severity"] != "medium" {
 		t.Errorf("resolved row = %v", row)
 	}
+	// Resolved rows carry the locations the replay captured.
+	if locs, ok := row["locations"].([]any); !ok || len(locs) != 1 {
+		t.Errorf("resolved row locations = %v, want one entry", row["locations"])
+	}
 
 	var all struct {
 		Rows []struct {
@@ -347,12 +351,14 @@ func TestFindingsResolvedAndAll(t *testing.T) {
 
 	var d struct {
 		Finding struct {
-			Fingerprint string `json:"fingerprint"`
-			Status      string `json:"status"`
-			RuleID      string `json:"rule_id"`
+			Fingerprint string           `json:"fingerprint"`
+			Status      string           `json:"status"`
+			RuleID      string           `json:"rule_id"`
+			Locations   []store.Location `json:"locations"`
 		} `json:"finding"`
 		History []struct {
-			Kind string `json:"kind"`
+			Kind  string `json:"kind"`
+			Actor string `json:"actor"`
 		} `json:"history"`
 	}
 	if code := getJSON(t, h, "/api/findings/"+fpC(), &d); code != http.StatusOK {
@@ -361,9 +367,15 @@ func TestFindingsResolvedAndAll(t *testing.T) {
 	if d.Finding.Fingerprint != fpC() || d.Finding.Status != "resolved" || d.Finding.RuleID != "go.err" {
 		t.Errorf("remediated detail finding = %+v", d.Finding)
 	}
+	if len(d.Finding.Locations) != 1 || d.Finding.Locations[0] != (store.Location{Path: "b.go", Line: 1}) {
+		t.Errorf("remediated detail locations = %v, want b.go:1", d.Finding.Locations)
+	}
 	kinds := map[string]bool{}
 	for _, ev := range d.History {
 		kinds[ev.Kind] = true
+		if ev.Kind == "remediated" && ev.Actor != "agent" {
+			t.Errorf("remediated event actor = %q, want agent", ev.Actor)
+		}
 	}
 	if !kinds["detected"] || !kinds["remediated"] {
 		t.Errorf("remediated history kinds = %v, want detected and remediated", kinds)
