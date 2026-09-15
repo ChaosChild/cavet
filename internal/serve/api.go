@@ -64,6 +64,15 @@ type lastScanView struct {
 	Scanners []string `json:"scanners"`
 }
 
+// triageTally counts every verdict the log has recorded, all-time: fixed from
+// the metrics cache's remediated records, dismissed and deferred from current
+// state. The findings empty state and the remediation card read it.
+type triageTally struct {
+	Fixed     int `json:"fixed"`
+	Dismissed int `json:"dismissed"`
+	Deferred  int `json:"deferred"`
+}
+
 func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 	var st *store.State
 	if err := retryOnce(func() error { var e error; st, e = s.st.LoadState(); return e }); err != nil {
@@ -88,6 +97,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 		Trend      map[string]int        `json:"trend,omitempty"`
 		TrendKnown bool                  `json:"trend_known"`
 		Oldest     map[string]*time.Time `json:"oldest,omitempty"`
+		Triaged    triageTally           `json:"triaged"`
 		Baseline   int                   `json:"baseline"`
 		LastScan   *lastScanView         `json:"last_scan,omitempty"`
 		OpenItems  int                   `json:"open_items"`
@@ -97,8 +107,14 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 		Open:   map[string]int{"total": 0, "critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0},
 		Oldest: map[string]*time.Time{},
 	}
-	severities := []string{"critical", "high", "medium", "low"}
+	severities := []string{"critical", "high", "medium", "low", "info"}
 	for _, f := range st.Findings {
+		switch f.Status {
+		case "dismissed":
+			resp.Triaged.Dismissed++
+		case "deferred":
+			resp.Triaged.Deferred++
+		}
 		if !actionable(f) {
 			continue
 		}
@@ -111,13 +127,10 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 			continue // unexpected severity: total only, never a stray JSON key
 		}
 		resp.Open[sev]++
-		if sev == "info" {
-			continue
-		}
 		cur, ok := resp.Oldest[sev]
 		if !ok || f.DetectedAt.Before(*cur) {
 			t := f.DetectedAt
-			resp.Oldest[f.Severity] = &t
+			resp.Oldest[sev] = &t
 		}
 	}
 	for _, sev := range severities {
@@ -140,6 +153,9 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 
 	// Trend: replay-current minus the snapshot after the scan before the
 	// last. The headline counts above stay state-authoritative.
+	if doc != nil {
+		resp.Triaged.Fixed = len(doc.Remediated)
+	}
 	if doc != nil && doc.Trend.Previous != nil {
 		resp.TrendKnown = true
 		resp.Trend = map[string]int{}
@@ -224,7 +240,7 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 	}
 	perPage, err := strconv.Atoi(q.Get("per_page"))
 	if err != nil || perPage < 1 {
-		perPage = 6 // the mock's default
+		perPage = 8 // the mock's default
 	}
 	if perPage > 100 {
 		perPage = 100
@@ -591,8 +607,10 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		actorHours[rr.Actor] = append(actorHours[rr.Actor], rr.Hours)
 	}
 	avg := map[string]*float64{}
+	medianHours := map[string]*float64{}
 	for a, xs := range actorHours {
 		avg[a] = mean(xs)
+		medianHours[a] = median(xs)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -602,5 +620,6 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		"remediate_median_hours": remedMed,
 		"actors":                 actors,
 		"resolve_avg_hours":      avg,
+		"resolve_median_hours":   medianHours,
 	})
 }

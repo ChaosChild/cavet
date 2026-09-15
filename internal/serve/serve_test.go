@@ -98,9 +98,14 @@ func TestOverview(t *testing.T) {
 		Open      map[string]int        `json:"open"`
 		Trend     map[string]int        `json:"trend"`
 		Oldest    map[string]*time.Time `json:"oldest"`
-		Baseline  int                   `json:"baseline"`
-		OpenItems int                   `json:"open_items"`
-		Scanners  []string              `json:"scanners"`
+		Triaged   struct {
+			Fixed     int `json:"fixed"`
+			Dismissed int `json:"dismissed"`
+			Deferred  int `json:"deferred"`
+		} `json:"triaged"`
+		Baseline  int              `json:"baseline"`
+		OpenItems int              `json:"open_items"`
+		Scanners  []string         `json:"scanners"`
 		LastScan  *struct {
 			Scope string `json:"scope"`
 		} `json:"last_scan"`
@@ -111,6 +116,10 @@ func TestOverview(t *testing.T) {
 	// Actionable: only the confirmed high remains (A dismissed, C remediated).
 	if o.Open["total"] != 1 || o.Open["high"] != 1 || o.Open["critical"] != 0 {
 		t.Errorf("open = %v", o.Open)
+	}
+	// All-time verdict tally: A dismissed, C remediated (fixed), none deferred.
+	if o.Triaged.Fixed != 1 || o.Triaged.Dismissed != 1 || o.Triaged.Deferred != 0 {
+		t.Errorf("triaged = %+v", o.Triaged)
 	}
 	// Trend vs the snapshot after scan 1 (3 actionable): total -2.
 	if o.Trend["total"] != -2 || o.Trend["critical"] != -1 || o.Trend["medium"] != -1 || o.Trend["high"] != 0 {
@@ -417,6 +426,7 @@ func TestMetricsBuckets(t *testing.T) {
 		Remed  []*float64          `json:"remediate_median_hours"`
 		Actors map[string]int      `json:"actors"`
 		Avg    map[string]*float64 `json:"resolve_avg_hours"`
+		Median map[string]*float64 `json:"resolve_median_hours"`
 	}
 	if code := getJSON(t, h, "/api/metrics?period=weeks", &m); code != http.StatusOK {
 		t.Fatalf("metrics status %d", code)
@@ -442,6 +452,11 @@ func TestMetricsBuckets(t *testing.T) {
 	}
 	if m.Avg["agent"] == nil || *m.Avg["agent"] != 24 {
 		t.Errorf("avg resolve = %v", m.Avg)
+	}
+	// The remediation card reads per-actor medians; the single resolve record
+	// has both mean and median 24.
+	if m.Median["agent"] == nil || *m.Median["agent"] != 24 {
+		t.Errorf("median resolve = %v", m.Median)
 	}
 	// The only non-null triage median is 1h (the dismissal 1h after detection;
 	// the confirmation sits at 2h in the next-to-last week bucket... both are
@@ -583,10 +598,17 @@ func TestIndexAndAssetServed(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "security posture") {
 		t.Errorf("index status %d", rec.Code)
 	}
+	// Charts are inline SVG drawn from /api/metrics; the page's only script is
+	// app.js (Chart.js was dropped with the serve-mock conversion).
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/app.js", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "/api/findings") {
+		t.Errorf("app.js asset status %d", rec.Code)
+	}
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/chart.umd.js", nil))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Chart.js v4") {
-		t.Errorf("chart asset status %d", rec.Code)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("removed chart asset status = %d, want 404", rec.Code)
 	}
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))

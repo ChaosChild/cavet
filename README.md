@@ -243,21 +243,25 @@ Exit codes are informational, never gating: `0` clean (or nothing staged),
 cavet serve             # add --port to change it (default 8765)
 ```
 
-Opens the dashboard at `http://127.0.0.1:8765`: posture cards, findings
-with filters and pagination, per-finding history, open items, and trend
-charts. The bind address is `127.0.0.1`, hard-coded: the dashboard has no
-authentication, so it must never be reachable off-host. Remote access is the
-operator's front door, not cavet's – an SSH tunnel
-(`ssh -L 8765:127.0.0.1:8765`) or an HTTPS proxy you trust, in front of the
-loopback listener. cavet itself never listens beyond loopback.
+<p><img src="docs/serve-dashboard.png" alt="cavet serve dashboard: posture strip by severity, verdict flow and remediation charts, findings table with filters, and open items" width="840"></p>
+
+Opens the dashboard at `http://127.0.0.1:8765`: a posture strip by severity,
+findings with filters and pagination, per-finding verdicts and history, open
+items, and trend charts with hover read-outs. The bind address is
+`127.0.0.1`, hard-coded: the dashboard has no authentication, so it must
+never be reachable off-host. Remote access is the operator's front door, not
+cavet's – an SSH tunnel (`ssh -L 8765:127.0.0.1:8765`) or an HTTPS proxy you
+trust, in front of the loopback listener. cavet itself never listens beyond
+loopback.
 
 Data loads when the page opens and on the manual Refresh button; there is no
 polling. Every read goes against `state/` as it exists on disk, so a scan or
 triage in another terminal shows up on the next Refresh. Charts read a
 precomputed metrics cache (`state/metrics.json`), rebuilt inside the scan and
 rebuild critical sections and recomputed at serve start when stale, so no
-request replays the log. Chart.js is vendored into the binary
-(`internal/serve/assets/`); the page fetches nothing from any CDN.
+request replays the log. The charts are inline SVG drawn in the browser from
+that cache; the page's only network dependency is the Google Fonts
+stylesheet, and everything else is served by cavet itself.
 
 ### Advanced: other install channels
 
@@ -377,7 +381,6 @@ to sell something built on this:
 | Component | Licence |
 |---|---|
 | `cavet` CLI, skills, subagent, installers | MIT |
-| Chart.js *(vendored dashboard bundle, `internal/serve/assets/`)* | MIT |
 | Gitleaks | MIT |
 | Trivy | Apache-2.0 |
 | Checkov *(optional, off by default)* | Apache-2.0 |

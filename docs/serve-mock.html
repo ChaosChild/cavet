@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cavet serve · dashboard mock</title>
+<!--
+  Design mock for `cavet serve`, revised after a visual pass of the live
+  dashboard on 2026-09-15. Self-contained: open it in a browser, no server,
+  no build step, no Chart.js. Charts are inline SVG drawn from the data
+  arrays near the bottom of this file, so the shapes are real, not screenshots.
+
+  The numbers are illustrative. They are shaped like the /api/overview,
+  /api/metrics, /api/findings and /api/items payloads but were chosen to show
+  a loaded dashboard; the live repo currently has zero open findings, which is
+  exactly the state that hid several of these problems.
+
+  A "what changed" ledger sits at the bottom of the page.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* ============================ tokens ============================ */
+:root {
+  --steel:        #aebfd4;
+  --steel-soft:   rgba(174,191,212,0.12);
+  --surface:      #1b1f26;
+  --surface-2:    #21262f;
+  --hairline:     rgba(255,255,255,0.08);
+  --hairline-2:   rgba(255,255,255,0.16);
+  --ink:          #e6e9ee;
+  /* contrast floor: the live page used opacity .4 / .5 for most secondary
+     copy, which measures 3.32:1 and 4.41:1 on --surface. These are the same
+     greys re-derived to clear 4.5:1 at 12px. */
+  --ink-2:        #a8afba;   /* 6.6:1 — secondary copy              */
+  --ink-3:        #8b93a0;   /* 4.8:1 — captions, table meta        */
+  --ink-4:        #6c7480;   /* 3.2:1 — non-text only: rules, ticks */
+
+  --crit:   #ff5f66;  --crit-bg:   rgba(255,95,102,0.13);
+  --high:   #f5a33f;  --high-bg:   rgba(245,163,63,0.13);
+  --med:    #d9c45f;  --med-bg:    rgba(217,196,95,0.12);
+  --low:    #85aed0;  --low-bg:    rgba(133,174,208,0.12);
+  --info:   #8b93a0;  --info-bg:   rgba(139,147,160,0.12);
+  --ok:     #5dc98d;  --ok-bg:     rgba(93,201,141,0.12);
+
+  --ease: cubic-bezier(0.32,0.72,0,1);
+  --r:    14px;
+}
+
+*,*::before,*::after { box-sizing: border-box; }
+html { background:#14171b; -webkit-text-size-adjust:100%; }
+body {
+  margin:0; color:var(--ink);
+  font:400 14px/1.5 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background:
+    radial-gradient(1100px 500px at 85% -10%, rgba(174,191,212,0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(174,191,212,0.04), transparent 60%),
+    linear-gradient(180deg,#16191e,#14171b);
+  background-attachment: fixed;
+}
+h1,h2,h3,p,ul,ol,figure { margin:0; }
+ul { list-style:none; padding:0; }
+button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+table { border-collapse:collapse; width:100%; }
+:where(p,h1,h2,td,th,li,span,div) { overflow-wrap:anywhere; }
+
+.serif { font-family:'Fraunces', Georgia, serif; }
+.mono  { font-family:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ============================ shell ============================
+   The live page capped at 72rem (1152px). On the 2552px-wide viewport it was
+   reviewed on, that left 55% of the screen empty while the findings table
+   truncated 17 of 48 cells. The shell now scales with the window and stops
+   at a line length that still reads. */
+.shell { max-width:min(1680px, 94vw); margin:0 auto; padding:40px 0 64px; }
+@media (max-width:900px) { .shell { max-width:none; padding:24px 20px 48px; } }
+
+.eyebrow {
+  font-size:10px; font-weight:600; letter-spacing:0.2em; text-transform:uppercase;
+  color:var(--ink-3); display:flex; align-items:center; gap:8px;
+}
+.eyebrow::before { content:""; width:14px; height:1px; background:var(--hairline-2); flex:none; }
+
+/* ============================ cards ============================ */
+.card {
+  background:linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)), var(--surface);
+  border:1px solid var(--hairline); border-radius:var(--r);
+  box-shadow:0 1px 0 rgba(255,255,255,0.03) inset, 0 18px 40px -30px rgba(0,0,0,0.9);
+}
+.card-h { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:16px 18px 0; }
+.card-b { padding:14px 18px 18px; }
+.card-note { font-size:12px; color:var(--ink-3); margin-top:4px; }
+
+/* ============================ masthead ============================ */
+.mast { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:18px; }
+.mast h1 { font-size:clamp(28px,3.2vw,44px); font-weight:600; line-height:1.15; letter-spacing:-0.01em; margin-top:10px; }
+.mast h1 .sep { color:var(--ink-4); font-weight:400; }
+.mast-right { display:flex; align-items:center; gap:14px; }
+.as-of { text-align:right; }
+.as-of .k { font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-3); }
+.as-of .v { font-size:12px; color:var(--ink-2); }
+
+.pill {
+  display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:999px;
+  border:1px solid var(--hairline-2); font-size:12px; font-weight:600; color:var(--ink-2);
+  transition:color .3s var(--ease), border-color .3s var(--ease), background .3s var(--ease);
+}
+.pill:hover { color:var(--ink); border-color:var(--steel); background:var(--steel-soft); }
+
+/* meta bar — baseline debt, last scan and scanners each held a full card for
+   one short string on the live page. They are run metadata, not metrics. */
+.meta { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; margin-bottom:26px; font-size:12px; }
+.meta-chip {
+  display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:8px;
+  background:rgba(255,255,255,0.035); border:1px solid var(--hairline); color:var(--ink-2);
+}
+.meta-chip b { font-weight:600; color:var(--ink); }
+.meta-chip .k { color:var(--ink-3); }
+.meta-chip .k, .meta-chip b { white-space:nowrap; }
+.meta-chip.trunc { max-width:min(460px,42vw); min-width:0; }
+.meta-chip.trunc .v { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+
+/* ============================ posture strip ============================
+   Four 165px-tall cards held one number each, with medium/low/info collapsed
+   into one bucket. One strip, a third the height, all five severities split. */
+.posture { display:grid; grid-template-columns:1.25fr repeat(5,1fr); margin-bottom:22px; }
+@media (max-width:1100px) { .posture { grid-template-columns:1fr 1fr 1fr; } }
+@media (max-width:620px)  { .posture { grid-template-columns:1fr 1fr; } }
+.posture > div { padding:18px 20px; border-right:1px solid var(--hairline); }
+.posture > div:last-child { border-right:0; }
+@media (max-width:1100px) { .posture > div { border-bottom:1px solid var(--hairline); } }
+.posture .lbl { font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-3); }
+.posture .row { display:flex; align-items:baseline; gap:10px; margin-top:10px; }
+.posture .n { font-family:'IBM Plex Mono',monospace; font-size:36px; font-weight:500; line-height:1; letter-spacing:-0.02em; }
+.posture .primary .n { font-size:52px; }
+.posture .sub { font-size:11px; color:var(--ink-3); margin-top:8px; }
+.trend { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600;
+         padding:3px 8px; border-radius:999px; white-space:nowrap; }
+.trend.down { color:var(--ok);   background:var(--ok-bg); }
+.trend.up   { color:var(--crit); background:var(--crit-bg); }
+.trend.flat { color:var(--ink-3); background:rgba(255,255,255,0.05); }
+.dot-crit{color:var(--crit)} .dot-high{color:var(--high)} .dot-med{color:var(--med)}
+.dot-low{color:var(--low)}   .dot-info{color:var(--info)} .dot-zero{color:var(--ink-4)}
+
+/* ============================ grid ============================ */
+.grid { display:grid; grid-template-columns:repeat(12,1fr); gap:18px; }
+.c8 { grid-column:span 8; } .c4 { grid-column:span 4; }
+.c6 { grid-column:span 6; } .c12 { grid-column:span 12; }
+@media (max-width:1100px) { .c8,.c4,.c6 { grid-column:span 12; } }
+.grid + .grid { margin-top:18px; }
+
+/* ============================ charts ============================ */
+.chart { width:100%; display:block; }
+.legend { display:flex; flex-wrap:wrap; gap:14px; font-size:11px; color:var(--ink-2); }
+.legend i { width:9px; height:9px; border-radius:3px; display:inline-block; margin-right:6px; vertical-align:-1px; }
+.axis-note { font-size:11px; color:var(--ink-3); margin-top:10px; line-height:1.6; }
+.outlier-tag { font-size:10px; fill:#f5a33f; font-family:'IBM Plex Mono',monospace; }
+
+/* remediation: the live page drew two donuts. One was a single 100% ring
+   (one actor — a ring that can only say "all of it"); the other read "–" and
+   its caption was overlapped by the ring. */
+.bars { display:flex; flex-direction:column; gap:14px; }
+.bar-row .top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:12px; }
+.bar-row .top b { font-weight:600; }
+.bar-row .top .hrs { color:var(--ink-3); font-family:'IBM Plex Mono',monospace; font-size:11px; white-space:nowrap; }
+.bar-track { height:8px; border-radius:999px; background:rgba(255,255,255,0.06); margin-top:7px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:999px; }
+.kv { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid var(--hairline); font-size:12px; }
+.kv .k { color:var(--ink-3); } .kv .v { font-family:'IBM Plex Mono',monospace; }
+
+/* ============================ table ============================ */
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.sel {
+  appearance:none; padding:7px 30px 7px 12px; border-radius:999px; border:1px solid var(--hairline-2);
+  background-color:var(--surface-2); color:var(--ink-2); font-size:12px; font-weight:600; cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,#8b93a0 50%),linear-gradient(135deg,#8b93a0 50%,transparent 50%);
+  background-position:calc(100% - 15px) 52%, calc(100% - 10px) 52%;
+  background-size:5px 5px,5px 5px; background-repeat:no-repeat;
+}
+.sel:focus-visible { outline:2px solid var(--steel); outline-offset:2px; }
+
+.tbl-wrap { overflow-x:auto; }
+table.data { font-size:12.5px; min-width:940px; }
+table.data th {
+  text-align:left; font-size:10px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase;
+  color:var(--ink-3); padding:0 12px 9px; border-bottom:1px solid var(--hairline-2); white-space:nowrap;
+}
+table.data td { padding:11px 12px; border-bottom:1px solid var(--hairline); vertical-align:middle; }
+table.data tbody tr { cursor:pointer; transition:background .18s var(--ease); }
+table.data tbody tr:hover { background:rgba(255,255,255,0.035); }
+table.data tbody tr:focus-visible { outline:2px solid var(--steel); outline-offset:-2px; }
+/* severity rail: severity reaches the eye before any text is read */
+table.data td:first-child { position:relative; padding-left:16px; }
+table.data td:first-child::before {
+  content:""; position:absolute; left:0; top:6px; bottom:6px; width:2px; border-radius:2px; background:var(--sev,transparent);
+}
+
+.sev { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:6px;
+       font-size:10.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; white-space:nowrap; }
+.sev.critical{color:var(--crit);background:var(--crit-bg)} .sev.high{color:var(--high);background:var(--high-bg)}
+.sev.medium{color:var(--med);background:var(--med-bg)}     .sev.low{color:var(--low);background:var(--low-bg)}
+.sev.info{color:var(--info);background:var(--info-bg)}
+
+.status { font-size:11.5px; font-weight:600; white-space:nowrap; }
+.status.open{color:var(--high)} .status.confirmed{color:var(--crit)}
+.status.dismissed{color:var(--ink-3)} .status.deferred{color:var(--low)} .status.resolved{color:var(--ok)}
+
+/* rule ids look like `opt.opengrep-rules.javascript.lang.security.audit.
+   detect-non-literal-regexp`. The live table ellipsised from the right, so
+   every row read `opt.opengrep-rules…` — identical, and the distinguishing
+   part is the tail. Same trick for locations. */
+.rule { display:flex; flex-direction:column; gap:1px; max-width:320px; }
+.rule .ns   { font-size:10px; color:var(--ink-4); font-family:'IBM Plex Mono',monospace;
+              direction:rtl; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rule .name { font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); font-weight:500; }
+.loc  { font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-2);
+        max-width:290px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl; text-align:left; }
+.verdict-cell { color:var(--ink-3); font-size:11.5px; line-height:1.45; max-width:280px;
+                display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.verdict-cell.none { color:var(--ink-4); font-style:italic; }
+.when { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-3); white-space:nowrap; }
+
+.tfoot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding-top:14px; }
+.count { font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-3); }
+.pager { display:flex; align-items:center; gap:8px; }
+.pagebtn { width:28px; height:28px; border-radius:8px; border:1px solid var(--hairline-2); color:var(--ink-2); line-height:1; }
+.pagebtn:hover:not(:disabled) { border-color:var(--steel); color:var(--ink); }
+.pagebtn:disabled { opacity:0.35; cursor:default; }
+
+/* an actual empty state — the live default filter matches nothing on a clean
+   repo and rendered a bare <thead> plus "0 findings · server-side". */
+.empty { text-align:center; padding:44px 20px; }
+.empty .glyph { font-size:26px; color:var(--ok); }
+.empty h3 { font-size:15px; font-weight:600; margin-top:10px; }
+.empty p { font-size:12.5px; color:var(--ink-3); margin-top:6px; }
+.empty button.link { color:var(--steel); text-decoration:underline; text-underline-offset:3px; font-size:12.5px; margin-top:12px; }
+
+/* ============================ detail panel ============================ */
+.veil { position:fixed; inset:0; z-index:60; background:rgba(10,12,15,0.55); opacity:0; visibility:hidden;
+        transition:opacity .35s var(--ease), visibility .35s; }
+.veil.open { opacity:1; visibility:visible; }
+.panel {
+  position:fixed; top:0; right:0; height:100%; z-index:61;
+  width:min(620px, 100vw);              /* was 384px — the header wrapped */
+  background:var(--surface); border-left:1px solid var(--hairline-2);
+  box-shadow:-30px 0 90px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column;
+  transform:translateX(102%); transition:transform .4s var(--ease);
+}
+.panel.open { transform:translateX(0); }
+/* sticky header: severity, id and close stay reachable down a long finding */
+.panel-h {
+  position:sticky; top:0; z-index:2; padding:18px 22px 14px;
+  background:var(--surface); border-bottom:1px solid var(--hairline);
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:start;
+}
+.panel-h h2 { font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:500; line-height:1.3; }
+.panel-h .ns { font-size:10.5px; color:var(--ink-4); font-family:'IBM Plex Mono',monospace; margin-top:3px; }
+.panel-h .tags { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
+.panel-h .id { font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--ink-4); }
+.close { width:30px; height:30px; border-radius:9px; border:1px solid var(--hairline-2); color:var(--ink-2); line-height:1; flex:none; }
+.close:hover { border-color:var(--steel); color:var(--ink); }
+.panel-b { overflow-y:auto; padding:18px 22px 40px; display:flex; flex-direction:column; gap:20px; }
+.panel-b h3 { font-size:10px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-3); margin-bottom:9px; }
+.panel-b p.desc { font-size:13px; line-height:1.65; color:var(--ink-2); }
+.panel-b p.desc a { color:var(--steel); }
+.locs li { display:flex; align-items:center; justify-content:space-between; gap:12px;
+           font-family:'IBM Plex Mono',monospace; font-size:12px; padding:9px 12px;
+           background:rgba(255,255,255,0.035); border:1px solid var(--hairline); border-radius:9px; }
+.locs li + li { margin-top:6px; }
+.locs .open-in { font-size:10.5px; color:var(--ink-3); letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap; }
+/* the verdict was one 11px run-on of rationale + confidence + actor + stamp */
+.verdict-box { border:1px solid var(--hairline); border-radius:11px; padding:14px 15px; background:rgba(255,255,255,0.02); }
+.verdict-box p { font-size:12.5px; line-height:1.6; color:var(--ink-2); }
+.verdict-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.tag { font-size:10.5px; padding:3px 9px; border-radius:6px; background:rgba(255,255,255,0.06); color:var(--ink-2);
+       font-family:'IBM Plex Mono',monospace; }
+.tag.conf-high { color:var(--ok); background:var(--ok-bg); }
+.timeline li { position:relative; padding:0 0 16px 18px; border-left:1px solid var(--hairline-2); font-size:12px; color:var(--ink-2); }
+.timeline li:last-child { border-left-color:transparent; padding-bottom:0; }
+.timeline li::before { content:""; position:absolute; left:-4px; top:5px; width:7px; height:7px; border-radius:999px; background:var(--steel); }
+.timeline .t { font-family:'IBM Plex Mono',monospace; color:var(--ink-3); }
+.timeline .ev { font-weight:600; color:var(--ink); }
+body.locked { overflow:hidden; }   /* the live page scrolled behind the panel */
+
+/* ============================ ledger ============================ */
+.ledger { margin-top:34px; }
+.ledger summary { cursor:pointer; font-size:12px; color:var(--ink-3); padding:12px 0; letter-spacing:0.04em; }
+.ledger summary:hover { color:var(--ink-2); }
+.ledger table { font-size:12.5px; margin-top:8px; }
+.ledger th { text-align:left; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3);
+             padding:0 14px 8px 0; border-bottom:1px solid var(--hairline-2); vertical-align:bottom; }
+.ledger td { padding:11px 14px 11px 0; border-bottom:1px solid var(--hairline); color:var(--ink-2); vertical-align:top; line-height:1.55; }
+.ledger td:first-child { color:var(--ink); font-weight:600; white-space:nowrap; }
+.ledger .num { color:var(--high); font-family:'IBM Plex Mono',monospace; font-size:11.5px; }
+footer { margin-top:26px; font-size:11.5px; color:var(--ink-3); line-height:1.75; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============ masthead ============ -->
+  <header>
+    <div class="mast">
+      <div>
+        <span class="eyebrow">cavet serve · live</span>
+        <h1 class="serif">fragmt <span class="sep">/</span> security posture</h1>
+      </div>
+      <div class="mast-right">
+        <div class="as-of">
+          <p class="k">as of</p>
+          <p class="v mono">2026-09-15 07:33</p>
+        </div>
+        <button class="pill">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="meta">
+      <span class="meta-chip"><span class="k">scan</span><b>diff origin/main</b></span>
+      <span class="meta-chip"><span class="k">phase</span><b>deploy</b></span>
+      <span class="meta-chip"><span class="k">scanners</span><b>gitleaks · trivy · opengrep</b></span>
+      <span class="meta-chip"><span class="k">baseline debt</span><b>42</b></span>
+      <span class="meta-chip"><span class="k">open items</span><b>2</b></span>
+      <span class="meta-chip trunc mono"><span class="k">engine</span><span class="v">ghcr.io/chaoschild/cavet-engine:0.2-core@sha256:cdcd9f1e…</span></span>
+    </div>
+  </header>
+
+  <!-- ============ posture strip ============ -->
+  <section class="card posture" aria-label="Open findings by severity">
+    <div class="primary">
+      <p class="lbl">Open findings</p>
+      <div class="row"><span class="n">7</span><span class="trend down">▼ 4</span></div>
+      <p class="sub">open + confirmed · trajectory falling</p>
+    </div>
+    <div>
+      <p class="lbl">Critical</p>
+      <div class="row"><span class="n dot-crit">1</span><span class="trend up">▲ 1</span></div>
+      <p class="sub">oldest <span class="mono">6d</span></p>
+    </div>
+    <div>
+      <p class="lbl">High</p>
+      <div class="row"><span class="n dot-high">2</span><span class="trend flat">stable</span></div>
+      <p class="sub">oldest <span class="mono">11d</span></p>
+    </div>
+    <div>
+      <p class="lbl">Medium</p>
+      <div class="row"><span class="n dot-med">3</span><span class="trend down">▼ 3</span></div>
+      <p class="sub">oldest <span class="mono">14d</span></p>
+    </div>
+    <div>
+      <p class="lbl">Low</p>
+      <div class="row"><span class="n dot-low">1</span><span class="trend down">▼ 2</span></div>
+      <p class="sub">oldest <span class="mono">3d</span></p>
+    </div>
+    <div>
+      <p class="lbl">Info</p>
+      <div class="row"><span class="n dot-zero">0</span><span class="trend flat">stable</span></div>
+      <p class="sub">none open</p>
+    </div>
+  </section>
+
+  <!-- ============ charts ============ -->
+  <div class="grid" style="margin-top:22px">
+
+    <section class="card c8">
+      <div class="card-h">
+        <div>
+          <p class="eyebrow">Verdict flow</p>
+          <p class="card-note">What actually happened to each finding — dismissals never read as fixes.</p>
+        </div>
+        <select class="sel" aria-label="Bucket size">
+          <option>weeks</option><option>days</option><option>months</option>
+        </select>
+      </div>
+      <div class="card-b">
+        <div class="legend" style="margin-bottom:12px">
+          <span><i style="background:#85aed0"></i>new</span>
+          <span><i style="background:#5dc98d"></i>fixed</span>
+          <span><i style="background:#6c7480"></i>dismissed</span>
+          <span><i style="background:#f5a33f"></i>deferred</span>
+        </div>
+        <svg id="flow" class="chart" viewBox="0 0 720 210" role="img"
+             aria-label="Stacked weekly verdict flow over the last twelve weeks"></svg>
+        <p class="axis-note">Leading empty buckets are dropped rather than padded — the live chart rendered
+          38 weeks, 36 of them empty, leaving two bars huddled at the right edge.</p>
+      </div>
+    </section>
+
+    <section class="card c4">
+      <div class="card-h">
+        <div>
+          <p class="eyebrow">Remediation</p>
+          <p class="card-note">Who closed it, and how long they took.</p>
+        </div>
+      </div>
+      <div class="card-b">
+        <div class="bars">
+          <div class="bar-row">
+            <div class="top"><span><b>Agent</b> · 21 resolved</span><span class="hrs">0.9h median</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:81%;background:#aebfd4"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="top"><span><b>Operator</b> · 5 resolved</span><span class="hrs">6.4h median</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:19%;background:#6c7480"></div></div>
+          </div>
+        </div>
+        <div style="margin-top:20px">
+          <div class="kv"><span class="k">Agent share</span><span class="v">81%</span></div>
+          <div class="kv"><span class="k">Agent faster by</span><span class="v" style="color:#5dc98d">7.1×</span></div>
+          <div class="kv"><span class="k">Fixed vs dismissed</span><span class="v">16 / 30</span></div>
+          <div class="kv"><span class="k">Reopened after fix</span><span class="v">1</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="card c6">
+      <div class="card-h">
+        <div>
+          <p class="eyebrow">Time to triage</p>
+          <p class="card-note">Median hours from detection to a verdict.</p>
+        </div>
+      </div>
+      <div class="card-b">
+        <svg id="ttt" class="chart" viewBox="0 0 560 170" role="img"
+             aria-label="Median hours to triage per week"></svg>
+        <p class="axis-note">Split from remediation so each series keeps its own scale. Points above the axis
+          cap are pinned and labelled rather than stretching the whole domain.</p>
+      </div>
+    </section>
+
+    <section class="card c6">
+      <div class="card-h">
+        <div>
+          <p class="eyebrow">Time to remediate</p>
+          <p class="card-note">Median hours from verdict to resolved.</p>
+        </div>
+      </div>
+      <div class="card-b">
+        <svg id="ttr" class="chart" viewBox="0 0 560 170" role="img"
+             aria-label="Median hours to remediate per week"></svg>
+        <p class="axis-note">On the live dashboard both series shared one axis, and a single 312h triage point
+          forced the domain to 350 — flattening every other point onto the zero line.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ findings ============ -->
+  <div class="grid">
+    <section class="card c12">
+      <div class="card-h" style="align-items:center">
+        <p class="eyebrow">Findings</p>
+        <div class="toolbar">
+          <select class="sel" aria-label="Scanner"><option>all scanners</option><option>gitleaks</option><option>trivy</option><option>opengrep</option></select>
+          <select class="sel" aria-label="Severity"><option>all severities</option><option>critical</option><option>high</option><option>medium</option><option>low</option></select>
+          <select class="sel" id="statusFilter" aria-label="Status">
+            <option value="actionable">open + confirmed</option>
+            <option value="all" selected>all</option>
+            <option value="dismissed">dismissed</option>
+            <option value="deferred">deferred</option>
+            <option value="resolved">resolved</option>
+            <option value="none">nothing (empty state)</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-b">
+        <div class="tbl-wrap" id="tblWrap">
+          <table class="data">
+            <thead><tr>
+              <th style="width:104px">Severity</th>
+              <th>Rule</th>
+              <th style="width:96px">Scanner</th>
+              <th>Location</th>
+              <th style="width:104px">Status</th>
+              <th>Verdict</th>
+              <th style="width:72px">First</th>
+              <th style="width:72px">Last</th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty" hidden>
+          <p class="glyph">✓</p>
+          <h3>Nothing open</h3>
+          <p>All 49 findings carry a verdict — 16 fixed, 30 dismissed with a rationale, 3 deferred.</p>
+          <button class="link" id="showAll">Show every finding instead</button>
+        </div>
+        <div class="tfoot">
+          <p class="count" id="count"></p>
+          <div class="pager">
+            <select class="sel" aria-label="Page size"><option>8 per page</option><option>16 per page</option><option>32 per page</option></select>
+            <button class="pagebtn" disabled aria-label="Previous page">‹</button>
+            <span class="count">1 / 7</span>
+            <button class="pagebtn" aria-label="Next page">›</button>
+          </div>
+        </div>
+        <p class="axis-note">Filters are query parameters on <span class="mono">/api/findings</span>; the browser
+          holds one page. Select a row for its detail and event history.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ open items ============ -->
+  <div class="grid">
+    <section class="card c12">
+      <div class="card-h"><p class="eyebrow">Open items</p></div>
+      <div class="card-b">
+        <div class="tbl-wrap">
+          <table class="data">
+            <thead><tr>
+              <th style="width:110px">Item</th><th style="width:140px">Kind</th><th style="width:110px">Status</th>
+              <th>Question</th><th style="width:130px">Raised</th><th style="width:130px">Resolved</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono" style="--sev:#f5a33f">IT-014</td>
+                <td>design decision</td>
+                <td><span class="status open">open</span></td>
+                <td style="color:#a8afba">Does the serve dashboard need auth beyond loopback binding once it is reachable over a tunnel?</td>
+                <td class="when">2026-09-14 11:02</td>
+                <td class="when" style="color:#6c7480">—</td>
+              </tr>
+              <tr>
+                <td class="mono" style="--sev:#85aed0">IT-013</td>
+                <td>scanner coverage</td>
+                <td><span class="status deferred">deferred</span></td>
+                <td style="color:#a8afba">No SAST rule set covers the Go template rendering path in internal/serve.</td>
+                <td class="when">2026-09-12 16:40</td>
+                <td class="when" style="color:#6c7480">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="axis-note">Select a row to expand the full question and its raise/resolve stamps.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ what changed ============ -->
+  <details class="ledger">
+    <summary>▸ What changed from the live dashboard, and why — 18 items</summary>
+    <table>
+      <thead><tr><th style="width:150px">Area</th><th style="width:44%">Observed on the live page</th><th>Change in this mock</th></tr></thead>
+      <tbody>
+        <tr><td>Shell width</td>
+            <td>Capped at 72rem. On the <span class="num">2552px</span> viewport it was reviewed on, content used 1152px and left 55% of the screen empty — while the findings table truncated <span class="num">17 of 48</span> cells.</td>
+            <td>Fluid to <span class="num">min(1680px, 94vw)</span>. The columns that were truncating get the space.</td></tr>
+        <tr><td>Stat cards</td>
+            <td>Four cards, <span class="num">165px</span> tall, one number each; medium, low and info collapsed into a single bucket.</td>
+            <td>One strip at a third the height, all five severities separate and colour-keyed.</td></tr>
+        <tr><td>Info cards</td>
+            <td>Baseline debt, last scan and scanners each held a full card for one short string.</td>
+            <td>Folded into a meta chip row under the title — run metadata, not metrics.</td></tr>
+        <tr><td>Verdict flow card</td>
+            <td><span class="num">183px</span> of dead space below the canvas: the card stretched to match its taller neighbour while the chart stayed pinned at 170px.</td>
+            <td>Card height follows content, and the remediation panel beside it now fills its own height with real rows.</td></tr>
+        <tr><td>Verdict flow data</td>
+            <td>38 weekly buckets rendered, 36 of them empty.</td>
+            <td>Leading empty buckets dropped; 12 weeks shown.</td></tr>
+        <tr><td>Remediation donuts</td>
+            <td>One donut was a single 100% ring — with one actor it can only ever say "all of it". The other read <span class="mono">–</span> and its caption "agent faster" was overlapped by the ring itself.</td>
+            <td>Ranked bars plus a key/value block: the same two facts, plus counts, the multiple, and nothing clipped.</td></tr>
+        <tr><td>Time to verdict</td>
+            <td>Both series on one axis. A lone <span class="num">312h</span> triage point forced the domain to 350 and flattened every other point onto the zero line.</td>
+            <td>Two charts, independent domains capped at p90; out-of-range points pin to the cap and carry their real value as a label.</td></tr>
+        <tr><td>Rule column</td>
+            <td>Ellipsised from the right, so every row read <span class="mono">opt.opengrep-rules…</span> — identical, when the distinguishing part is the tail.</td>
+            <td>Rule name on its own line; the namespace is a dim prefix that ellipsises from the left.</td></tr>
+        <tr><td>Severity cell</td>
+            <td>Badge clipped to <span class="mono">medium…</span> inside an 80px column.</td>
+            <td>Full-word pill, severity-coloured, plus a 2px rail down the row.</td></tr>
+        <tr><td>Location cell</td>
+            <td>Ellipsised from the right, hiding the filename and line — the part you navigate by.</td>
+            <td>Ellipsises from the left, so <span class="mono">…/CommentsRail.tsx:51</span> survives.</td></tr>
+        <tr><td>Verdict cell</td>
+            <td>One line, cut mid-sentence.</td>
+            <td>Two-line clamp, full text in the panel. Untriaged findings say <em>awaiting triage</em> instead of showing blank.</td></tr>
+        <tr><td>Empty state</td>
+            <td>The default filter matches nothing on a clean repo: a bare header row and "0 findings · server-side".</td>
+            <td>A real empty state with the triaged counts and a one-click switch to the full list. <em>Pick "open + confirmed" or "nothing" in the status filter above to see it.</em></td></tr>
+        <tr><td>Panel width</td>
+            <td><span class="num">384px</span>. The header's <span class="mono">flex-wrap</span> broke, dropping the close button onto its own line under a 3-line rule id — a <span class="num">115px</span> header row.</td>
+            <td><span class="num">620px</span>, header on a two-column grid so the close button cannot wrap.</td></tr>
+        <tr><td>Panel title</td>
+            <td>The finding id hash (<span class="mono">4ED8FF</span>) was the headline.</td>
+            <td>The rule name is the headline; the id is a mono tag beside the severity.</td></tr>
+        <tr><td>Panel header</td>
+            <td>Static — severity and the close button scrolled away on long findings.</td>
+            <td>Sticky.</td></tr>
+        <tr><td>Panel verdict</td>
+            <td>Rationale, confidence, actor and timestamp ran together in one 11px paragraph.</td>
+            <td>Rationale as prose; confidence, actor and stamp as tags beneath it.</td></tr>
+        <tr><td>Scroll lock</td>
+            <td><span class="mono">body</span> stayed <span class="mono">overflow:visible</span> with the panel open, so the page scrolled behind it.</td>
+            <td>Locked while open; Esc and veil-click close, and focus returns to the row.</td></tr>
+        <tr><td>Contrast</td>
+            <td>Secondary copy at <span class="mono">opacity .4</span> / <span class="mono">.5</span> measures <span class="num">3.32:1</span> and <span class="num">4.41:1</span> on the card surface, at 10.5–11px. Both fail 4.5:1.</td>
+            <td>Three fixed greys at <span class="num">6.6:1</span>, <span class="num">4.8:1</span>, and a 3.2:1 tier reserved for non-text (rules, ticks). Body copy floor raised to 12px.</td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <footer>
+    Mock · <span class="mono">cavet serve</span> dashboard, revised 2026-09-15 · self-contained, no build step ·
+    charts are inline SVG drawn from the data at the foot of this file · numbers are illustrative.<br>
+    Deliberately not carried over: location rows are inert here. Making them open an editor
+    (<span class="mono">vscode://file/…</span>) would hand a path straight from scanner output to an OS URL
+    handler — worth settling how that path is validated before it ships, not a reason to skip the affordance.
+  </footer>
+</div>
+
+<!-- ============ detail panel ============ -->
+<div class="veil" id="veil"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="pTitle" aria-hidden="true">
+  <div class="panel-h">
+    <div>
+      <h2 id="pTitle"></h2>
+      <p class="ns" id="pNs"></p>
+      <div class="tags">
+        <span class="sev" id="pSev"></span>
+        <span class="status" id="pStatus"></span>
+        <span class="id" id="pId"></span>
+        <span class="id" id="pScanner"></span>
+      </div>
+    </div>
+    <button class="close" id="pClose" aria-label="Close detail">✕</button>
+  </div>
+  <div class="panel-b">
+    <div>
+      <h3>Description</h3>
+      <p class="desc" id="pDesc"></p>
+    </div>
+    <div>
+      <h3>Locations</h3>
+      <ul class="locs" id="pLocs"></ul>
+    </div>
+    <div>
+      <h3>Verdict</h3>
+      <div class="verdict-box">
+        <p id="pVerdict"></p>
+        <div class="verdict-meta" id="pVerdictMeta"></div>
+      </div>
+    </div>
+    <div>
+      <h3>Event history</h3>
+      <ul class="timeline" id="pHist"></ul>
+    </div>
+  </div>
+</aside>
+
+<script>
+/* ============================ data ============================
+   Shaped like /api/findings rows and /api/metrics. Illustrative values. */
+const FINDINGS = [
+  { id:'9f2c41', severity:'critical', ns:'gitleaks.generic', name:'generic-api-key', scanner:'gitleaks',
+    locs:['internal/serve/testdata/fixture.env:4'],
+    status:'confirmed', verdict:null, first:'09-09', last:'09-15',
+    desc:'A 40-character high-entropy string assigned to a variable whose name matches a credential pattern. The value is not in the allowlist and the file is tracked.',
+    hist:[['2026-09-09 08:14','detected','operator · build'],['2026-09-09 08:14','surfaced','operator · build'],['2026-09-11 09:30','confirmed','operator · review']] },
+
+  { id:'c31a70', severity:'high', ns:'trivy.gomod', name:'CVE-2026-21103', scanner:'trivy',
+    locs:['go.mod:31'],
+    status:'open', verdict:null, first:'09-04', last:'09-15',
+    desc:'golang.org/x/net before v0.38.0 mishandles HTTP/2 CONTINUATION frames, letting an unauthenticated peer exhaust server memory. Fixed in v0.38.0.',
+    hist:[['2026-09-04 06:02','detected','agent · deploy'],['2026-09-04 06:02','surfaced','agent · deploy']] },
+
+  { id:'7b8e02', severity:'high', ns:'opt.opengrep-rules.go.lang.security.audit', name:'dangerous-exec-command', scanner:'opengrep',
+    locs:['internal/cli/update.go:118','internal/cli/update.go:147'],
+    status:'open', verdict:null, first:'09-05', last:'09-15',
+    desc:'exec.Command is called with an argument that is not a compile-time constant. If the value can be influenced externally, this is a command injection sink.',
+    hist:[['2026-09-05 12:20','detected','agent · build'],['2026-09-05 12:20','surfaced','agent · build']] },
+
+  { id:'4ed8ff', severity:'medium', ns:'opt.opengrep-rules.javascript.lang.security.audit', name:'detect-non-literal-regexp', scanner:'opengrep',
+    locs:['ui/src/CommentsRail.tsx:51'],
+    status:'dismissed',
+    verdict:'new RegExp (ui/src/CommentsRail.tsx:51) receives only an alternation of regex-escaped literal doc paths (escapeRe, CommentsRail.tsx:29); matches render as React text nodes (line 64), no HTML sink.',
+    vconf:'high confidence', vby:'operator', vat:'2026-09-14 12:48', first:'09-01', last:'09-14',
+    desc:'RegExp() called with a non-literal argument. If the pattern is built from user-controlled input this may allow a Regular Expression Denial of Service (ReDoS), since RegExp blocks the main thread. Prefer hardcoded regexes, validate the input, or check the pattern with a library such as https://www.npmjs.com/package/recheck.',
+    hist:[['2026-09-01 12:36','detected','operator · build'],['2026-09-01 12:36','surfaced','operator · build'],['2026-09-14 12:37','surfaced','agent · deploy'],['2026-09-14 12:48','triaged','operator · build']] },
+
+  { id:'2018df', severity:'medium', ns:'opt.opengrep-rules.javascript.lang.correctness', name:'no-replaceall', scanner:'opengrep',
+    locs:['src/core/meta.ts:76'],
+    status:'dismissed',
+    verdict:'engines.node >=22 (package.json); replaceAll is supported since Node 15 — no legacy runtime target.',
+    vconf:'high confidence', vby:'operator', vat:'2026-09-14 10:48', first:'09-01', last:'09-14',
+    desc:'String.prototype.replaceAll is unavailable before Node 15 or Safari 13.1.',
+    hist:[['2026-09-01 10:36','detected','operator · build'],['2026-09-14 10:48','triaged','operator · build']] },
+
+  { id:'aa8d68', severity:'medium', ns:'opt.opengrep-rules.typescript.react.portability.i18next', name:'jsx-not-internationalized', scanner:'opengrep',
+    locs:['ui/src/editor/SlashMenu.tsx:149'],
+    status:'dismissed',
+    verdict:'i18next rule not applicable: i18next/react-i18next absent from dependencies (package.json); single-locale English UI by design.',
+    vconf:'high confidence', vby:'operator', vat:'2026-09-14 10:48', first:'09-01', last:'09-14',
+    desc:'A JSX text node is not wrapped in a translation call.',
+    hist:[['2026-09-01 10:36','detected','operator · build'],['2026-09-14 10:48','triaged','operator · build']] },
+
+  { id:'b61d95', severity:'low', ns:'opt.opengrep-rules.dockerfile.security', name:'missing-user', scanner:'opengrep',
+    locs:['Dockerfile:34'],
+    status:'deferred',
+    verdict:'Image runs only in the ephemeral scan sandbox, never as a long-lived service. Tracked as IT-011 for the 0.3 hardening pass.',
+    vconf:'medium confidence', vby:'operator', vat:'2026-09-12 15:20', first:'09-12', last:'09-15',
+    desc:'The Dockerfile never issues a USER instruction, so the container runs as root.',
+    hist:[['2026-09-12 14:02','detected','agent · deploy'],['2026-09-12 15:20','triaged','operator · review']] },
+
+  { id:'1dab00', severity:'info', ns:'opt.opengrep-rules.dockerfile.best-practice', name:'prefer-json-notation', scanner:'opengrep',
+    locs:['Dockerfile:21'],
+    status:'resolved',
+    verdict:'Absent from a scan that ran the originating scanner and covered every location.',
+    vconf:'high confidence', vby:'agent', vat:'2026-09-14 12:29', first:'09-14', last:'09-14',
+    desc:'CMD and ENTRYPOINT should use JSON array notation so the process receives signals directly.',
+    hist:[['2026-09-14 12:24','detected','agent · deploy'],['2026-09-14 12:29','resolved','agent · deploy']] },
+];
+
+const WEEKS = ['-11w','-10w','-9w','-8w','-7w','-6w','-5w','-4w','-3w','-2w','-1w','now'];
+const FLOW  = {
+  new:      [4,2,6,3,1,9,5,2,12,4,7,6],
+  fixed:    [2,1,4,3,0,6,4,1, 8,3,5,4],
+  dismissed:[1,0,1,0,1,2,1,0, 3,1,1,2],
+  deferred: [0,0,1,0,0,0,1,0, 0,1,0,1],
+};
+const TRIAGE    = [6,4,9,5,3,312,8,5,7,4,6,5];        // one real outlier
+const REMEDIATE = [22,18,30,14,9,41,26,12,19,15,21,17];
+
+const C = { steel:'#aebfd4', ink2:'#a8afba', ink3:'#8b93a0', ink4:'#6c7480',
+            hair:'rgba(255,255,255,0.08)', surface:'#1b1f26',
+            crit:'#ff5f66', high:'#f5a33f', med:'#d9c45f', low:'#85aed0', info:'#8b93a0', ok:'#5dc98d' };
+const SEVCOLOR = { critical:C.crit, high:C.high, medium:C.med, low:C.low, info:C.info };
+
+/* ============================ charts ============================ */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (n,a={}) => { const e=document.createElementNS(SVGNS,n); for (const k in a) e.setAttribute(k,a[k]); return e; };
+const text = (s,a) => { const t=el('text',a); t.textContent=s; return t; };
+const MONO = 'IBM Plex Mono, monospace';
+
+/* round up to the next readable axis top (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10 × 10ⁿ) */
+function niceCap(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
+  return ([1,1.5,2,2.5,3,4,5,6,8,10].find(x => n <= x + 1e-9)) * p;
+}
+/* counts want whole-number gridlines, so land on a multiple of 4 */
+const countCap = v => Math.ceil(niceCap(v) / 4) * 4;
+
+/* An outlier is a point that would swallow the rest of the series, not simply
+   the largest one. Anything within 4× the median stays inside the domain; only
+   what is past that pins to the cap and carries its real value as a label. */
+function domainCap(data) {
+  const s = [...data].sort((a,b) => a-b);
+  const med = s[Math.floor(s.length/2)];
+  const inliers = data.filter(v => v <= med*4);
+  return niceCap(Math.max(...(inliers.length ? inliers : data)));
+}
+
+function stacked(svg, labels, keys, colors) {
+  const W=720,H=210, L=34,R=8,T=8,B=26, iw=W-L-R, ih=H-T-B;
+  const cap = countCap(Math.max(...labels.map((_,i)=>keys.reduce((s,k)=>s+FLOW[k][i],0))));
+  const y = v => T + ih - (v/cap)*ih;
+  const step = iw/labels.length, bw = Math.min(30, step*0.62);
+
+  for (let g=0; g<=4; g++) {
+    const v = cap*g/4;
+    svg.appendChild(el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:C.hair,'stroke-width':1}));
+    svg.appendChild(text(v,{x:L-8,y:y(v)+3.5,'text-anchor':'end','font-size':9.5,fill:C.ink4,'font-family':MONO}));
+  }
+  labels.forEach((lab,i) => {
+    let acc = 0;
+    const x = L + step*i + (step-bw)/2;
+    keys.forEach((k,si) => {
+      const v = FLOW[k][i]; if (!v) return;
+      const h = (v/cap)*ih;
+      svg.appendChild(el('rect',{x, y:y(acc)-h, width:bw, height:h, fill:colors[si], rx:2}));
+      acc += v;
+    });
+    svg.appendChild(text(lab,{x:L+step*i+step/2, y:H-8,'text-anchor':'middle','font-size':9.5,
+      fill:i===labels.length-1?C.ink2:C.ink4,'font-family':MONO}));
+  });
+}
+
+/* Domain covers every ordinary point; only a genuine outlier pins, so one
+   312h point cannot flatten the other eleven. */
+function series(svg, labels, data, color) {
+  const W=560,H=170, L=40,R=14,T=20,B=26, iw=W-L-R, ih=H-T-B;
+  const cap = domainCap(data);
+  const y = v => T + ih - (Math.min(v,cap)/cap)*ih;
+  const x = i => L + (iw/(labels.length-1))*i;
+
+  for (let g=0; g<=4; g++) {
+    const v = cap*g/4;
+    svg.appendChild(el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:C.hair,'stroke-width':1}));
+    svg.appendChild(text(v % 1 ? v.toFixed(1) : v,{x:L-8,y:y(v)+3.5,'text-anchor':'end','font-size':9.5,fill:C.ink4,'font-family':MONO}));
+  }
+  const pts = data.map((v,i)=>x(i)+','+y(v));
+  svg.appendChild(el('path',{d:'M'+pts.join(' L'),fill:'none',stroke:color,'stroke-width':1.8,
+                             'stroke-linejoin':'round','stroke-linecap':'round'}));
+  svg.appendChild(el('path',{d:'M'+L+','+(T+ih)+' L'+pts.join(' L')+' L'+x(data.length-1)+','+(T+ih)+' Z',
+                             fill:color,opacity:0.1,stroke:'none'}));
+  data.forEach((v,i) => {
+    const over = v > cap;
+    svg.appendChild(el('circle',{cx:x(i),cy:y(v),r:over?4:3,fill:over?'none':color,
+      stroke:over?C.high:C.surface,'stroke-width':over?1.6:1.4}));
+    if (over) svg.appendChild(text(v+'h',{x:x(i),y:y(v)-9,'text-anchor':'middle',class:'outlier-tag'}));
+    if (i%2===0 || i===data.length-1)
+      svg.appendChild(text(labels[i],{x:x(i),y:H-8,'text-anchor':'middle','font-size':9.5,
+        fill:i===data.length-1?C.ink2:C.ink4,'font-family':MONO}));
+  });
+}
+
+stacked(document.getElementById('flow'), WEEKS, ['new','fixed','dismissed','deferred'],
+        [C.low, C.ok, C.ink4, C.high]);
+series(document.getElementById('ttt'), WEEKS, TRIAGE,    C.steel);
+series(document.getElementById('ttr'), WEEKS, REMEDIATE, C.ok);
+
+/* ============================ table ============================ */
+const rowsEl  = document.getElementById('rows');
+const emptyEl = document.getElementById('emptyState');
+const wrapEl  = document.getElementById('tblWrap');
+const LRM = '‎';   // forces the left ellipsis on the rtl-trimmed cells
+
+function render(filter) {
+  const list =
+      filter === 'all'        ? FINDINGS
+    : filter === 'none'       ? []
+    : filter === 'actionable' ? []          /* the live default on a clean repo */
+    : FINDINGS.filter(f => f.status === filter);
+
+  rowsEl.innerHTML = list.map(f => `
+    <tr tabindex="0" data-i="${FINDINGS.indexOf(f)}" style="--sev:${SEVCOLOR[f.severity]}">
+      <td><span class="sev ${f.severity}">${f.severity}</span></td>
+      <td><div class="rule"><span class="ns">${LRM}${f.ns}</span><span class="name">${f.name}</span></div></td>
+      <td class="mono" style="font-size:11.5px;color:${C.ink2}">${f.scanner}</td>
+      <td><div class="loc">${LRM}${f.locs[0]}${f.locs.length>1?' +'+(f.locs.length-1):''}</div></td>
+      <td><span class="status ${f.status}">${f.status}</span></td>
+      <td><div class="verdict-cell${f.verdict?'':' none'}">${f.verdict || 'awaiting triage'}</div></td>
+      <td class="when">${f.first}</td><td class="when">${f.last}</td>
+    </tr>`).join('');
+
+  const none = list.length === 0;
+  emptyEl.hidden = !none;
+  wrapEl.hidden  = none;
+  document.getElementById('count').textContent = list.length + ' of 49 findings · server-side';
+}
+render('all');
+
+document.getElementById('statusFilter').addEventListener('change', e => render(e.target.value));
+document.getElementById('showAll').addEventListener('click', () => {
+  document.getElementById('statusFilter').value = 'all';
+  render('all');
+});
+
+/* ============================ detail panel ============================ */
+const panel = document.getElementById('panel'), veil = document.getElementById('veil');
+let lastFocus = null;
+
+function openPanel(f) {
+  lastFocus = document.activeElement;
+  document.getElementById('pTitle').textContent   = f.name;
+  document.getElementById('pNs').textContent      = f.ns;
+  const sevEl = document.getElementById('pSev');
+  sevEl.className = 'sev ' + f.severity; sevEl.textContent = f.severity;
+  const stEl = document.getElementById('pStatus');
+  stEl.className = 'status ' + f.status; stEl.textContent = f.status;
+  document.getElementById('pId').textContent      = f.id;
+  document.getElementById('pScanner').textContent = f.scanner;
+  document.getElementById('pDesc').innerHTML =
+    f.desc.replace(/(https?:\/\/[^\s.,)]+)/g, '<a href="$1" rel="noreferrer noopener">$1</a>');
+  document.getElementById('pLocs').innerHTML =
+    f.locs.map(l => '<li><span>' + l + '</span><span class="open-in">open</span></li>').join('');
+  document.getElementById('pVerdict').innerHTML = f.verdict
+    ? f.verdict
+    : '<span style="color:' + C.ink3 + ';font-style:italic">No verdict yet — this finding has not been triaged.</span>';
+  document.getElementById('pVerdictMeta').innerHTML = f.verdict
+    ? '<span class="tag' + (f.vconf === 'high confidence' ? ' conf-high' : '') + '">' + f.vconf + '</span>' +
+      '<span class="tag">by ' + f.vby + '</span><span class="tag">' + f.vat + '</span>'
+    : '';
+  document.getElementById('pHist').innerHTML = f.hist.map(h =>
+    '<li><span class="t">' + h[0] + '</span> <span class="ev">' + h[1] + '</span> <span class="t">· ' + h[2] + '</span></li>').join('');
+
+  veil.classList.add('open'); panel.classList.add('open');
+  panel.setAttribute('aria-hidden','false');
+  document.body.classList.add('locked');
+  document.getElementById('pClose').focus();
+}
+
+function closePanel() {
+  veil.classList.remove('open'); panel.classList.remove('open');
+  panel.setAttribute('aria-hidden','true');
+  document.body.classList.remove('locked');
+  if (lastFocus) lastFocus.focus();
+}
+
+rowsEl.addEventListener('click', e => {
+  const tr = e.target.closest('tr'); if (tr) openPanel(FINDINGS[tr.dataset.i]);
+});
+rowsEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    const tr = e.target.closest('tr');
+    if (tr) { e.preventDefault(); openPanel(FINDINGS[tr.dataset.i]); }
+  }
+});
+document.getElementById('pClose').addEventListener('click', closePanel);
+veil.addEventListener('click', closePanel);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
+});
+</script>
+</body>
+</html>
