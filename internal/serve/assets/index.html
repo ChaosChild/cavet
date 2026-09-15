@@ -173,6 +173,8 @@
               <button class="dd-opt" data-val="confirmed">confirmed</button>
               <button class="dd-opt" data-val="dismissed">dismissed</button>
               <button class="dd-opt" data-val="deferred">deferred</button>
+              <button class="dd-opt" data-val="resolved">resolved</button>
+              <button class="dd-opt" data-val="all">all</button>
             </div>
           </div>
         </div>
@@ -219,6 +221,7 @@
           <tbody id="items-body"></tbody>
         </table>
       </div>
+      <p class="text-[10.5px] opacity-40">Click a row to expand the full question and its raise/resolve stamps.</p>
     </div></div>
   </section>
 
@@ -250,9 +253,11 @@
   </div>
 </div>
 
-<!-- ================= finding detail modal ================= -->
-<div class="modal-veil" id="detail-modal">
-  <div class="modal-panel space-y-4" role="dialog" aria-modal="true" aria-label="Finding detail">
+<!-- ================= finding detail slide-out panel =================
+     transform lives on .side-panel itself; the veil carries no filter, and
+     neither is ever an ancestor of the fixed-position dropdown menus. -->
+<div class="side-veil" id="detail-modal">
+  <aside class="side-panel space-y-3" role="dialog" aria-modal="true" aria-label="Finding detail">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="min-w-0">
         <p class="eyebrow" id="detail-title">Finding</p>
@@ -260,31 +265,24 @@
       </div>
       <button class="expand-btn" data-close="detail-modal" aria-label="Close">✕</button>
     </div>
-    <div class="overflow-x-auto">
-      <table class="data-table">
-        <thead><tr><th style="width:86px">Severity</th><th style="width:100px">Status</th>
-        <th>Locations</th><th style="width:170px">Verdict</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><span class="sev" id="detail-sev"></span></td>
-            <td class="text-[11px]" id="detail-status"></td>
-            <td class="mono text-[11px] opacity-80" id="detail-locations"></td>
-            <td class="text-[11px] opacity-50" id="detail-verdict"></td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="sev" id="detail-sev"></span>
+      <span class="text-[11px] opacity-70" id="detail-status"></span>
+    </div>
+    <p class="text-[11.5px] opacity-80 leading-relaxed" id="detail-desc"></p>
+    <div>
+      <p class="eyebrow">Locations</p>
+      <ul class="mono text-[11px] opacity-80 list-none p-0 m-0 mt-1" id="detail-locations"></ul>
+    </div>
+    <div>
+      <p class="eyebrow">Verdict</p>
+      <p class="text-[11px] opacity-60 mt-1" id="detail-verdict"></p>
     </div>
     <div>
       <p class="eyebrow">Event history</p>
-      <div class="overflow-x-auto mt-2">
-        <table class="data-table">
-          <thead><tr><th style="width:170px">When</th><th style="width:110px">Event</th>
-          <th style="width:90px">Actor</th><th>Detail</th></tr></thead>
-          <tbody id="detail-history"></tbody>
-        </table>
-      </div>
+      <ul class="timeline mt-2" id="detail-history"></ul>
     </div>
-  </div>
+  </aside>
 </div>
 
 <script src="/assets/app.js"></script>

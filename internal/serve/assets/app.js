@@ -128,17 +128,34 @@ async function loadFindings() {
 }
 
 // ---------- items ----------
+function itemExpanded(it) {
+  const resolved = it.resolved_at
+    ? `resolved ${esc(it.resolved_by || '?')} · ${fmtStamp(it.resolved_at)}${it.answer ? ' · ' + esc(it.answer) : ''}`
+    : 'resolved –';
+  return `<tr class="item-x hidden" data-x="${esc(it.id)}">
+    <td colspan="6" style="white-space:normal">
+      <p class="text-[11.5px] opacity-80 leading-relaxed m-0">${esc(it.question)}</p>
+      <p class="mono text-[10.5px] opacity-50 mt-1">raised ${esc(it.raised_by || '?')} · ${fmtStamp(it.raised_at)} · ${resolved}</p>
+    </td>
+  </tr>`;
+}
 async function loadItems() {
   const d = await fetchJSON('/api/items');
   document.getElementById('items-body').innerHTML = (d.items || []).map(it => `
-    <tr>
+    <tr class="item-row" data-item="${esc(it.id)}" style="cursor:pointer">
       <td class="mono text-[11px] opacity-70">${esc(it.id)}</td>
       <td><span class="kind ${esc(it.kind)}">${esc(it.kind)}</span></td>
-      <td><span class="kind open">open</span></td>
+      <td><span class="kind ${it.resolved_at ? 'resolved' : 'open'}">${it.resolved_at ? 'resolved' : 'open'}</span></td>
       <td class="text-[11.5px] opacity-80">${esc(it.question)}</td>
       <td class="text-[11px] mono opacity-50">${esc(it.raised_by)} · ${fmtDay(it.raised_at)}</td>
-      <td class="text-[11px] mono opacity-50">–</td>
-    </tr>`).join('') || '<tr><td colspan="6" class="text-[11px] opacity-50">no open items</td></tr>';
+      <td class="text-[11px] mono opacity-50">${it.resolved_at ? fmtDay(it.resolved_at) : '–'}</td>
+    </tr>${itemExpanded(it)}`).join('') ||
+    '<tr><td colspan="6" class="text-[11px] opacity-50">no open items</td></tr>';
+  document.querySelectorAll('.item-row').forEach(tr =>
+    tr.addEventListener('click', () => {
+      const x = document.querySelector(`.item-x[data-x="${CSS.escape(tr.dataset.item)}"]`);
+      if (x) x.classList.toggle('hidden');
+    }));
 }
 
 // ---------- metrics + charts ----------
@@ -147,9 +164,12 @@ const PERIODS = {
   weeks: { small: 6, unit: 'w', fullLabel: 'year to date', count: 38 },
   months: { small: 6, unit: 'm', fullLabel: '24 months', count: 24 },
 };
-function labelsFor(period, n) {
+function labelsFor(m, period, n) {
+  // server labels: the final bucket is the current partial period ("now"),
+  // earlier ones count whole periods back.
+  if (m.labels && m.labels.length) return lastN(m.labels, n);
   const unit = PERIODS[period].unit, out = [];
-  for (let i = n; i >= 1; i--) out.push('-' + i + unit);
+  for (let i = n; i >= 1; i--) out.push(i === 1 ? 'now' : '-' + i + unit);
   return out;
 }
 function lastN(arr, n) { return arr.slice(Math.max(0, arr.length - n)); }
@@ -165,7 +185,7 @@ function flowConfig(m, n) {
   return {
     type: 'bar',
     data: {
-      labels: labelsFor(state.period, n),
+      labels: labelsFor(m, state.period, n),
       datasets: [
         { label: 'new', data: lastN(m.flow.new, n), backgroundColor: steel, stack: 'v', borderRadius: 3, borderSkipped: false },
         { label: 'fixed', data: lastN(m.flow.fixed, n), backgroundColor: green, stack: 'v', borderRadius: 3, borderSkipped: false },
@@ -183,7 +203,7 @@ function ttvConfig(m, n) {
   return {
     type: 'line',
     data: {
-      labels: labelsFor(state.period, n),
+      labels: labelsFor(m, state.period, n),
       datasets: [
         { label: 'to triage (h)', data: lastN(m.triage_median_hours, n), borderColor: steel, backgroundColor: steel, tension: 0.35, pointRadius: 2.5, borderWidth: 1.5, yAxisID: 'y' },
         { label: 'to remediate (h)', data: lastN(m.remediate_median_hours, n), borderColor: blue, backgroundColor: blue, tension: 0.35, pointRadius: 2.5, borderWidth: 1.5, yAxisID: 'y' }
@@ -297,16 +317,7 @@ function setPeriod(p) {
   });
 }
 
-// ---------- finding detail modal ----------
-function detailText(kind, d) {
-  if (!d) return '';
-  if (d.reason) return d.reason;
-  if (d.path) return `${d.path}:${d.line || '?'}${d.scanner ? ' · ' + d.scanner : ''}`;
-  if (d.verdict) return `${d.verdict} (${d.confidence || '?'})`;
-  if (d.answer) return d.answer;
-  if (d.context) return d.context;
-  try { return JSON.stringify(d); } catch { return ''; }
-}
+// ---------- finding detail slide-out panel ----------
 async function openDetail(id) {
   try {
     const d = await fetchJSON('/api/findings/' + encodeURIComponent(id));
@@ -317,17 +328,16 @@ async function openDetail(id) {
     sev.textContent = f.severity;
     sev.className = 'sev ' + ({ critical: 'crit', medium: 'med' }[f.severity] || f.severity);
     document.getElementById('detail-status').textContent = f.status;
-    document.getElementById('detail-locations').textContent =
-      (f.locations || []).map(l => `${l.path}:${l.line}`).join(' · ');
+    document.getElementById('detail-desc').textContent = f.description || '';
+    document.getElementById('detail-locations').innerHTML = (f.locations || [])
+      .map(l => `<li>${esc(l.path)}:${esc(String(l.line ?? '?'))}</li>`).join('') ||
+      '<li class="opacity-50">–</li>';
     document.getElementById('detail-verdict').textContent = f.verdict
-      ? `${f.verdict.reason} · ${f.verdict.by}` : '–';
+      ? `${f.verdict.reason} · ${f.verdict.confidence} confidence · by ${f.verdict.by} · ${fmtStamp(f.verdict.at)}`
+      : '–';
     document.getElementById('detail-history').innerHTML = (d.history || []).map(h => `
-      <tr>
-        <td class="mono text-[11px] opacity-50">${fmtStamp(h.ts)}</td>
-        <td class="text-[11px]">${esc(h.kind)}</td>
-        <td class="text-[11px] opacity-70">${esc(h.actor)}</td>
-        <td class="text-[11px] opacity-60" title="${esc(detailText(h.kind, h.detail))}">${esc(detailText(h.kind, h.detail))}</td>
-      </tr>`).join('');
+      <li><span class="mono opacity-50">${fmtStamp(h.ts)}</span> ${esc(h.kind)}
+        <span class="opacity-60">· ${esc(h.actor)}${h.phase ? ' · ' + esc(h.phase) : ''}</span></li>`).join('');
     document.getElementById('detail-modal').classList.add('open');
   } catch (e) {
     console.error(e);
@@ -353,6 +363,9 @@ document.querySelectorAll('[data-expand]').forEach(b => b.addEventListener('clic
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
 document.querySelectorAll('#period-seg button').forEach(b => b.addEventListener('click', () => setPeriod(b.dataset.period)));
 document.querySelectorAll('.modal-veil').forEach(v =>
+  v.addEventListener('click', e => { if (e.target === v) closeModal(v.id); }));
+// the slide-out panel's veil dismisses the same way (click on the scrim only)
+document.querySelectorAll('.side-veil').forEach(v =>
   v.addEventListener('click', e => { if (e.target === v) closeModal(v.id); }));
 
 // severity/status filter dropdowns (the scanner one is rebuilt per overview)

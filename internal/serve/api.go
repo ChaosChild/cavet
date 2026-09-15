@@ -2,6 +2,7 @@ package serve
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/scan"
 	"github.com/ChaosChild/cavet/internal/store"
 )
@@ -189,6 +191,26 @@ func matchesScanner(f *store.Finding, sc string) bool {
 	return false
 }
 
+// resolvedRowOf shapes a cache RemediatedRec as a findings-table row: the ID
+// is the fingerprint (the detail endpoint accepts it), last_seen carries the
+// remediation time as the finding's most recent activity.
+func resolvedRowOf(r store.RemediatedRec) findingRow {
+	return findingRow{ID: r.Fingerprint, Severity: r.Severity, Rule: r.Rule,
+		Scanner: r.Scanner, Locations: []store.Location{}, Status: "resolved",
+		DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
+}
+
+func remediatedMatches(r *store.RemediatedRec, scanner, severity string) bool {
+	if scanner != "" && r.Scanner != scanner {
+		return false
+	}
+	sev := r.Severity
+	if sev == "" {
+		sev = "info" // same fold as the overview cards
+	}
+	return severity == "" || sev == severity
+}
+
 func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	scanner := q.Get("scanner")
@@ -211,7 +233,7 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	var filtered []*store.Finding
+	var rows []findingRow
 	for _, f := range st.Findings {
 		if scanner != "" && !matchesScanner(f, scanner) {
 			continue
@@ -232,21 +254,59 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 				if !actionable(f) {
 					continue
 				}
-			} else if f.Status != status {
+			} else if status != "all" && f.Status != status {
+				// "all" keeps every current finding; "resolved" matches none
+				// (state never holds a remediated fingerprint).
 				continue
 			}
 		}
-		filtered = append(filtered, f)
+		rows = append(rows, rowOf(f))
 	}
-	sort.Slice(filtered, func(i, j int) bool {
-		ri, rj := sevRank[filtered[i].Severity], sevRank[filtered[j].Severity]
-		if ri != rj {
-			return ri < rj
+	// Resolved rows live in the metrics cache, not state (the delta fold drops
+	// remediated findings). status=all unions them in with the current rows.
+	if status == "resolved" || status == "all" {
+		var doc *store.MetricsDoc
+		if err := retryOnce(func() error { var e error; doc, e = s.st.LoadMetrics(); return e }); err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
 		}
-		return filtered[i].DetectedAt.Before(filtered[j].DetectedAt)
-	})
+		if doc != nil {
+			liveFP := map[string]bool{}
+			for _, f := range st.Findings {
+				liveFP[f.Fingerprint] = true
+			}
+			for i := range doc.Remediated {
+				r := &doc.Remediated[i]
+				if !remediatedMatches(r, scanner, severity) {
+					continue
+				}
+				if status == "all" && liveFP[r.Fingerprint] {
+					continue // a fingerprint is either current or resolved, never both
+				}
+				rows = append(rows, resolvedRowOf(*r))
+			}
+		}
+	}
+	if status == "all" {
+		// Most recent activity first: last_seen for current rows, the
+		// remediation time for resolved ones, severity as the tie-break.
+		sort.Slice(rows, func(i, j int) bool {
+			if !rows[i].LastSeen.Equal(rows[j].LastSeen) {
+				return rows[i].LastSeen.After(rows[j].LastSeen)
+			}
+			return sevRank[rows[i].Severity] < sevRank[rows[j].Severity]
+		})
+	} else {
+		sort.Slice(rows, func(i, j int) bool {
+			ri, rj := sevRank[rows[i].Severity], sevRank[rows[j].Severity]
+			if ri != rj {
+				return ri < rj
+			}
+			return rows[i].DetectedAt.Before(rows[j].DetectedAt)
+		})
+	}
 
-	total := len(filtered)
+	total := len(rows)
 	pages := (total + perPage - 1) / perPage
 	if pages < 1 {
 		pages = 1
@@ -259,12 +319,11 @@ func (s *Server) handleFindings(w http.ResponseWriter, r *http.Request) {
 	if hi > total {
 		hi = total
 	}
-	rows := []findingRow{}
-	for _, f := range filtered[lo:hi] {
-		rows = append(rows, rowOf(f))
+	if rows == nil {
+		rows = []findingRow{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"rows": rows, "total": total, "page": page, "pages": pages, "per_page": perPage,
+		"rows": rows[lo:hi], "total": total, "page": page, "pages": pages, "per_page": perPage,
 	})
 }
 
@@ -294,6 +353,27 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 		if x.DisplayID == id || x.Fingerprint == id {
 			f = x
 			break
+		}
+	}
+	if f == nil {
+		// Remediated fingerprints are gone from state; the cache's remediated
+		// record supplies the detail and the log replay below still works for
+		// any fingerprint.
+		var doc *store.MetricsDoc
+		if err := retryOnce(func() error { var e error; doc, e = s.st.LoadMetrics(); return e }); err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if doc != nil {
+			for i := range doc.Remediated {
+				if doc.Remediated[i].Fingerprint == id {
+					r := doc.Remediated[i]
+					f = &store.Finding{Fingerprint: r.Fingerprint, Severity: r.Severity,
+						RuleID: r.Rule, OriginatingScanner: r.Scanner, Status: "resolved",
+						Locations: []store.Location{}, DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
+					break
+				}
+			}
 		}
 	}
 	if f == nil {
@@ -327,15 +407,44 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 
 // --- /api/items ---
 
+// itemView is one open item row plus, when the log holds it, the resolve
+// stamp for the dashboard's inline expansion (resolved items leave state, so
+// open rows usually carry none).
+type itemView struct {
+	store.Item
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
+	ResolvedBy string     `json:"resolved_by,omitempty"`
+	Answer     string     `json:"answer,omitempty"`
+}
+
 func (s *Server) handleItems(w http.ResponseWriter, _ *http.Request) {
 	var st *store.State
 	if err := retryOnce(func() error { var e error; st, e = s.st.LoadState(); return e }); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	items := st.Items
-	if items == nil {
-		items = []store.Item{}
+	items := []itemView{}
+	for _, it := range st.Items {
+		items = append(items, itemView{Item: it})
+	}
+	if log, err := s.st.ReadLog(); err == nil {
+		for _, en := range log {
+			if en.Kind != events.Resolved {
+				continue
+			}
+			d, ok := en.Payload().(events.ResolvedData)
+			if !ok {
+				continue
+			}
+			for i := range items {
+				if items[i].ID == d.Item && items[i].ResolvedAt == nil {
+					ts := en.TS
+					items[i].ResolvedAt = &ts
+					items[i].ResolvedBy = string(en.Actor)
+					items[i].Answer = d.Answer
+				}
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
@@ -382,6 +491,26 @@ func bucketOf(ts time.Time, starts []time.Time) int {
 		}
 	}
 	return 0 // older than the window folds into the first bucket
+}
+
+// metricLabels names the buckets: the final bucket is the current partial
+// period (the one containing now) and reads "now", earlier ones count whole
+// periods back ("−1w", "−2w", …) so today's activity is never hidden behind a
+// label that claims the window stops a period early.
+func metricLabels(period string, n int) []string {
+	unit := map[string]string{"days": "d", "weeks": "w", "months": "m"}[period]
+	out := make([]string, n)
+	for i := 0; i < n; i++ {
+		switch {
+		case i == n-1:
+			out[i] = "now"
+		case unit == "":
+			out[i] = fmt.Sprintf("-%d", n-1-i)
+		default:
+			out[i] = fmt.Sprintf("-%d%s", n-1-i, unit)
+		}
+	}
+	return out
 }
 
 func median(xs []float64) *float64 {
@@ -463,7 +592,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"period": period, "count": n, "as_of": doc.ComputedAt,
+		"period": period, "count": n, "labels": metricLabels(period, n), "as_of": doc.ComputedAt,
 		"flow":                   flow,
 		"triage_median_hours":    triageMed,
 		"remediate_median_hours": remedMed,

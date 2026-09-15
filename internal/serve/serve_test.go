@@ -260,6 +260,116 @@ func TestFindingDetailHistory(t *testing.T) {
 	}
 }
 
+// Bucket math (serve-task-2): the final bucket is the current partial period,
+// so the last label reads "now" and the one before it counts one whole period
+// back; an event dated now lands in that final bucket.
+func TestMetricsBucketsEndAtCurrentPeriod(t *testing.T) {
+	now := time.Now().UTC()
+	for period, n := range bucketCounts {
+		starts := bucketStarts(now, period, n)
+		if len(starts) != n {
+			t.Fatalf("%s: %d starts, want %d", period, len(starts), n)
+		}
+		if !starts[n-1].Equal(periodStart(now, period)) {
+			t.Errorf("%s: last bucket starts %v, want the current partial period %v",
+				period, starts[n-1], periodStart(now, period))
+		}
+		if got := bucketOf(now, starts); got != n-1 {
+			t.Errorf("%s: now lands in bucket %d, want %d", period, got, n-1)
+		}
+	}
+	labels := metricLabels("weeks", 38)
+	if labels[len(labels)-1] != "now" || labels[len(labels)-2] != "-1w" || labels[0] != "-37w" {
+		t.Errorf("labels = %v…%v, want -37w…-1w,now", labels[0], labels[len(labels)-1])
+	}
+	var m struct {
+		Count  int              `json:"count"`
+		Labels []string         `json:"labels"`
+		Flow   map[string][]int `json:"flow"`
+	}
+	if code := getJSON(t, New(fixture(t)).Handler(), "/api/metrics?period=weeks", &m); code != http.StatusOK {
+		t.Fatalf("metrics status %d", code)
+	}
+	if m.Labels == nil || len(m.Labels) != m.Count || len(m.Flow["new"]) != m.Count {
+		t.Errorf("series lengths: labels %d flow %d count %d", len(m.Labels), len(m.Flow["new"]), m.Count)
+	}
+	if m.Labels[len(m.Labels)-1] != "now" {
+		t.Errorf("last label = %q, want now", m.Labels[len(m.Labels)-1])
+	}
+}
+
+// Resolved rows come from the metrics cache (state drops remediated findings);
+// the detail endpoint resolves the fingerprint the row carries.
+func TestFindingsResolvedAndAll(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	var res struct {
+		Rows  []map[string]any `json:"rows"`
+		Total int              `json:"total"`
+	}
+	if code := getJSON(t, h, "/api/findings?status=resolved", &res); code != http.StatusOK {
+		t.Fatalf("resolved status %d", code)
+	}
+	if res.Total != 1 || len(res.Rows) != 1 {
+		t.Fatalf("resolved total = %d rows %d, want 1/1", res.Total, len(res.Rows))
+	}
+	row := res.Rows[0]
+	if row["id"] != fpC() || row["status"] != "resolved" || row["rule"] != "go.err" ||
+		row["scanner"] != "opengrep" || row["severity"] != "medium" {
+		t.Errorf("resolved row = %v", row)
+	}
+
+	var all struct {
+		Rows []struct {
+			ID       string    `json:"id"`
+			Status   string    `json:"status"`
+			LastSeen time.Time `json:"last_seen"`
+		} `json:"rows"`
+		Total int `json:"total"`
+	}
+	if code := getJSON(t, h, "/api/findings?status=all&per_page=100", &all); code != http.StatusOK {
+		t.Fatalf("all status %d", code)
+	}
+	// Current findings of every status (dismissed A, confirmed B) plus the
+	// resolved row, ordered by most recent activity descending.
+	if all.Total != 3 {
+		t.Fatalf("all total = %d, want 3", all.Total)
+	}
+	statuses := map[string]bool{}
+	for i, r := range all.Rows {
+		statuses[r.Status] = true
+		if i > 0 && r.LastSeen.After(all.Rows[i-1].LastSeen) {
+			t.Errorf("row %d more recent than row %d: %v > %v", i, i-1, r.LastSeen, all.Rows[i-1].LastSeen)
+		}
+	}
+	if !statuses["dismissed"] || !statuses["confirmed"] || !statuses["resolved"] {
+		t.Errorf("all statuses = %v, want dismissed+confirmed+resolved", statuses)
+	}
+
+	var d struct {
+		Finding struct {
+			Fingerprint string `json:"fingerprint"`
+			Status      string `json:"status"`
+			RuleID      string `json:"rule_id"`
+		} `json:"finding"`
+		History []struct {
+			Kind string `json:"kind"`
+		} `json:"history"`
+	}
+	if code := getJSON(t, h, "/api/findings/"+fpC(), &d); code != http.StatusOK {
+		t.Fatalf("remediated detail status %d", code)
+	}
+	if d.Finding.Fingerprint != fpC() || d.Finding.Status != "resolved" || d.Finding.RuleID != "go.err" {
+		t.Errorf("remediated detail finding = %+v", d.Finding)
+	}
+	kinds := map[string]bool{}
+	for _, ev := range d.History {
+		kinds[ev.Kind] = true
+	}
+	if !kinds["detected"] || !kinds["remediated"] {
+		t.Errorf("remediated history kinds = %v, want detected and remediated", kinds)
+	}
+}
+
 func TestItems(t *testing.T) {
 	h := New(fixture(t)).Handler()
 	var d struct {

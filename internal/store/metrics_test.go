@@ -114,6 +114,45 @@ func TestComputeMetricsFromSyntheticLog(t *testing.T) {
 	if len(doc.ScanTimes) != 2 {
 		t.Errorf("scan times = %d, want 2", len(doc.ScanTimes))
 	}
+
+	// Remediated records (serve-task-2): the one remediation captures the row
+	// shape with detection and remediation timestamps.
+	if len(doc.Remediated) != 1 {
+		t.Fatalf("remediated recs = %d, want 1", len(doc.Remediated))
+	}
+	rec := doc.Remediated[0]
+	t1, t4 := base.Add(-48*time.Hour), base.Add(-24*time.Hour)
+	if rec.Fingerprint != fpC() || rec.Rule != "go.err" || rec.Severity != string(events.SevMedium) ||
+		rec.Scanner != "opengrep" || !rec.DetectedAt.Equal(t1) || !rec.RemediatedAt.Equal(t4) {
+		t.Errorf("remediated rec = %+v, want fpC/go.err/medium/opengrep t1..t4", rec)
+	}
+}
+
+// A v1 cache (before the remediated records) must be stale so serve start
+// recomputes it into the v2 shape.
+func TestMetricsV1SchemaIsStale(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Now().UTC().Truncate(time.Hour)
+	if err := synthLog(s, base); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RefreshMetrics(); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := s.LoadMetrics()
+	if err != nil || doc == nil {
+		t.Fatal(err)
+	}
+	doc.SchemaVersion = MetricsCacheVersion - 1
+	if err := s.WriteMetrics(doc); err != nil {
+		t.Fatal(err)
+	}
+	if !s.MetricsStale() {
+		t.Fatal("v1 schema must mark the cache stale")
+	}
 }
 
 // Stale verdict events (triaged/suppressed/deferred) for fingerprints the
@@ -167,6 +206,9 @@ func TestComputeMetricsToleratesStaleVerdicts(t *testing.T) {
 	}
 	if len(doc.Triage) != 2 || len(doc.Resolve) != 1 {
 		t.Errorf("triage %d resolve %d, want 2 and 1", len(doc.Triage), len(doc.Resolve))
+	}
+	if len(doc.Remediated) != 1 {
+		t.Errorf("remediated recs = %d, want 1 (ghost remediation skipped)", len(doc.Remediated))
 	}
 }
 

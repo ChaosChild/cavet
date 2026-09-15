@@ -256,3 +256,26 @@ body::after {
 .seg { display: inline-flex; border: 1px solid var(--hairline-strong); border-radius: 999px; padding: 2px; gap: 2px; }
 .seg button { border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--ink-dim); padding: 0.3rem 0.95rem; transition: color 0.4s var(--ease), background 0.4s var(--ease); }
 .seg button[aria-pressed="true"] { color: #14171b; background: var(--steel); }
+
+/* slide-out detail panel: the transform lives on the panel itself, and the
+   veil carries no filter/backdrop-filter – neither is ever an ancestor of the
+   fixed-position dropdown menus, so their placement stays viewport-based. */
+.side-veil { position: fixed; inset: 0; z-index: 55; background: rgba(10,12,15,0.5); display: none; }
+.side-veil.open { display: block; }
+.side-panel {
+  position: fixed; top: 0; right: 0; height: 100%; width: min(24rem, 92vw);
+  background: var(--surface); border-left: 1px solid var(--hairline-strong);
+  box-shadow: -30px 0 90px rgba(0,0,0,0.55); padding: 1.4rem 1.4rem 2rem;
+  overflow-y: auto; transform: translateX(102%);
+  transition: transform 0.5s var(--ease);
+}
+.side-veil.open .side-panel { transform: translateX(0); }
+
+/* vertical event timeline inside the panel */
+.timeline { list-style: none; padding: 0; margin: 0; }
+.timeline li { position: relative; padding: 0 0 0.85rem 1.1rem; border-left: 1px solid var(--hairline-strong); font-size: 11px; }
+.timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline li::before {
+  content: ""; position: absolute; left: -3.5px; top: 3px; width: 6px; height: 6px;
+  border-radius: 999px; background: var(--steel);
+}

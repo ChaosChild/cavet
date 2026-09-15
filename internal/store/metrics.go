@@ -13,8 +13,9 @@ import (
 
 // MetricsCacheVersion is the schema version of state/metrics.json. A mismatch
 // with the file on disk marks the cache stale (serve-task-1: full recompute is
-// always correct, incremental is never attempted).
-const MetricsCacheVersion = 1
+// always correct, incremental is never attempted). Version 2 adds the
+// Remediated records (serve-task-2: resolved rows come from the cache).
+const MetricsCacheVersion = 2
 
 // FlowRec is one verdict-flow event, bucketed serve-side by its timestamp.
 // Kind is new|fixed|dismissed|deferred.
@@ -38,6 +39,18 @@ type LagRec struct {
 	Hours float64   `json:"hours"`
 }
 
+// RemediatedRec is one remediated finding the replay knew: enough of the row
+// shape for the findings table's resolved filter and the detail panel (state
+// holds current findings only, so the cache is their only serve-side home).
+type RemediatedRec struct {
+	Fingerprint  string    `json:"fingerprint"`
+	Rule         string    `json:"rule"`
+	Severity     string    `json:"severity"`
+	Scanner      string    `json:"scanner"`
+	DetectedAt   time.Time `json:"detected_at"`
+	RemediatedAt time.Time `json:"remediated_at"`
+}
+
 // MetricsTrend holds actionable (open+confirmed) finding counts by severity
 // at two points: the end of the replay, and the moment just after the scan
 // before the last (surfaced/remediated batches mark scan ends in the log).
@@ -51,14 +64,15 @@ type MetricsTrend struct {
 // serve endpoints bucket these flat records per period without touching the
 // log again.
 type MetricsDoc struct {
-	SchemaVersion int          `json:"schema_version"`
-	Cursor        string       `json:"cursor"`
-	ComputedAt    time.Time    `json:"computed_at"`
-	Flow          []FlowRec    `json:"flow"`
-	Resolve       []ResolveRec `json:"resolve"`
-	Triage        []LagRec     `json:"triage"`
-	ScanTimes     []time.Time  `json:"scan_times"`
-	Trend         MetricsTrend `json:"trend"`
+	SchemaVersion int             `json:"schema_version"`
+	Cursor        string          `json:"cursor"`
+	ComputedAt    time.Time       `json:"computed_at"`
+	Flow          []FlowRec       `json:"flow"`
+	Resolve       []ResolveRec    `json:"resolve"`
+	Triage        []LagRec        `json:"triage"`
+	Remediated    []RemediatedRec `json:"remediated"`
+	ScanTimes     []time.Time     `json:"scan_times"`
+	Trend         MetricsTrend    `json:"trend"`
 }
 
 // ComputeMetrics replays the log into the metrics doc. It mirrors Rebuild's
@@ -93,10 +107,13 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 	doc := &MetricsDoc{SchemaVersion: MetricsCacheVersion, Cursor: cursor,
 		ComputedAt: time.Now().UTC(),
 		Flow:       []FlowRec{}, Resolve: []ResolveRec{}, Triage: []LagRec{},
-		ScanTimes: scanTimes, Trend: MetricsTrend{Current: map[string]int{}}}
+		Remediated: []RemediatedRec{},
+		ScanTimes:  scanTimes, Trend: MetricsTrend{Current: map[string]int{}}}
 	type liveRec struct {
 		first      time.Time
 		sev        string
+		rule       string
+		scanner    string
 		actionable bool // open or confirmed – the posture view's counting rule
 	}
 	live := map[string]*liveRec{}
@@ -151,7 +168,8 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 			if !ok {
 				return nil, &ParseError{File: en.File, Err: fmt.Errorf("detected payload mismatch")}
 			}
-			live[en.Fingerprint] = &liveRec{first: en.TS.UTC(), sev: string(d.Severity), actionable: true}
+			live[en.Fingerprint] = &liveRec{first: en.TS.UTC(), sev: string(d.Severity),
+				rule: d.Rule, scanner: d.Scanner, actionable: true}
 			openBySev[string(d.Severity)]++
 			openBySev["total"]++
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "new"})
@@ -203,6 +221,9 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "fixed"})
 			doc.Resolve = append(doc.Resolve, ResolveRec{TS: en.TS.UTC(),
 				Actor: string(en.Actor), Hours: hours(lr.first, en.TS.UTC())})
+			doc.Remediated = append(doc.Remediated, RemediatedRec{Fingerprint: en.Fingerprint,
+				Rule: lr.rule, Severity: lr.sev, Scanner: lr.scanner,
+				DetectedAt: lr.first, RemediatedAt: en.TS.UTC()})
 
 		case events.Raised, events.Resolved, events.Rebaselined, events.Surfaced:
 			// nothing aggregate-relevant; surfaced already marked a scan end
