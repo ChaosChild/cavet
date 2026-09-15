@@ -39,6 +39,7 @@ type Options struct {
 	DiffRef string
 	Images  []config.ImageEntry // configured Dockerfiles plus build targets (scan.container_images)
 	Deep    bool
+	Checkov bool // scanners.checkov: the opt-in second IaC scanner joins the filesystem tier
 	Actor   events.Actor
 	Phase   events.Phase
 	Context events.SurfaceContext
@@ -134,7 +135,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		return nil, fmt.Errorf("engine ref required on every event (artefacts §2.1)")
 	}
 	now := time.Now().UTC()
-	fsScanners := TierScanners(o.Scope, o.Deep)
+	fsScanners := TierScanners(o.Scope, o.Deep, o.Checkov)
 
 	var target string
 	var cov Coverage
@@ -280,6 +281,19 @@ func invocation(scanner, target string) []string {
 	case "opengrep":
 		return []string{"opengrep", "scan", "--config", "/opt/opengrep-rules",
 			"--sarif", "--output", "/reports/opengrep.sarif", target}
+	case "checkov":
+		// Secrets stay with gitleaks and trivy, so checkov's secret framework
+		// is skipped; its findings would only duplicate already-collected
+		// matched spans. --soft-fail keeps exit codes at 0 for found issues
+		// (exit codes are data, §10.3): any non-zero exit is a checkov
+		// failure, which runScanners treats as fatal. SARIF only reaches a
+		// file via --output-file-path, where checkov names it itself (captured
+		// from engine checkov 3.3.16, 2026-09-14); stdout stays the human
+		// report and is discarded.
+		return []string{"checkov", "-d", target,
+			"--framework", "all", "--skip-framework", "secrets", "sast",
+			"--quiet", "--soft-fail", "--skip-download",
+			"--output", "sarif", "--output-file-path", "/reports/checkov"}
 	}
 	return nil
 }
@@ -288,11 +302,16 @@ func invocation(scanner, target string) []string {
 // runs once per image, so its report name carries the image ordinal derived
 // from the target tar (image-<n>.tar): /reports persists in the container
 // across scans, and a shared name would let a failed exec copy out the
-// previous image's or previous scan's report.
+// previous image's or previous scan's report. checkov names its own report
+// under its output dir (results_sarif.sarif); the path is fixed per scan but
+// the strict exit contract below covers the same staleness hazard.
 func reportPath(scanner, target string) string {
 	if scanner == "trivy-image" {
 		return "/reports/trivy-image-" +
 			strings.TrimSuffix(strings.TrimPrefix(target, "/scan/image-"), ".tar") + ".sarif"
+	}
+	if scanner == "checkov" {
+		return "/reports/checkov/results_sarif.sarif"
 	}
 	return "/reports/" + scanner + ".sarif"
 }
@@ -306,10 +325,11 @@ func runScanners(ctx context.Context, r Runner, scanners []string, target string
 		}
 		b, cerr := r.CopyOut(ctx, reportPath(sc, target))
 		// Non-zero exit without a report is the anomaly contract (§10.3). A
-		// trivy-image run also fails on a non-zero exit with a report: the
-		// file on disk can be a stale one from an earlier scan, and reusing
-		// it would mis-attribute findings or mask the failure as clean.
-		if cerr != nil || (sc == "trivy-image" && res.Code != 0) {
+		// trivy-image or checkov run also fails on a non-zero exit with a
+		// report: the file on disk can be a stale one from an earlier scan,
+		// and reusing it would mis-attribute findings or mask the failure as
+		// clean. checkov's --soft-fail makes 0 the only success exit.
+		if cerr != nil || (sc == "trivy-image" || sc == "checkov") && res.Code != 0 {
 			return nil, fmt.Errorf("%s scan failed (exit %d): %.300s", sc, res.Code, res.Stderr)
 		}
 		out[sc] = b
