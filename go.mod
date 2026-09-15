@@ -1,6 +1,6 @@
 module github.com/ChaosChild/cavet
 
-go 1.26
+go 1.26.0
 
 require gopkg.in/yaml.v3 v3.0.1
 
@@ -9,7 +9,7 @@ require (
 	github.com/moby/moby/api v1.56.0
 	github.com/moby/moby/client v0.6.0
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
