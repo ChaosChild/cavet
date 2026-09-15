@@ -1,0 +1,364 @@
+package serve
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/ChaosChild/cavet/internal/events"
+	"github.com/ChaosChild/cavet/internal/store"
+)
+
+func fpA() string { return strings.Repeat("a1", 32) }
+func fpB() string { return strings.Repeat("b2", 32) }
+func fpC() string { return strings.Repeat("c3", 32) }
+
+// fixture builds a temp .cavet with a two-scan log replayed into state, a
+// baseline, a last-scan header, and a fresh metrics cache.
+func fixture(t *testing.T) *store.Store {
+	t.Helper()
+	s, err := store.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const eng = "ghcr.io/chaoschild/cavet-engine:0.2-core@sha256:4f2a9b"
+	base := time.Now().UTC().Truncate(time.Hour)
+	t1, t2, t3, t4 := base.Add(-48*time.Hour), base.Add(-47*time.Hour), base.Add(-46*time.Hour), base.Add(-24*time.Hour)
+	appendEv := func(ev events.Event, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	appendEv(events.NewDetected(t1, events.ActorAgent, events.PhaseBuild, eng, fpA(),
+		events.DetectedData{Rule: "G101", Severity: events.SevCritical, Path: "a.go", Line: 3, Scanner: "gitleaks"}))
+	appendEv(events.NewDetected(t1, events.ActorAgent, events.PhaseBuild, eng, fpB(),
+		events.DetectedData{Rule: "CVE-1", Severity: events.SevHigh, Path: "go.sum", Line: 9, Scanner: "trivy"}))
+	appendEv(events.NewDetected(t1, events.ActorAgent, events.PhaseBuild, eng, fpC(),
+		events.DetectedData{Rule: "go.err", Severity: events.SevMedium, Path: "b.go", Line: 1, Scanner: "opengrep"}))
+	appendEv(events.NewSurfaced(t1, events.ActorAgent, events.PhaseBuild, eng, fpA(),
+		events.SurfacedData{Context: events.ContextPosture}))
+	appendEv(events.NewTriaged(t2, events.ActorOperator, events.PhaseBuild, eng, fpA(),
+		events.TriagedData{Verdict: events.VerdictDismissed, Confidence: events.ConfidenceHigh, Reason: "fixture"}))
+	appendEv(events.NewTriaged(t3, events.ActorOperator, events.PhaseBuild, eng, fpB(),
+		events.TriagedData{Verdict: events.VerdictConfirmed, Confidence: events.ConfidenceLow, Reason: "real"}))
+	appendEv(events.NewRemediated(t4, events.ActorAgent, events.PhaseBuild, eng, fpC(), "fixed upstream"))
+	appendEv(events.NewSurfaced(t4, events.ActorAgent, events.PhaseBuild, eng, fpB(),
+		events.SurfacedData{Context: events.ContextPosture}))
+	appendEv(events.NewRaised(t2, events.ActorAgent, events.PhaseDesign, eng,
+		events.RaisedData{Kind: events.ItemDesign, Question: "bind policy?"}))
+
+	if _, err := s.Rebuild(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.WriteBaseline(store.Baseline{EngineDigest: eng,
+		CreatedAt: t1, Fingerprints: []string{fpA()}}); err != nil {
+		t.Fatal(err)
+	}
+	// Re-run rebuild so baseline membership loads; then the metrics cache.
+	if _, err := s.Rebuild(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RefreshMetrics(); err != nil {
+		t.Fatal(err)
+	}
+	lastScan := `{"scope":"full","scanners":["gitleaks","trivy","opengrep"],"phase":"build","engine":"` +
+		eng + `","at":"` + t4.Format(time.RFC3339) + `"}` + "\n"
+	if err := os.WriteFile(filepath.Join(s.Cavet, "state", "last-scan.json"), []byte(lastScan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func getJSON(t *testing.T, h http.Handler, path string, out any) int {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+	if out != nil {
+		if err := json.Unmarshal(rec.Body.Bytes(), out); err != nil {
+			t.Fatalf("%s: bad JSON %q: %v", path, rec.Body.String(), err)
+		}
+	}
+	return rec.Code
+}
+
+func TestOverview(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	var o struct {
+		Repo      string                `json:"repo"`
+		Engine    string                `json:"engine"`
+		Open      map[string]int        `json:"open"`
+		Trend     map[string]int        `json:"trend"`
+		Oldest    map[string]*time.Time `json:"oldest"`
+		Baseline  int                   `json:"baseline"`
+		OpenItems int                   `json:"open_items"`
+		Scanners  []string              `json:"scanners"`
+		LastScan  *struct {
+			Scope string `json:"scope"`
+		} `json:"last_scan"`
+	}
+	if code := getJSON(t, h, "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	// Actionable: only the confirmed high remains (A dismissed, C remediated).
+	if o.Open["total"] != 1 || o.Open["high"] != 1 || o.Open["critical"] != 0 {
+		t.Errorf("open = %v", o.Open)
+	}
+	// Trend vs the snapshot after scan 1 (3 actionable): total -2.
+	if o.Trend["total"] != -2 || o.Trend["critical"] != -1 || o.Trend["medium"] != -1 || o.Trend["high"] != 0 {
+		t.Errorf("trend = %v", o.Trend)
+	}
+	if o.Baseline != 1 || o.OpenItems != 1 {
+		t.Errorf("baseline %d items %d", o.Baseline, o.OpenItems)
+	}
+	if len(o.Scanners) != 3 || o.LastScan == nil || o.LastScan.Scope != "full" {
+		t.Errorf("scanners %v last_scan %+v", o.Scanners, o.LastScan)
+	}
+	if !strings.Contains(o.Engine, "sha256:4f2a…") {
+		t.Errorf("engine = %q", o.Engine)
+	}
+	if o.Oldest["high"] == nil {
+		t.Errorf("oldest high missing: %v", o.Oldest)
+	}
+}
+
+func TestFindingsFilteringAndPagination(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	var all struct {
+		Rows  []map[string]any `json:"rows"`
+		Total int              `json:"total"`
+		Pages int              `json:"pages"`
+		Page  int              `json:"page"`
+	}
+	getJSON(t, h, "/api/findings", &all)
+	if all.Total != 2 { // dismissed A + confirmed B
+		t.Fatalf("total = %d, want 2", all.Total)
+	}
+	// Sorted by severity: critical first.
+	if all.Rows[0]["severity"] != "critical" || all.Rows[1]["severity"] != "high" {
+		t.Errorf("order = %v %v", all.Rows[0]["severity"], all.Rows[1]["severity"])
+	}
+
+	var sev struct{ Total int }
+	getJSON(t, h, "/api/findings?severity=critical", &sev)
+	if sev.Total != 1 {
+		t.Errorf("severity filter total = %d", sev.Total)
+	}
+	var sc struct{ Total int }
+	getJSON(t, h, "/api/findings?scanner=gitleaks", &sc)
+	if sc.Total != 1 {
+		t.Errorf("scanner filter total = %d", sc.Total)
+	}
+	var st struct{ Total int }
+	getJSON(t, h, "/api/findings?status=dismissed", &st)
+	if st.Total != 1 {
+		t.Errorf("status filter total = %d", st.Total)
+	}
+
+	var page2 struct {
+		Rows  []map[string]any `json:"rows"`
+		Total int              `json:"total"`
+		Pages int              `json:"pages"`
+		Page  int              `json:"page"`
+	}
+	getJSON(t, h, "/api/findings?per_page=1&page=2", &page2)
+	if page2.Pages != 2 || page2.Page != 2 || len(page2.Rows) != 1 {
+		t.Errorf("pagination = %+v", page2)
+	}
+	// Out-of-range page clamps to the last page.
+	getJSON(t, h, "/api/findings?per_page=1&page=9", &page2)
+	if page2.Page != 2 {
+		t.Errorf("clamped page = %d", page2.Page)
+	}
+}
+
+func TestFindingDetailHistory(t *testing.T) {
+	s := fixture(t)
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	for _, f := range st.Findings {
+		if f.Fingerprint == fpA() {
+			id = f.DisplayID
+		}
+	}
+	if id == "" {
+		t.Fatal("finding A missing from state")
+	}
+	h := New(s).Handler()
+	var d struct {
+		Finding struct {
+			Fingerprint string `json:"fingerprint"`
+			Status      string `json:"status"`
+		} `json:"finding"`
+		History []struct {
+			Kind string    `json:"kind"`
+			TS   time.Time `json:"ts"`
+		} `json:"history"`
+	}
+	if code := getJSON(t, h, "/api/findings/"+id, &d); code != http.StatusOK {
+		t.Fatalf("detail status %d", code)
+	}
+	if d.Finding.Fingerprint != fpA() || d.Finding.Status != "dismissed" {
+		t.Errorf("finding = %+v", d.Finding)
+	}
+	if len(d.History) != 3 { // detected, surfaced, triaged
+		t.Fatalf("history = %d events, want 3: %+v", len(d.History), d.History)
+	}
+	for i := 1; i < len(d.History); i++ {
+		if d.History[i].TS.Before(d.History[i-1].TS) {
+			t.Error("history not chronological")
+		}
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/findings/deadbeef", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("unknown id status = %d", rec.Code)
+	}
+}
+
+func TestItems(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	var d struct {
+		Items []struct {
+			Kind     string `json:"kind"`
+			Question string `json:"question"`
+		} `json:"items"`
+	}
+	getJSON(t, h, "/api/items", &d)
+	if len(d.Items) != 1 || d.Items[0].Kind != "design" || d.Items[0].Question != "bind policy?" {
+		t.Errorf("items = %+v", d.Items)
+	}
+}
+
+func TestMetricsBuckets(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	var m struct {
+		Period string              `json:"period"`
+		Count  int                 `json:"count"`
+		Flow   map[string][]int    `json:"flow"`
+		Triage []*float64          `json:"triage_median_hours"`
+		Remed  []*float64          `json:"remediate_median_hours"`
+		Actors map[string]int      `json:"actors"`
+		Avg    map[string]*float64 `json:"resolve_avg_hours"`
+	}
+	if code := getJSON(t, h, "/api/metrics?period=weeks", &m); code != http.StatusOK {
+		t.Fatalf("metrics status %d", code)
+	}
+	if m.Period != "weeks" || m.Count != 38 {
+		t.Errorf("period %s count %d", m.Period, m.Count)
+	}
+	sum := func(xs []int) int {
+		n := 0
+		for _, x := range xs {
+			n += x
+		}
+		return n
+	}
+	if sum(m.Flow["new"]) != 3 || sum(m.Flow["fixed"]) != 1 || sum(m.Flow["dismissed"]) != 1 {
+		t.Errorf("flow totals = %v", m.Flow)
+	}
+	if len(m.Flow["new"]) != 38 || len(m.Triage) != 38 || len(m.Remed) != 38 {
+		t.Errorf("series lengths = %d/%d/%d", len(m.Flow["new"]), len(m.Triage), len(m.Remed))
+	}
+	if m.Actors["agent"] != 1 || m.Actors["operator"] != 0 {
+		t.Errorf("actors = %v", m.Actors)
+	}
+	if m.Avg["agent"] == nil || *m.Avg["agent"] != 24 {
+		t.Errorf("avg resolve = %v", m.Avg)
+	}
+	// The only non-null triage median is 1h (the dismissal 1h after detection;
+	// the confirmation sits at 2h in the next-to-last week bucket... both are
+	// within the last week, so the bucket median of [1,2] is 1.5).
+	saw := false
+	for _, v := range m.Triage {
+		if v != nil {
+			saw = true
+			if *v != 1.5 {
+				t.Errorf("triage median = %v, want 1.5", *v)
+			}
+		}
+	}
+	if !saw {
+		t.Error("no triage median recorded in any bucket")
+	}
+
+	// Bad period falls back to weeks, not an error.
+	if code := getJSON(t, h, "/api/metrics?period=fortnights", &m); code != http.StatusOK || m.Period != "weeks" {
+		t.Errorf("period fallback: %d %s", code, m.Period)
+	}
+}
+
+func TestMetricsAbsentIs503(t *testing.T) {
+	s := fixture(t)
+	if err := os.Remove(filepath.Join(s.Cavet, "state", "metrics.json")); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	New(s).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/metrics", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503", rec.Code)
+	}
+}
+
+func TestServeStartRecompute(t *testing.T) {
+	s := fixture(t)
+	// Stale the cache (log append moved the cursor), then run the serve-start
+	// path: it must recompute under the lock and clear staleness.
+	ev, err := events.NewDeferred(time.Now().UTC(), events.ActorOperator, events.PhaseBuild,
+		"eng", fpB(), "waiting on release")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Append(ev); err != nil {
+		t.Fatal(err)
+	}
+	if !s.MetricsStale() {
+		t.Fatal("fixture must be stale after append")
+	}
+	if err := ensureMetrics(s); err != nil {
+		t.Fatal(err)
+	}
+	if s.MetricsStale() {
+		t.Fatal("serve start must clear staleness")
+	}
+	doc, err := s.LoadMetrics()
+	if err != nil || doc == nil {
+		t.Fatal(err)
+	}
+	for _, fr := range doc.Flow {
+		if fr.Kind == "deferred" {
+			return // the appended event is folded in
+		}
+	}
+	t.Error("recomputed doc lacks the deferred flow record")
+}
+
+func TestIndexAndAssetServed(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "security posture") {
+		t.Errorf("index status %d", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/chart.umd.js", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Chart.js v4") {
+		t.Errorf("chart asset status %d", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("unknown path status %d", rec.Code)
+	}
+}

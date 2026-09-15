@@ -109,6 +109,7 @@ func newRoot() (*cobra.Command, error) {
 		newLookupCmd(),
 		newDescribeCmd(),
 		newUpdateCmd(),
+		newServeCmd(),
 	)
 	return root, nil
 }

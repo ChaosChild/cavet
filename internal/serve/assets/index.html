@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cavet serve · security posture</title>
+<script src="/assets/chart.umd.js"></script>
+<link rel="stylesheet" href="/assets/app.css">
+<!-- Google Fonts is the page's only network dependency; everything else is
+     served by cavet itself (Chart.js vendored in the binary). -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-12 space-y-8">
+
+  <!-- ================= masthead ================= -->
+  <header class="rise d1 flex flex-wrap items-end justify-between gap-6">
+    <div class="space-y-3">
+      <span class="eyebrow">cavet serve · live</span>
+      <h1 class="serif text-3xl sm:text-4xl lg:text-[2.75rem] leading-tight font-semibold">
+        <span id="repo-name">…</span> <span class="opacity-40 font-normal">/</span> security posture
+      </h1>
+      <p class="text-xs mono opacity-50" id="engine-line"></p>
+    </div>
+    <div class="flex items-center gap-4">
+      <div class="text-right">
+        <p class="text-[10px] uppercase tracking-[0.2em] opacity-50">as of</p>
+        <p class="mono text-xs" id="as-of">…</p>
+      </div>
+      <button class="pill" id="refresh">
+        <span class="ic">↻</span> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= top 4 stat cards ================= -->
+  <section class="rise d2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="bezel"><div class="core gap-3">
+      <p class="eyebrow">Open findings</p>
+      <div class="flex items-baseline gap-3 flex-wrap">
+        <p class="num text-5xl font-medium leading-none" id="open-total">–</p>
+        <span id="open-trend"></span>
+      </div>
+      <p class="text-[11px] opacity-50 mt-auto" id="open-sub"></p>
+    </div></div>
+    <div class="bezel"><div class="core gap-3">
+      <p class="eyebrow">Critical</p>
+      <div class="flex items-baseline gap-3 flex-wrap">
+        <p class="num text-5xl font-medium leading-none" style="color:#e5484d" id="open-critical">–</p>
+        <span id="critical-trend"></span>
+      </div>
+      <p class="text-[11px] opacity-50 mt-auto">oldest&nbsp;&nbsp;<span class="mono" style="color:var(--steel)" id="oldest-critical">–</span></p>
+    </div></div>
+    <div class="bezel"><div class="core gap-3">
+      <p class="eyebrow">High</p>
+      <div class="flex items-baseline gap-3 flex-wrap">
+        <p class="num text-5xl font-medium leading-none" style="color:#e5a34d" id="open-high">–</p>
+        <span id="high-trend"></span>
+      </div>
+      <p class="text-[11px] opacity-50 mt-auto">oldest&nbsp;&nbsp;<span class="mono" id="oldest-high">–</span></p>
+    </div></div>
+    <div class="bezel"><div class="core gap-3">
+      <p class="eyebrow">Medium + low</p>
+      <div class="flex items-baseline gap-3 flex-wrap">
+        <p class="num text-5xl font-medium leading-none" id="open-medlow">–</p>
+        <span id="medlow-trend"></span>
+      </div>
+      <p class="text-[11px] opacity-50 mt-auto" id="medlow-sub"></p>
+    </div></div>
+  </section>
+
+  <!-- ================= 3 info cards ================= -->
+  <section class="rise d2 grid grid-cols-1 sm:grid-cols-3 gap-5">
+    <div class="bezel"><div class="core gap-1.5 py-4">
+      <div class="flex items-baseline justify-between gap-3">
+        <p class="eyebrow">Baseline debt</p>
+        <p class="num text-2xl font-medium" id="baseline-count">–</p>
+      </div>
+      <p class="text-[10.5px] opacity-50 text-right">pre-existing · <span style="color:var(--steel)">cavet debt</span></p>
+    </div></div>
+    <div class="bezel"><div class="core gap-1.5 py-4">
+      <div class="flex items-baseline justify-between gap-3">
+        <p class="eyebrow">Last scan</p>
+        <p class="text-xl font-medium" style="color:var(--steel)" id="scan-scope">–</p>
+      </div>
+      <p class="text-[10.5px] mono opacity-50 text-right" id="scan-at"></p>
+    </div></div>
+    <div class="bezel"><div class="core gap-1.5 py-4">
+      <div class="flex items-baseline justify-between gap-3">
+        <p class="eyebrow">Scanners</p>
+        <p class="num text-2xl font-medium" id="scanner-count">–</p>
+      </div>
+      <ul class="text-[10.5px] mono opacity-60 text-right leading-relaxed list-none p-0 m-0" id="scanner-list"></ul>
+    </div></div>
+  </section>
+
+  <!-- ================= charts row ================= -->
+  <section class="rise d3 grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="bezel lg:col-span-2"><div class="core gap-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="eyebrow">Verdict flow</p>
+          <p class="text-[11px] opacity-50 mt-1">stacked: what actually happened to each finding, so dismissals never read as fixes</p>
+        </div>
+        <button class="expand-btn" title="Expand" data-expand="flow" aria-label="Expand verdict flow">⛶</button>
+      </div>
+      <div class="relative" style="height:170px"><canvas id="chart-flow"></canvas></div>
+    </div></div>
+    <div class="bezel"><div class="core gap-3">
+      <p class="eyebrow">Remediation</p>
+      <div class="grid grid-cols-2 gap-2 flex-1">
+        <div class="relative">
+          <canvas id="chart-actors"></canvas>
+          <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p class="num text-lg" id="agent-share">–</p>
+            <p class="text-[8.5px] uppercase tracking-[0.16em] opacity-50">by agent</p>
+          </div>
+        </div>
+        <div class="relative">
+          <canvas id="chart-resolve"></canvas>
+          <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p class="num text-lg" id="agent-faster">–</p>
+            <p class="text-[8.5px] uppercase tracking-[0.16em] opacity-50">agent faster</p>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-[9.5px] uppercase tracking-[0.14em] opacity-50 text-center">
+        <p>split by actor</p><p>avg hours to resolve</p>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="rise d4">
+    <div class="bezel"><div class="core gap-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="eyebrow">Time to verdict</p>
+          <p class="text-[11px] opacity-50 mt-1">hours from detected to triaged and to remediated</p>
+        </div>
+        <button class="expand-btn" title="Expand" data-expand="ttv" aria-label="Expand time to verdict">⛶</button>
+      </div>
+      <div class="relative" style="height:170px"><canvas id="chart-ttv"></canvas></div>
+    </div></div>
+  </section>
+
+  <!-- ================= findings ================= -->
+  <section class="rise d5">
+    <div class="bezel"><div class="core gap-4">
+      <div class="flex items-center justify-between gap-3">
+        <p class="eyebrow flex-shrink-0">Findings</p>
+        <div class="flex gap-2 flex-nowrap overflow-x-auto" style="scrollbar-width: none;">
+          <div class="dd" data-dd data-filter="scanner" data-value="">
+            <button class="dd-btn" type="button">all scanners <span class="dd-chev">▾</span></button>
+            <div class="dd-menu" data-menu="scanner">
+              <button class="dd-opt" data-val="" aria-selected="true">all scanners</button>
+            </div>
+          </div>
+          <div class="dd" data-dd data-filter="severity" data-value="">
+            <button class="dd-btn" type="button">all severities <span class="dd-chev">▾</span></button>
+            <div class="dd-menu">
+              <button class="dd-opt" data-val="" aria-selected="true">all severities</button>
+              <button class="dd-opt" data-val="critical">critical</button>
+              <button class="dd-opt" data-val="high">high</button>
+              <button class="dd-opt" data-val="medium">medium</button>
+              <button class="dd-opt" data-val="low">low</button>
+            </div>
+          </div>
+          <div class="dd" data-dd data-filter="status" data-value="">
+            <button class="dd-btn" type="button">all statuses <span class="dd-chev">▾</span></button>
+            <div class="dd-menu">
+              <button class="dd-opt" data-val="" aria-selected="true">all statuses</button>
+              <button class="dd-opt" data-val="open">open</button>
+              <button class="dd-opt" data-val="confirmed">confirmed</button>
+              <button class="dd-opt" data-val="dismissed">dismissed</button>
+              <button class="dd-opt" data-val="deferred">deferred</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead><tr>
+            <th style="width:80px">Severity</th><th style="width:150px">Rule</th><th style="width:100px">Scanner</th>
+            <th>Location</th><th style="width:86px">Status</th><th style="width:170px">Verdict</th><th style="width:64px">First</th><th style="width:64px">Last</th>
+          </tr></thead>
+          <tbody id="findings-body"></tbody>
+        </table>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <p class="text-[11px] mono opacity-50" id="page-label"></p>
+        <div class="flex items-center gap-2">
+          <div class="dd" data-dd data-value="6">
+            <button class="dd-btn" type="button">6 per page <span class="dd-chev">▾</span></button>
+            <div class="dd-menu">
+              <button class="dd-opt" data-val="6" aria-selected="true">6 per page</button>
+              <button class="dd-opt" data-val="12">12 per page</button>
+              <button class="dd-opt" data-val="24">24 per page</button>
+            </div>
+          </div>
+          <button class="pagebtn" id="prev" aria-label="Previous page">‹</button>
+          <span class="mono text-xs opacity-70" id="page-indicator"></span>
+          <button class="pagebtn" id="next" aria-label="Next page">›</button>
+        </div>
+      </div>
+      <p class="text-[10.5px] opacity-40">Server-side filtering and pagination: the filters are query parameters on /api/findings, the browser holds one page only. Click a row for its detail and event history.</p>
+    </div></div>
+  </section>
+
+  <!-- ================= items ================= -->
+  <section class="rise d6">
+    <div class="bezel"><div class="core gap-4">
+      <p class="eyebrow">Open items</p>
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead><tr>
+            <th style="width:120px">Item</th><th style="width:110px">Kind</th><th style="width:100px">Status</th>
+            <th>Question</th><th style="width:150px">Raised</th><th style="width:150px">Resolved</th>
+          </tr></thead>
+          <tbody id="items-body"></tbody>
+        </table>
+      </div>
+    </div></div>
+  </section>
+
+  <footer class="text-[10.5px] opacity-40 pb-6 leading-relaxed">
+    cavet serve dashboard · state/ plus the metrics cache · loopback only · Chart.js vendored in the binary ·
+    refresh is manual: load on open, Refresh refetches everything.
+  </footer>
+</div>
+
+<!-- ================= expand modal ================= -->
+<div class="modal-veil" id="chart-modal">
+  <div class="modal-panel space-y-4" role="dialog" aria-modal="true" aria-label="Expanded chart">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p class="eyebrow" id="modal-title">Verdict flow</p>
+        <p class="text-[11px] opacity-50 mt-1" id="modal-sub"></p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="seg" id="period-seg">
+          <button data-period="days" aria-pressed="false">Days</button>
+          <button data-period="weeks" aria-pressed="true">Weeks</button>
+          <button data-period="months" aria-pressed="false">Months</button>
+        </div>
+        <button class="expand-btn" data-close="chart-modal" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="relative" style="height:56vh"><canvas id="modal-canvas"></canvas></div>
+    <p class="text-[10.5px] opacity-40" id="modal-range"></p>
+  </div>
+</div>
+
+<!-- ================= finding detail modal ================= -->
+<div class="modal-veil" id="detail-modal">
+  <div class="modal-panel space-y-4" role="dialog" aria-modal="true" aria-label="Finding detail">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="eyebrow" id="detail-title">Finding</p>
+        <p class="text-[11px] opacity-50 mt-1 mono" id="detail-rule"></p>
+      </div>
+      <button class="expand-btn" data-close="detail-modal" aria-label="Close">✕</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="data-table">
+        <thead><tr><th style="width:86px">Severity</th><th style="width:100px">Status</th>
+        <th>Locations</th><th style="width:170px">Verdict</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="sev" id="detail-sev"></span></td>
+            <td class="text-[11px]" id="detail-status"></td>
+            <td class="mono text-[11px] opacity-80" id="detail-locations"></td>
+            <td class="text-[11px] opacity-50" id="detail-verdict"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <p class="eyebrow">Event history</p>
+      <div class="overflow-x-auto mt-2">
+        <table class="data-table">
+          <thead><tr><th style="width:170px">When</th><th style="width:110px">Event</th>
+          <th style="width:90px">Actor</th><th>Detail</th></tr></thead>
+          <tbody id="detail-history"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

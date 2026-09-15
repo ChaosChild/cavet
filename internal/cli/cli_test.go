@@ -177,7 +177,7 @@ func TestResolveVersion(t *testing.T) {
 	orig := version
 	t.Cleanup(func() { version = orig })
 	for in, want := range map[string]string{
-		"9.9.9": "9.9.9",
+		"9.9.9":  "9.9.9",
 		"v8.8.8": "8.8.8",
 	} {
 		version = in
