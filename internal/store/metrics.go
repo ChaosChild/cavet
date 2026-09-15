@@ -13,8 +13,11 @@ import (
 
 // MetricsCacheVersion is the schema version of state/metrics.json. A mismatch
 // with the file on disk marks the cache stale (serve-task-1: full recompute is
-// always correct, incremental is never attempted).
-const MetricsCacheVersion = 1
+// always correct, incremental is never attempted). Version 2 adds the
+// Remediated records (serve-task-2: resolved rows come from the cache);
+// version 3 adds their locations; version 4 adds the remediation reason and
+// actor (the verdict text the resolved rows and detail panel show).
+const MetricsCacheVersion = 4
 
 // FlowRec is one verdict-flow event, bucketed serve-side by its timestamp.
 // Kind is new|fixed|dismissed|deferred.
@@ -38,6 +41,21 @@ type LagRec struct {
 	Hours float64   `json:"hours"`
 }
 
+// RemediatedRec is one remediated finding the replay knew: enough of the row
+// shape for the findings table's resolved filter and the detail panel (state
+// holds current findings only, so the cache is their only serve-side home).
+type RemediatedRec struct {
+	Fingerprint  string     `json:"fingerprint"`
+	Rule         string     `json:"rule"`
+	Severity     string     `json:"severity"`
+	Scanner      string     `json:"scanner"`
+	Locations    []Location `json:"locations"`
+	Reason       string     `json:"reason"`
+	Actor        string     `json:"actor"`
+	DetectedAt   time.Time  `json:"detected_at"`
+	RemediatedAt time.Time  `json:"remediated_at"`
+}
+
 // MetricsTrend holds actionable (open+confirmed) finding counts by severity
 // at two points: the end of the replay, and the moment just after the scan
 // before the last (surfaced/remediated batches mark scan ends in the log).
@@ -51,14 +69,15 @@ type MetricsTrend struct {
 // serve endpoints bucket these flat records per period without touching the
 // log again.
 type MetricsDoc struct {
-	SchemaVersion int          `json:"schema_version"`
-	Cursor        string       `json:"cursor"`
-	ComputedAt    time.Time    `json:"computed_at"`
-	Flow          []FlowRec    `json:"flow"`
-	Resolve       []ResolveRec `json:"resolve"`
-	Triage        []LagRec     `json:"triage"`
-	ScanTimes     []time.Time  `json:"scan_times"`
-	Trend         MetricsTrend `json:"trend"`
+	SchemaVersion int             `json:"schema_version"`
+	Cursor        string          `json:"cursor"`
+	ComputedAt    time.Time       `json:"computed_at"`
+	Flow          []FlowRec       `json:"flow"`
+	Resolve       []ResolveRec    `json:"resolve"`
+	Triage        []LagRec        `json:"triage"`
+	Remediated    []RemediatedRec `json:"remediated"`
+	ScanTimes     []time.Time     `json:"scan_times"`
+	Trend         MetricsTrend    `json:"trend"`
 }
 
 // ComputeMetrics replays the log into the metrics doc. It mirrors Rebuild's
@@ -93,10 +112,14 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 	doc := &MetricsDoc{SchemaVersion: MetricsCacheVersion, Cursor: cursor,
 		ComputedAt: time.Now().UTC(),
 		Flow:       []FlowRec{}, Resolve: []ResolveRec{}, Triage: []LagRec{},
-		ScanTimes: scanTimes, Trend: MetricsTrend{Current: map[string]int{}}}
+		Remediated: []RemediatedRec{},
+		ScanTimes:  scanTimes, Trend: MetricsTrend{Current: map[string]int{}}}
 	type liveRec struct {
 		first      time.Time
 		sev        string
+		rule       string
+		scanner    string
+		locs       []Location
 		actionable bool // open or confirmed – the posture view's counting rule
 	}
 	live := map[string]*liveRec{}
@@ -144,14 +167,18 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 
 		switch en.Kind {
 		case events.Detected:
-			if _, ok := live[en.Fingerprint]; ok {
-				continue // re-detection of a live finding: a location add, not a new one
-			}
 			d, ok := en.Payload().(events.DetectedData)
 			if !ok {
 				return nil, &ParseError{File: en.File, Err: fmt.Errorf("detected payload mismatch")}
 			}
-			live[en.Fingerprint] = &liveRec{first: en.TS.UTC(), sev: string(d.Severity), actionable: true}
+			if lr, ok := live[en.Fingerprint]; ok {
+				// re-detection of a live finding: a location add, not a new one
+				appendUniqueLoc(&lr.locs, Location{Path: d.Path, Line: d.Line})
+				continue
+			}
+			live[en.Fingerprint] = &liveRec{first: en.TS.UTC(), sev: string(d.Severity),
+				rule: d.Rule, scanner: d.Scanner, locs: []Location{{Path: d.Path, Line: d.Line}},
+				actionable: true}
 			openBySev[string(d.Severity)]++
 			openBySev["total"]++
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "new"})
@@ -159,8 +186,11 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Triaged:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("triaged references unknown fingerprint %s", short(en.Fingerprint))}
+				// Stale verdict for a finding the replay no longer knows
+				// (e.g. remediated and re-baselined earlier). It cannot
+				// affect any aggregate, so skip it; the log is the source
+				// of truth and malformed input still errors below.
+				continue
 			}
 			d, ok := en.Payload().(events.TriagedData)
 			if !ok {
@@ -177,8 +207,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Suppressed:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("suppressed references unknown fingerprint %s", short(en.Fingerprint))}
+				continue // stale verdict: cannot affect any aggregate
 			}
 			setActionable(lr, false)
 			delete(live, en.Fingerprint)
@@ -186,8 +215,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Deferred:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("deferred references unknown fingerprint %s", short(en.Fingerprint))}
+				continue // stale verdict: cannot affect any aggregate
 			}
 			setActionable(lr, false)
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "deferred"})
@@ -195,14 +223,21 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		case events.Remediated:
 			lr, ok := live[en.Fingerprint]
 			if !ok {
-				return nil, &ParseError{File: en.File,
-					Err: fmt.Errorf("remediated references unknown fingerprint %s", short(en.Fingerprint))}
+				continue // stale remediation: no live finding, no flow record
+			}
+			d, ok := en.Payload().(events.RemediatedData)
+			if !ok {
+				return nil, &ParseError{File: en.File, Err: fmt.Errorf("remediated payload mismatch")}
 			}
 			setActionable(lr, false)
 			delete(live, en.Fingerprint)
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "fixed"})
 			doc.Resolve = append(doc.Resolve, ResolveRec{TS: en.TS.UTC(),
 				Actor: string(en.Actor), Hours: hours(lr.first, en.TS.UTC())})
+			doc.Remediated = append(doc.Remediated, RemediatedRec{Fingerprint: en.Fingerprint,
+				Rule: lr.rule, Severity: lr.sev, Scanner: lr.scanner, Locations: lr.locs,
+				Reason: d.Reason, Actor: string(en.Actor),
+				DetectedAt: lr.first, RemediatedAt: en.TS.UTC()})
 
 		case events.Raised, events.Resolved, events.Rebaselined, events.Surfaced:
 			// nothing aggregate-relevant; surfaced already marked a scan end

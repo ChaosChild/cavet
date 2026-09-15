@@ -98,9 +98,14 @@ func TestOverview(t *testing.T) {
 		Open      map[string]int        `json:"open"`
 		Trend     map[string]int        `json:"trend"`
 		Oldest    map[string]*time.Time `json:"oldest"`
-		Baseline  int                   `json:"baseline"`
-		OpenItems int                   `json:"open_items"`
-		Scanners  []string              `json:"scanners"`
+		Triaged   struct {
+			Fixed     int `json:"fixed"`
+			Dismissed int `json:"dismissed"`
+			Deferred  int `json:"deferred"`
+		} `json:"triaged"`
+		Baseline  int              `json:"baseline"`
+		OpenItems int              `json:"open_items"`
+		Scanners  []string         `json:"scanners"`
 		LastScan  *struct {
 			Scope string `json:"scope"`
 		} `json:"last_scan"`
@@ -111,6 +116,10 @@ func TestOverview(t *testing.T) {
 	// Actionable: only the confirmed high remains (A dismissed, C remediated).
 	if o.Open["total"] != 1 || o.Open["high"] != 1 || o.Open["critical"] != 0 {
 		t.Errorf("open = %v", o.Open)
+	}
+	// All-time verdict tally: A dismissed, C remediated (fixed), none deferred.
+	if o.Triaged.Fixed != 1 || o.Triaged.Dismissed != 1 || o.Triaged.Deferred != 0 {
+		t.Errorf("triaged = %+v", o.Triaged)
 	}
 	// Trend vs the snapshot after scan 1 (3 actionable): total -2.
 	if o.Trend["total"] != -2 || o.Trend["critical"] != -1 || o.Trend["medium"] != -1 || o.Trend["high"] != 0 {
@@ -127,6 +136,39 @@ func TestOverview(t *testing.T) {
 	}
 	if o.Oldest["high"] == nil {
 		t.Errorf("oldest high missing: %v", o.Oldest)
+	}
+}
+
+// An unexpected severity must not add a stray key to open or oldest; the
+// finding still counts toward total (api.go overview guard).
+func TestOverviewUnknownSeverityNoStrayKeys(t *testing.T) {
+	s := fixture(t)
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Findings = append(st.Findings, &store.Finding{
+		Fingerprint: strings.Repeat("d4", 32), Severity: "catastrophic",
+		Status: "open", DetectedAt: time.Now().UTC(), LastSeen: time.Now().UTC(),
+	})
+	if err := s.WriteState(st); err != nil {
+		t.Fatal(err)
+	}
+	var o struct {
+		Open   map[string]int        `json:"open"`
+		Oldest map[string]*time.Time `json:"oldest"`
+	}
+	if code := getJSON(t, New(s).Handler(), "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	if o.Open["total"] != 2 || o.Open["high"] != 1 {
+		t.Errorf("open = %v", o.Open)
+	}
+	if _, ok := o.Open["catastrophic"]; ok {
+		t.Errorf("stray open key: %v", o.Open)
+	}
+	if _, ok := o.Oldest["catastrophic"]; ok {
+		t.Errorf("stray oldest key: %v", o.Oldest)
 	}
 }
 
@@ -227,6 +269,139 @@ func TestFindingDetailHistory(t *testing.T) {
 	}
 }
 
+// Bucket math (serve-task-2): the final bucket is the current partial period,
+// so the last label reads "now" and the one before it counts one whole period
+// back; an event dated now lands in that final bucket.
+func TestMetricsBucketsEndAtCurrentPeriod(t *testing.T) {
+	now := time.Now().UTC()
+	for period, n := range bucketCounts {
+		starts := bucketStarts(now, period, n)
+		if len(starts) != n {
+			t.Fatalf("%s: %d starts, want %d", period, len(starts), n)
+		}
+		if !starts[n-1].Equal(periodStart(now, period)) {
+			t.Errorf("%s: last bucket starts %v, want the current partial period %v",
+				period, starts[n-1], periodStart(now, period))
+		}
+		if got := bucketOf(now, starts); got != n-1 {
+			t.Errorf("%s: now lands in bucket %d, want %d", period, got, n-1)
+		}
+	}
+	labels := metricLabels("weeks", 38)
+	if labels[len(labels)-1] != "now" || labels[len(labels)-2] != "-1w" || labels[0] != "-37w" {
+		t.Errorf("labels = %v…%v, want -37w…-1w,now", labels[0], labels[len(labels)-1])
+	}
+	var m struct {
+		Count  int              `json:"count"`
+		Labels []string         `json:"labels"`
+		Flow   map[string][]int `json:"flow"`
+	}
+	if code := getJSON(t, New(fixture(t)).Handler(), "/api/metrics?period=weeks", &m); code != http.StatusOK {
+		t.Fatalf("metrics status %d", code)
+	}
+	if m.Labels == nil || len(m.Labels) != m.Count || len(m.Flow["new"]) != m.Count {
+		t.Errorf("series lengths: labels %d flow %d count %d", len(m.Labels), len(m.Flow["new"]), m.Count)
+	}
+	if m.Labels[len(m.Labels)-1] != "now" {
+		t.Errorf("last label = %q, want now", m.Labels[len(m.Labels)-1])
+	}
+}
+
+// Resolved rows come from the metrics cache (state drops remediated findings);
+// the detail endpoint resolves the fingerprint the row carries.
+func TestFindingsResolvedAndAll(t *testing.T) {
+	h := New(fixture(t)).Handler()
+	var res struct {
+		Rows  []map[string]any `json:"rows"`
+		Total int              `json:"total"`
+	}
+	if code := getJSON(t, h, "/api/findings?status=resolved", &res); code != http.StatusOK {
+		t.Fatalf("resolved status %d", code)
+	}
+	if res.Total != 1 || len(res.Rows) != 1 {
+		t.Fatalf("resolved total = %d rows %d, want 1/1", res.Total, len(res.Rows))
+	}
+	row := res.Rows[0]
+	if row["id"] != fpC() || row["status"] != "resolved" || row["rule"] != "go.err" ||
+		row["scanner"] != "opengrep" || row["severity"] != "medium" {
+		t.Errorf("resolved row = %v", row)
+	}
+	// Resolved rows carry the remediated event's reason and actor as the verdict.
+	if row["verdict"] != "fixed upstream" || row["verdict_by"] != "agent" {
+		t.Errorf("resolved row verdict = %v by %v, want \"fixed upstream\" by agent",
+			row["verdict"], row["verdict_by"])
+	}
+	// Resolved rows carry the locations the replay captured.
+	if locs, ok := row["locations"].([]any); !ok || len(locs) != 1 {
+		t.Errorf("resolved row locations = %v, want one entry", row["locations"])
+	}
+
+	var all struct {
+		Rows []struct {
+			ID       string    `json:"id"`
+			Status   string    `json:"status"`
+			LastSeen time.Time `json:"last_seen"`
+		} `json:"rows"`
+		Total int `json:"total"`
+	}
+	if code := getJSON(t, h, "/api/findings?status=all&per_page=100", &all); code != http.StatusOK {
+		t.Fatalf("all status %d", code)
+	}
+	// Current findings of every status (dismissed A, confirmed B) plus the
+	// resolved row, ordered by most recent activity descending.
+	if all.Total != 3 {
+		t.Fatalf("all total = %d, want 3", all.Total)
+	}
+	statuses := map[string]bool{}
+	for i, r := range all.Rows {
+		statuses[r.Status] = true
+		if i > 0 && r.LastSeen.After(all.Rows[i-1].LastSeen) {
+			t.Errorf("row %d more recent than row %d: %v > %v", i, i-1, r.LastSeen, all.Rows[i-1].LastSeen)
+		}
+	}
+	if !statuses["dismissed"] || !statuses["confirmed"] || !statuses["resolved"] {
+		t.Errorf("all statuses = %v, want dismissed+confirmed+resolved", statuses)
+	}
+
+	var d struct {
+		Finding struct {
+			Fingerprint string           `json:"fingerprint"`
+			Status      string           `json:"status"`
+			RuleID      string           `json:"rule_id"`
+			Locations   []store.Location `json:"locations"`
+			Verdict     *store.Verdict   `json:"verdict"`
+		} `json:"finding"`
+		History []struct {
+			Kind  string `json:"kind"`
+			Actor string `json:"actor"`
+		} `json:"history"`
+	}
+	if code := getJSON(t, h, "/api/findings/"+fpC(), &d); code != http.StatusOK {
+		t.Fatalf("remediated detail status %d", code)
+	}
+	if d.Finding.Fingerprint != fpC() || d.Finding.Status != "resolved" || d.Finding.RuleID != "go.err" {
+		t.Errorf("remediated detail finding = %+v", d.Finding)
+	}
+	// The remediated detail carries the remediation verdict from the cache.
+	if d.Finding.Verdict == nil || d.Finding.Verdict.Reason != "fixed upstream" ||
+		d.Finding.Verdict.By != "agent" {
+		t.Errorf("remediated detail verdict = %+v, want \"fixed upstream\" by agent", d.Finding.Verdict)
+	}
+	if len(d.Finding.Locations) != 1 || d.Finding.Locations[0] != (store.Location{Path: "b.go", Line: 1}) {
+		t.Errorf("remediated detail locations = %v, want b.go:1", d.Finding.Locations)
+	}
+	kinds := map[string]bool{}
+	for _, ev := range d.History {
+		kinds[ev.Kind] = true
+		if ev.Kind == "remediated" && ev.Actor != "agent" {
+			t.Errorf("remediated event actor = %q, want agent", ev.Actor)
+		}
+	}
+	if !kinds["detected"] || !kinds["remediated"] {
+		t.Errorf("remediated history kinds = %v, want detected and remediated", kinds)
+	}
+}
+
 func TestItems(t *testing.T) {
 	h := New(fixture(t)).Handler()
 	var d struct {
@@ -251,6 +426,7 @@ func TestMetricsBuckets(t *testing.T) {
 		Remed  []*float64          `json:"remediate_median_hours"`
 		Actors map[string]int      `json:"actors"`
 		Avg    map[string]*float64 `json:"resolve_avg_hours"`
+		Median map[string]*float64 `json:"resolve_median_hours"`
 	}
 	if code := getJSON(t, h, "/api/metrics?period=weeks", &m); code != http.StatusOK {
 		t.Fatalf("metrics status %d", code)
@@ -276,6 +452,11 @@ func TestMetricsBuckets(t *testing.T) {
 	}
 	if m.Avg["agent"] == nil || *m.Avg["agent"] != 24 {
 		t.Errorf("avg resolve = %v", m.Avg)
+	}
+	// The remediation card reads per-actor medians; the single resolve record
+	// has both mean and median 24.
+	if m.Median["agent"] == nil || *m.Median["agent"] != 24 {
+		t.Errorf("median resolve = %v", m.Median)
 	}
 	// The only non-null triage median is 1h (the dismissal 1h after detection;
 	// the confirmation sits at 2h in the next-to-last week bucket... both are
@@ -308,6 +489,72 @@ func TestMetricsAbsentIs503(t *testing.T) {
 	New(s).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/metrics", nil))
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503", rec.Code)
+	}
+}
+
+// Card vs filter reconciliation (field-test finding): on a mixed fixture the
+// overview's per-severity actionable counts must equal the findings endpoint's
+// actionable-filtered per-severity row counts, by construction.
+func TestOverviewMatchesActionableFilter(t *testing.T) {
+	s := fixture(t)
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	more := []struct {
+		fp, sev, status string
+	}{
+		{strings.Repeat("d4", 32), "critical", "open"},
+		{strings.Repeat("e5", 32), "medium", "confirmed"},
+		{strings.Repeat("f6", 32), "low", "deferred"},
+		{strings.Repeat("07", 32), "info", "dismissed"},
+		{strings.Repeat("18", 32), "info", "open"},
+		{"", "info", "open"}, // empty severity folds to info
+	}
+	for i, m := range more {
+		fp := m.fp
+		if fp == "" {
+			fp = strings.Repeat("28", 32)
+			more[i].fp = fp
+		}
+		st.Findings = append(st.Findings, &store.Finding{Fingerprint: fp, Severity: m.sev,
+			Status: m.status, DetectedAt: now, LastSeen: now})
+	}
+	if err := s.WriteState(st); err != nil {
+		t.Fatal(err)
+	}
+
+	h := New(s).Handler()
+	var o struct {
+		Open map[string]int `json:"open"`
+	}
+	if code := getJSON(t, h, "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	var act struct {
+		Total int `json:"total"`
+	}
+	getJSON(t, h, "/api/findings?status=actionable&per_page=100", &act)
+	if act.Total != o.Open["total"] {
+		t.Errorf("actionable total %d != overview total %d", act.Total, o.Open["total"])
+	}
+	for _, sev := range []string{"critical", "high", "medium", "low", "info"} {
+		var fr struct {
+			Total int `json:"total"`
+		}
+		getJSON(t, h, "/api/findings?status=actionable&severity="+sev+"&per_page=100", &fr)
+		if fr.Total != o.Open[sev] {
+			t.Errorf("severity %s: actionable rows %d != overview card %d", sev, fr.Total, o.Open[sev])
+		}
+	}
+	// Sum of the per-severity cards equals the total card.
+	sum := 0
+	for _, sev := range []string{"critical", "high", "medium", "low", "info"} {
+		sum += o.Open[sev]
+	}
+	if sum != o.Open["total"] {
+		t.Errorf("per-severity sum %d != total %d", sum, o.Open["total"])
 	}
 }
 
@@ -351,10 +598,17 @@ func TestIndexAndAssetServed(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "security posture") {
 		t.Errorf("index status %d", rec.Code)
 	}
+	// Charts are inline SVG drawn from /api/metrics; the page's only script is
+	// app.js (Chart.js was dropped with the serve-mock conversion).
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/app.js", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "/api/findings") {
+		t.Errorf("app.js asset status %d", rec.Code)
+	}
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/assets/chart.umd.js", nil))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Chart.js v4") {
-		t.Errorf("chart asset status %d", rec.Code)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("removed chart asset status = %d, want 404", rec.Code)
 	}
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))

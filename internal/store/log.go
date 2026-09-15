@@ -21,7 +21,7 @@ type ParseError struct {
 }
 
 func (p *ParseError) Error() string {
-	return fmt.Sprintf("%s:%d: %v (log is source of truth; repair manually)", p.File, p.Line, p.Err)
+	return fmt.Sprintf("%s:%d: %v (log is source of truth; run 'cavet rebuild' to locate the line)", p.File, p.Line, p.Err)
 }
 
 // Enriched carries provenance through replay.

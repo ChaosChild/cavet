@@ -40,8 +40,8 @@ session. **Nothing blocks.** Everything advises. The agent or the operator
 chooses to remediate, defer, or dismiss. Teams that need enforcement build it
 themselves around these tools.
 
-**Status:** v0.2.0. The CLI, the multi-arch engine image, installers for seven
-harnesses, and CI are all here and working;
+**Status:** v0.2.1. The CLI, the multi-arch engine image, installers for seven
+harnesses, the serve dashboard, and CI are all here and working;
 [SPECIFICATION.md](docs/SPECIFICATION.md) remains the design of record.
 
 <p><img src="docs/scan-demo.gif" alt="cavet staged scan finds a planted key, the finding is dismissed with a recorded reason, and the audit trail shows every event" width="840"></p>
@@ -241,6 +241,32 @@ Exit codes are informational, never gating: `0` clean (or nothing staged),
 `1` findings present, `2` error. `cavet --help` lists everything;
 `cavet describe --json` emits the machine contract for tooling that wants it.
 
+### `cavet serve`
+
+```sh
+cavet serve             # add --port to change it (default 8765)
+```
+
+<p><img src="docs/serve-dashboard.png" alt="cavet serve dashboard: posture strip by severity, verdict flow and remediation charts, findings table with filters, and open items" width="840"></p>
+
+Opens the dashboard at `http://127.0.0.1:8765`: a posture strip by severity,
+findings with filters and pagination, per-finding verdicts and history, open
+items, and trend charts with hover read-outs. The bind address is
+`127.0.0.1`, hard-coded: the dashboard has no authentication, so it must
+never be reachable off-host. Remote access is the operator's front door, not
+cavet's – an SSH tunnel (`ssh -L 8765:127.0.0.1:8765`) or an HTTPS proxy you
+trust, in front of the loopback listener. cavet itself never listens beyond
+loopback.
+
+Data loads when the page opens and on the manual Refresh button; there is no
+polling. Every read goes against `state/` as it exists on disk, so a scan or
+triage in another terminal shows up on the next Refresh. Charts read a
+precomputed metrics cache (`state/metrics.json`), rebuilt inside the scan and
+rebuild critical sections and recomputed at serve start when stale, so no
+request replays the log. The charts are inline SVG drawn in the browser from
+that cache; the page's only network dependency is the Google Fonts
+stylesheet, and everything else is served by cavet itself.
+
 ### Advanced: other install channels
 
 <details>
@@ -326,6 +352,7 @@ scoop install cavet
 | `engine` | Control the long-lived scanner container; `prune` removes containers whose repository is gone |
 | `rebaseline` | After a deliberate engine change: regenerate the baseline |
 | `rebuild` | Regenerate `state/` from the log (the source of truth) |
+| `serve` | Dashboard on loopback: posture, findings, metrics (`--port`) |
 | `describe` | Machine contract for third-party installers |
 | `update` | Update the cavet binary in place from GitHub releases, checksum and Sigstore verified |
 
@@ -358,7 +385,6 @@ to sell something built on this:
 | Component | Licence |
 |---|---|
 | `cavet` CLI, skills, subagent, installers | MIT |
-| Chart.js *(vendored dashboard bundle, `internal/serve/assets/`)* | MIT |
 | Gitleaks | MIT |
 | Trivy | Apache-2.0 |
 | Checkov *(optional, off by default)* | Apache-2.0 |

@@ -52,6 +52,14 @@ metrics need captured at event time.
 
 ## Closed
 
+### `cavet serve` dashboard (2026-09-15, v0.2.1)
+
+Shipped loopback-only (the dashboard has no auth, so cavet never listens
+beyond `127.0.0.1`), read-only, load-on-open plus manual refresh. Carries a
+severity posture strip, inline-SVG trend charts with hover read-outs over the
+precomputed metrics cache, server-side filtered findings with per-finding
+detail and event history, and open items.
+
 ### Native Docker image scanning (2026-09-10, v0.2.0)
 
 `cavet scan --image` builds configured images host-side via `docker buildx`
