@@ -125,13 +125,20 @@ func parseResult(scanner, target string, rules []sarifRule, byID map[string]int,
 	if loc.ArtifactLocation.URI == "" || loc.Region.StartLine < 1 {
 		return Finding{}, fmt.Sprintf("%s: rule %s has an incomplete location, row dropped", scanner, res.RuleID)
 	}
+	// Checkov strips the leading slash from scanned paths ("workspace/main.tf",
+	// captured from engine checkov 3.3.16); restore it so stripTarget can
+	// deduct both /workspace and /scan/N targets.
+	uri := loc.ArtifactLocation.URI
+	if scanner == "checkov" && target != "" && !strings.HasPrefix(uri, "/") {
+		uri = "/" + uri
+	}
 	// A missing rule degrades to empty metadata, never a failure (cli-spec §9).
 	return Finding{
 		Scanner:  scanner,
 		RuleID:   res.RuleID,
 		CWE:      cweOf(rule),
 		Severity: NormalizeSeverity(scanner, rawSeverity(scanner, rule)),
-		Path:     stripTarget(loc.ArtifactLocation.URI, target),
+		Path:     stripTarget(uri, target),
 		Line:     loc.Region.StartLine,
 		Desc:     oneLine(descriptionFor(scanner, res, rule)),
 		Snippet:  loc.Region.Snippet.Text,
@@ -198,7 +205,7 @@ func descriptionFor(scanner string, res sarifResult, rule sarifRule) string {
 			return msg[:i]
 		}
 		return msg
-	default: // gitleaks, opengrep: the result message carries the finding text
+		default: // gitleaks, opengrep, checkov: the result message carries the finding text
 		if msg != "" {
 			return msg
 		}

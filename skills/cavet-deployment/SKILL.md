@@ -46,7 +46,8 @@ Depth per platform: `references/containers.md`, `references/ci-cd.md`,
 ## Then scan
 
 Run `cavet-triage` with phase deploy. IaC scanning is in the default scanner set
-(Trivy). If the operator has enabled Checkov, it runs too.
+(Trivy). If the operator has enabled Checkov (`scanners.checkov: true`), it runs too,
+on staged and full scans alike.
 
 **Container image scanning is opt-in** because it mounts the Docker socket into the
 engine — a real privilege escalation. Do not enable it on your own; tell the operator

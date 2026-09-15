@@ -197,6 +197,78 @@ func TestRealEngineImageScan(t *testing.T) {
 	}
 }
 
+// TestRealEngineCheckovStagedScan proves the opt-in checkov tier end to end
+// against the real engine: checkov 3.3.16 in the image, its self-named SARIF
+// file copied out, slash-stripped uris projected repo-relative, and a CKV_
+// finding folded into state with the checkov scanner identity. Skipped like
+// the other real-engine tests without a daemon or the dev image.
+func TestRealEngineCheckovStagedScan(t *testing.T) {
+	root := t.TempDir()
+	copyFixture(t, root)
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"add", "-A"},
+		{"-c", "user.email=cavet@test", "-c", "user.name=cavet", "commit", "--quiet", "-m", "seed"},
+	} {
+		if out, err := gitRun(root, args...); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	tf := "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"example-data\"\n  acl    = \"public-read\"\n}\n"
+	if err := os.WriteFile(filepath.Join(root, "main.tf"), []byte(tf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := gitRun(root, "add", "main.tf"); err != nil {
+		t.Fatalf("git add: %v\n%s", err, out)
+	}
+
+	c := engineclient.New("cavet-engine:dev", "", root)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	t.Cleanup(func() {
+		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccancel()
+		_ = c.Remove(cctx)
+	})
+	if err := c.Ping(ctx); err != nil {
+		t.Skipf("docker daemon unreachable: %v", err)
+	}
+	if err := c.ImagePresent(ctx); err != nil {
+		t.Skipf("dev image not built: %v", err)
+	}
+	if err := c.EnsureRunning(ctx); err != nil {
+		t.Fatalf("EnsureRunning: %v", err)
+	}
+
+	s, err := store.Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := Run(ctx, s, c, Options{Scope: ScopeStaged, Checkov: true, Engine: "cavet-engine:dev"})
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	sawCheckov := false
+	for _, row := range res.Rows {
+		if strings.HasPrefix(row.Rule, "CKV_") && row.Path == "main.tf" {
+			sawCheckov = true
+		}
+	}
+	if !sawCheckov {
+		t.Fatalf("public-read bucket must surface a CKV_ finding on main.tf, rows: %+v", res.Rows)
+	}
+	st, err := s.LoadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range st.Findings {
+		if f.OriginatingScanner == "checkov" && strings.HasPrefix(f.RuleID, "CKV_") {
+			return
+		}
+	}
+	t.Fatalf("checkov finding must reach state with its scanner identity, findings: %+v", st.Findings)
+}
+
 // seedWorktreeWithStagedSecret commits the fixture on a main checkout, links
 // a worktree, and stages the planted key inside the worktree — its index
 // lives at main/.git/worktrees/<name>, outside the worktree itself.

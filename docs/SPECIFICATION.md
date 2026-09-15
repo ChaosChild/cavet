@@ -448,10 +448,17 @@ achievable, and SAST becomes an explicit operation.
 | `scan --staged`, `scan --diff <ref>` | Gitleaks + Trivy | **~1.8s** |
 | `scan --full` | Gitleaks + Trivy + Opengrep | ~50s |
 | `scan --staged --deep` | all three | ~50s |
+| any of the above + `scanners.checkov` | + Checkov | + ~2s, scaling with the IaC tree |
 
 `--deep` is the single override, for the operator who wants SAST on a staged scan and
 will wait for it; `config.yaml` can make that the default per repository. There is no
 `--fast` and no `--no-deep` — `--full` is already how you ask for everything.
+
+Checkov is the other per-repository switch (`scanners.checkov`): the second IaC
+scanner joins every filesystem scope where it is enabled, fast tier included, so
+coverage claims stay honest — a clean result with checkov enabled means checkov ran.
+Its secret framework is skipped: secret collection stays with gitleaks and trivy,
+and checkov has nothing to add there but duplicate matched spans.
 
 The fast tier is comfortably better than the 10 seconds originally budgeted, which
 makes the §9 pre-commit trigger genuinely unnoticeable. Deep scans belong to `--full`,
@@ -599,11 +606,14 @@ container:
 | Trivy | 24.0s | **1.2s** |
 | Gitleaks | 0.7s | 0.6s |
 | Opengrep | 11.5s | 11.2s |
+| Checkov | ~4s | ~2s |
 
 Trivy improves 20× once its caches are warm, and Trivy is on the fast path (§5.2), so
 the long-lived container is what makes the fast path fast. Gitleaks was never slow.
 Opengrep gains nothing — its cost is per-invocation rule parsing, not process or cache
-warm-up — which is a further reason SAST does not belong on the fast path.
+warm-up — which is a further reason SAST does not belong on the fast path. Checkov
+gains little either; its ~2s warm figure is a two-file fixture, and the cost scales
+with the IaC tree, which is why it is off by default (§5.2).
 
 - `cavet init` starts it, workspace mounted.
 - Each scan is a `docker exec` into the running container — marginal cost near zero.
@@ -628,7 +638,7 @@ warm-up — which is a further reason SAST does not belong on the fast path.
 | SAST | **Opengrep** | Engine LGPL-2.1; **rules LGPL-2.1 + Commons Clause** | Default engine, deep tier only (§5.2) |
 | Secrets | **Gitleaks** | MIT | Requires git history |
 | SCA, IaC, containers | **Trivy** | Apache-2.0 | One binary, one startup. Container image scanning is a separate opt-in under the distinct `trivy-image` scanner identity (§3.3, §7.6) |
-| IaC *(optional, off by default)* | **Checkov** | Apache-2.0 | Enabled per repository in `config.yaml`; broader IaC coverage than Trivy at a real startup cost |
+| IaC *(optional, off by default)* | **Checkov** | Apache-2.0 | Enabled per repository in `config.yaml`; broader IaC coverage than Trivy at a real startup cost. Secret framework skipped; findings flat medium |
 | VCS | **git** | GPL-2.0 | Read operations, sandboxed |
 
 **Three default scanners, not five.** Trivy covers dependency scanning, IaC
@@ -636,6 +646,11 @@ misconfiguration and container images from one Go binary with one process start,
 is what makes the fast tier (§5.2) achievable. It replaces OSV-Scanner outright.
 Checkov stays in the image for operators who want its wider IaC rule set — it is a
 `config.yaml` switch, off by default, and its cost is paid only by those who choose it.
+Where enabled it behaves like the default scanners: it joins the scope's scanner set
+(§5.2), its runs are exit-code data (its SARIF only ever lands via
+`--output-file-path`, so the strict non-zero-exit contract catches a crashed run
+before a stale report can be reused), and its findings carry the `checkov` scanner
+identity end to end.
 
 **Opengrep's rules are not LGPL, and an earlier draft of this document was wrong to
 say so.** `opengrep-rules/LICENSE` reads:

@@ -177,6 +177,10 @@ func TestSeverityMaps(t *testing.T) {
 		{"opengrep", "warning", "medium"},
 		{"opengrep", "INFO", "info"},
 		{"gitleaks", "", "high"},
+		// Checkov's SARIF marks every failed check "error" without the check's
+		// own severity: no native signal, flat medium (§2.3).
+		{"checkov", "", "medium"},
+		{"checkov", "error", "medium"},
 	}
 	for _, c := range cases {
 		if got := NormalizeSeverity(c.scanner, c.in); got != c.want {
@@ -201,5 +205,60 @@ func TestParseDropsMalformedResultWithWarning(t *testing.T) {
 	}
 	if !strings.Contains(warns[0], "opengrep") || !strings.Contains(warns[0], "r1") {
 		t.Fatalf("warning must name scanner and rule: %q", warns[0])
+	}
+}
+
+func TestParseCheckovFixture(t *testing.T) {
+	// Captured from engine checkov 3.3.16 over a public-bucket main.tf and a
+	// bare Dockerfile, 2026-09-14. URIs arrive with the leading slash
+	// stripped ("workspace/main.tf") for both /workspace and /scan/N targets.
+	fs, warns, err := Parse("checkov", fixture(t, "checkov.sarif"), "/workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warns) != 0 {
+		t.Fatalf("warnings: %v", warns)
+	}
+	if len(fs) != 2 {
+		t.Fatalf("fixture has 2 findings, got %d", len(fs))
+	}
+	if fs[0].RuleID != "CKV_AWS_20" || fs[0].Path != "main.tf" || fs[0].Line != 1 {
+		t.Fatalf("terraform finding wrong: %+v", fs[0])
+	}
+	if fs[1].RuleID != "CKV_DOCKER_3" || fs[1].Path != "Dockerfile" {
+		t.Fatalf("dockerfile finding wrong: %+v", fs[1])
+	}
+	for _, f := range fs {
+		if f.Severity != "medium" {
+			t.Fatalf("checkov findings are flat medium, got %q", f.Severity)
+		}
+		if f.CWE != "" {
+			t.Fatalf("checkov rules carry no CWE tags, got %q", f.CWE)
+		}
+		if strings.TrimSpace(f.Snippet) == "" {
+			t.Fatalf("checkov snippets feed the fingerprint, got empty on %+v", f)
+		}
+		if strings.Contains(f.Desc, "\n") {
+			t.Errorf("description must be one line: %q", f.Desc)
+		}
+	}
+}
+
+func TestParseCheckovRestoresSlashForScanDirTargets(t *testing.T) {
+	// Staged scans target /scan/N, not /workspace; the restored slash must
+	// make the scan-dir prefix deductable there too.
+	doc := []byte(`{"runs":[{"tool":{"driver":{"rules":[{"id":"CKV_AWS_20","defaultConfiguration":{"level":"error"}}]}},"results":[
+		{"ruleId":"CKV_AWS_20","ruleIndex":0,"level":"error","message":{"text":"public read"},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"scan/2/infra/main.tf"},"region":{"startLine":3,"snippet":{"text":"acl"}}}}]}
+	]}]}`)
+	fs, warns, err := Parse("checkov", doc, "/scan/2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warns) != 0 || len(fs) != 1 {
+		t.Fatalf("want 1 finding, no warnings, got %d, %v", len(fs), warns)
+	}
+	if fs[0].Path != "infra/main.tf" {
+		t.Fatalf("scan-dir prefix not stripped: %q", fs[0].Path)
 	}
 }
