@@ -40,8 +40,8 @@ session. **Nothing blocks.** Everything advises. The agent or the operator
 chooses to remediate, defer, or dismiss. Teams that need enforcement build it
 themselves around these tools.
 
-**Status:** v0.2.0. The CLI, the multi-arch engine image, installers for seven
-harnesses, and CI are all here and working;
+**Status:** v0.2.1. The CLI, the multi-arch engine image, installers for seven
+harnesses, the serve dashboard, and CI are all here and working;
 [SPECIFICATION.md](docs/SPECIFICATION.md) remains the design of record.
 
 <p><img src="docs/scan-demo.gif" alt="cavet staged scan finds a planted key, the finding is dismissed with a recorded reason, and the audit trail shows every event" width="840"></p>
