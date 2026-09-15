@@ -15,8 +15,9 @@ import (
 // with the file on disk marks the cache stale (serve-task-1: full recompute is
 // always correct, incremental is never attempted). Version 2 adds the
 // Remediated records (serve-task-2: resolved rows come from the cache);
-// version 3 adds their locations.
-const MetricsCacheVersion = 3
+// version 3 adds their locations; version 4 adds the remediation reason and
+// actor (the verdict text the resolved rows and detail panel show).
+const MetricsCacheVersion = 4
 
 // FlowRec is one verdict-flow event, bucketed serve-side by its timestamp.
 // Kind is new|fixed|dismissed|deferred.
@@ -49,6 +50,8 @@ type RemediatedRec struct {
 	Severity     string     `json:"severity"`
 	Scanner      string     `json:"scanner"`
 	Locations    []Location `json:"locations"`
+	Reason       string     `json:"reason"`
+	Actor        string     `json:"actor"`
 	DetectedAt   time.Time  `json:"detected_at"`
 	RemediatedAt time.Time  `json:"remediated_at"`
 }
@@ -222,6 +225,10 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 			if !ok {
 				continue // stale remediation: no live finding, no flow record
 			}
+			d, ok := en.Payload().(events.RemediatedData)
+			if !ok {
+				return nil, &ParseError{File: en.File, Err: fmt.Errorf("remediated payload mismatch")}
+			}
 			setActionable(lr, false)
 			delete(live, en.Fingerprint)
 			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "fixed"})
@@ -229,6 +236,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 				Actor: string(en.Actor), Hours: hours(lr.first, en.TS.UTC())})
 			doc.Remediated = append(doc.Remediated, RemediatedRec{Fingerprint: en.Fingerprint,
 				Rule: lr.rule, Severity: lr.sev, Scanner: lr.scanner, Locations: lr.locs,
+				Reason: d.Reason, Actor: string(en.Actor),
 				DetectedAt: lr.first, RemediatedAt: en.TS.UTC()})
 
 		case events.Raised, events.Resolved, events.Rebaselined, events.Surfaced:

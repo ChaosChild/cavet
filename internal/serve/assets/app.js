@@ -341,8 +341,12 @@ async function openDetail(id) {
     document.getElementById('detail-locations').innerHTML = (f.locations || [])
       .map(l => `<li>${esc(l.path)}:${esc(String(l.line ?? '?'))}</li>`).join('') ||
       '<li class="opacity-50">–</li>';
-    document.getElementById('detail-verdict').textContent = f.verdict
-      ? `${f.verdict.reason} · ${f.verdict.confidence} confidence · by ${f.verdict.by} · ${fmtStamp(f.verdict.at)}`
+    // Triage verdicts carry confidence; remediation verdicts (resolved
+    // findings) do not, so only non-empty segments join the line.
+    const v = f.verdict;
+    document.getElementById('detail-verdict').textContent = v
+      ? [v.reason, v.confidence && v.confidence + ' confidence', v.by && 'by ' + v.by,
+         fmtStamp(v.at)].filter(Boolean).join(' · ')
       : '–';
     document.getElementById('detail-history').innerHTML = (d.history || []).map(h => `
       <li><span class="mono opacity-50">${fmtStamp(h.ts)}</span> ${esc(h.kind)}

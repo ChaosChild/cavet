@@ -126,6 +126,10 @@ func TestComputeMetricsFromSyntheticLog(t *testing.T) {
 		rec.Scanner != "opengrep" || !rec.DetectedAt.Equal(t1) || !rec.RemediatedAt.Equal(t4) {
 		t.Errorf("remediated rec = %+v, want fpC/go.err/medium/opengrep t1..t4", rec)
 	}
+	// The remediated event's reason and actor are the resolved rows' verdict.
+	if rec.Reason != "fixed" || rec.Actor != "agent" {
+		t.Errorf("remediated rec verdict = %q by %q, want fixed by agent", rec.Reason, rec.Actor)
+	}
 }
 
 // The remediated record snapshots the finding's locations at remediation time:

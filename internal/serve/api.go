@@ -193,10 +193,12 @@ func matchesScanner(f *store.Finding, sc string) bool {
 
 // resolvedRowOf shapes a cache RemediatedRec as a findings-table row: the ID
 // is the fingerprint (the detail endpoint accepts it), last_seen carries the
-// remediation time as the finding's most recent activity.
+// remediation time as the finding's most recent activity, and the verdict
+// fields carry the remediated event's reason and actor.
 func resolvedRowOf(r store.RemediatedRec) findingRow {
 	return findingRow{ID: r.Fingerprint, Severity: r.Severity, Rule: r.Rule,
 		Scanner: r.Scanner, Locations: r.Locations, Status: "resolved",
+		Verdict: r.Reason, VerdictBy: r.Actor, VerdictAt: &r.RemediatedAt,
 		DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
 }
 
@@ -370,7 +372,9 @@ func (s *Server) handleFindingDetail(w http.ResponseWriter, r *http.Request) {
 					r := doc.Remediated[i]
 					f = &store.Finding{Fingerprint: r.Fingerprint, Severity: r.Severity,
 						RuleID: r.Rule, OriginatingScanner: r.Scanner, Status: "resolved",
-						Locations: r.Locations, DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt}
+						Locations: r.Locations, DetectedAt: r.DetectedAt, LastSeen: r.RemediatedAt,
+						Verdict: &store.Verdict{Verdict: "remediated", Reason: r.Reason,
+							By: r.Actor, At: r.RemediatedAt}}
 					break
 				}
 			}

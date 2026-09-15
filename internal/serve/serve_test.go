@@ -317,6 +317,11 @@ func TestFindingsResolvedAndAll(t *testing.T) {
 		row["scanner"] != "opengrep" || row["severity"] != "medium" {
 		t.Errorf("resolved row = %v", row)
 	}
+	// Resolved rows carry the remediated event's reason and actor as the verdict.
+	if row["verdict"] != "fixed upstream" || row["verdict_by"] != "agent" {
+		t.Errorf("resolved row verdict = %v by %v, want \"fixed upstream\" by agent",
+			row["verdict"], row["verdict_by"])
+	}
 	// Resolved rows carry the locations the replay captured.
 	if locs, ok := row["locations"].([]any); !ok || len(locs) != 1 {
 		t.Errorf("resolved row locations = %v, want one entry", row["locations"])
@@ -355,6 +360,7 @@ func TestFindingsResolvedAndAll(t *testing.T) {
 			Status      string           `json:"status"`
 			RuleID      string           `json:"rule_id"`
 			Locations   []store.Location `json:"locations"`
+			Verdict     *store.Verdict   `json:"verdict"`
 		} `json:"finding"`
 		History []struct {
 			Kind  string `json:"kind"`
@@ -366,6 +372,11 @@ func TestFindingsResolvedAndAll(t *testing.T) {
 	}
 	if d.Finding.Fingerprint != fpC() || d.Finding.Status != "resolved" || d.Finding.RuleID != "go.err" {
 		t.Errorf("remediated detail finding = %+v", d.Finding)
+	}
+	// The remediated detail carries the remediation verdict from the cache.
+	if d.Finding.Verdict == nil || d.Finding.Verdict.Reason != "fixed upstream" ||
+		d.Finding.Verdict.By != "agent" {
+		t.Errorf("remediated detail verdict = %+v, want \"fixed upstream\" by agent", d.Finding.Verdict)
 	}
 	if len(d.Finding.Locations) != 1 || d.Finding.Locations[0] != (store.Location{Path: "b.go", Line: 1}) {
 		t.Errorf("remediated detail locations = %v, want b.go:1", d.Finding.Locations)
