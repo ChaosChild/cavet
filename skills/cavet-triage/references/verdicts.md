@@ -58,6 +58,15 @@ before launch" (that is a deferral, not a dismissal — use `cavet defer`).
 ## Container images (only if enabled)
 Treat as SCA plus base-image freshness. "We'll rebuild later" is a deferral.
 
+## Already fixed
+The vulnerable code is gone in what you scanned: the fix is in the branch or commit
+under review. That is remediation, not a verdict, so record nothing. `remediated`
+is measured, not asserted: a scan that runs the originating scanner and covers the
+locations records it once the code is gone, and that is the only way a fix enters
+the log. A dismissal recorded in its place misfiles a fix as an accepted risk and
+keeps the finding counted as dismissed in scan output and dashboards until that
+scan runs.
+
 ## Always
 - Every verdict has a reason a stranger could evaluate.
 - Prefer confirm-low over dismiss-low when uncertain: uncertainty should be visible
