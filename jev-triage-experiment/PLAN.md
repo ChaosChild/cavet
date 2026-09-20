@@ -1,0 +1,201 @@
+# Jev triage experiment: execution plan
+
+> **Experiment only.** This directory lives on branch `experiment/typesafe-jev`
+> and is committed for provenance, but it must never reach `main`: if this branch
+> is ever merged, drop this directory in the merge. Binaries built for this
+> experiment are named `cavet-jev` and are never installed as `cavet`, so agents
+> on real projects never pick up an experimentation binary. No PRs from this
+> branch. Jev credentials live in gitignored `.env` (`TYPESAFE_API_KEY`) and are
+> never committed.
+
+Status: planned 2026-09-20, agreed in a Lavish review session. Local review
+artifact (gitignored): `.lavish/jev-triage-spike.html`. Background reading:
+*A Gut Feeling With a Type Signature*,
+<https://migatchev.co.za/writing/a-gut-feeling-with-a-type-signature>.
+
+## 1. Question
+
+Can TypeSafe's Jev, a System One model that answers narrow questions with typed
+answers and probabilities, do a useful first pass over cavet scan findings, and
+can its mistakes be made visible, diagnosable and fixable?
+
+Today the scan finishes and a coding-harness agent with the cavet-triage skill
+reads every finding. Cost and latency scale with the queue, and most of the
+queue is nothing. The hypothesis: a Jev pass answers the cheap relevance
+question per finding in milliseconds at a fraction of a cent, and the agent's
+attention goes to the pile that matters.
+
+This is research, not a feature build. The deliverable is a comprehensive
+report: what we tried, what worked, what did not, what we changed in response,
+with the full request/response pairs behind every claim. Taking findings off
+the agent's queue (gating) is parked until Jev is publicly available.
+
+## 2. The constraint that shapes the design
+
+Wrong escalations are cheap: a human sees them by definition. Wrong dismissals
+are silent: nobody looks. Confidence gating only covers the band where Jev is
+unsure; it does nothing about confident-and-wrong, and a calibrated 0.99 is
+wrong by design some of the time. Volume turns "some of the time" into a
+count. Every stage below is ordered so that measurement is never contaminated
+by the thing being measured: in this experiment nothing is ever suppressed,
+the agent sees everything, always, and a Jev mistake can cost an incorrect log
+line, never a missed vulnerability.
+
+## 3. Ground rules
+
+- Branch `experiment/typesafe-jev`, branched from main at a3df435. No PRs, no
+  merges. Binaries as `cavet-jev`, never installed as `cavet`.
+- The benchmark corpus is a separate, private benchmark project maintained
+  outside this repository. It is a live research site (phase 1 running) and
+  strictly read-only from this experiment. Its repos are addressed only as
+  `corpus-1` to `corpus-5`. Everything derived from it, including
+  request/response pairs and this experiment's report, keeps the corpus-N
+  addressing and that project's de-identification rules.
+- Every Jev call records the model version actually served (for example
+  `jev-1.13.0` for `jev-latest`). `jev-latest` moves underneath us, so gold
+  sets re-run on any version change.
+- No triage vocabulary in Jev questions. The 2026-09-20 smoke test measured
+  Jev splitting 0.72 `not-security` / 0.26 `dismissed` across our own fuzzy
+  boundary, so Jev only ever answers "relevant here or not"; verdict words
+  stay with the agent.
+- Jev state is assembled from scanner metadata and curated project context
+  only. Raw adversary-controlled strings (filenames, user agents, commit
+  messages) stay out, matching cavet's existing hygiene for the agent.
+  TypeSafe's jaggedness page lists adversarial content as a known weak spot.
+
+## 4. Execution ladder
+
+### S0a: shape studio (runs first)
+
+Dataset: a smallish set of real findings drawn from the 2026-09-16 triage pass
+(roughly 70 operator-reviewed verdicts in cavet's log). Question shape is
+settled before any wide dataset run.
+
+Three call topologies, all against the same labeled findings:
+
+- **A. Single relevance Noul.** One question, one probability, one threshold.
+  Simplest to calibrate; one number shows nothing of why.
+- **B. Parallel checklist.** Independent Nouls over the same state asked in
+  one request (test fixture path? placeholder rather than live value?
+  build-time-only dependency? touches auth, crypto or input surface?
+  runtime-reachable in the shipped artifact?), combined in code we own. The
+  vector of small judgments is the record; a failing case points at a
+  question, not the pipeline.
+- **C. Sequential cascade.** Call one asks the cheapest decisive judgment;
+  findings with a definitive answer (security-confirmed, or clearly inert)
+  leave the pipeline there and only the remainder feed the next call with the
+  extra context that call needs. Deliberately trades the docs' recommended
+  parallel design for per-stage filtering and cheaper later calls. Whether the
+  trade pays is a measurement, not an assumption.
+
+Two axes run across all three topologies:
+
+- **Framing:** instruction wording and criteria definitions vary deliberately.
+  The model reads literally; the explanation we catch ourselves adding is the
+  missing half of the instruction.
+- **Output:** bare typed answers versus adding an explicit "missing context
+  for accurate determination" signal, to test whether Jev can flag
+  insufficient state instead of answering confidently from an incomplete
+  picture. The deterministic state builder stays regardless: a missing
+  required field is an `if` statement, not a model question.
+
+Protocol: throwaway scripts only, no cavet code changes. Multiple Jev calls
+per finding are in budget; calls are fast and cheap. Each variant is measured
+against the labels; every dismissal that contradicts a label is a named miss
+with its confidence attached; judgments repeat enough to see stability, not
+single shots.
+
+Exit: a winning shape is locked, with dismissal FN rate and calibration by
+confidence band known.
+
+### S0b: expansion rounds
+
+Grow the corpus step by step: more cavet findings, then fragmt findings, then
+the benchmark ground truth (operator-reviewed confirmed findings plus a
+triage ledger; corpus-1 was fully hand-read and is clean, which makes it a
+pure negative set and a direct probe of dismissal bias). Each round re-asks
+one question: do the S0a conclusions still hold here? Modify where they do
+not, rerun, expand again.
+
+Exit: shape conclusions hold across expansion rounds, or the differences are
+understood and documented.
+
+### S1: shadow ride-along
+
+Jev answers with probabilities are written to cavet's append-only log next to
+the agent's verdict and, where reviewed, the operator's. Three opinions per
+item, disagreement data for free. The agent's queue is untouched.
+
+Exit: live calibration matches the gold-set calibration, and measured cost per
+finding is on the record.
+
+### S2: sampling and autopsy
+
+A stratified slice of the dismissed pile is re-judged offline by the agent
+with the cavet-triage skill; the operator arbitrates every disagreement.
+Sampling cost scales with the sample rate, not scan volume, so coverage can
+stay heavy indefinitely. Decided rates (D3): 100% of crit/high dismissals, 50%
+of the near-threshold band (p within 0.1 of T), 20% of the far band.
+
+S2 is diagnosis, not audit. "Jev dismissed these three incorrectly, reopen
+them" is not the goal; the goal is why, and what would stop it recurring. Every
+confirmed miss gets an autopsy: a named cause, a counterfactual change
+(instruction wording, criteria, state assembly, decomposition, threshold), and
+a retest against both the miss and the full gold set, then adopt or reject the
+change with the outcome documented. Metrics: FN rate per stratum with Wilson
+confidence intervals, calibration curves, cost per judgment.
+
+Exit: every miss has a documented cause, a tested counterfactual, and a
+verdict on whether it generalizes. This exit is the report.
+
+### S3: parked
+
+Gating and scheduling wait for the era when Jev is publicly available. No
+numeric gate is defined and none is needed while parked.
+
+## 5. Deliverable and publication
+
+Report artefacts, in the style of the sibling benchmark effort:
+
+| Artefact | Contents |
+|---|---|
+| Per-judgment records | One machine-readable record per Jev call: full request (state, instructions, criteria), response (answers, probabilities, confidence), model version served, timestamp, corpus and finding reference. Never hand-edited. |
+| Aggregate tables | Accuracy and FN rate by corpus and stratum, calibration curves, cost per judgment, per-shape comparison. Generated by script, never typed. |
+| Autopsy log | Every miss: ground truth, Jev's answer, named cause, counterfactual change, retest outcome, adopted or rejected. |
+| Narrative | Question, corpora, method, results, limitations. The limitations section is not optional. |
+
+Publication ladder (D4, all three, ordered): if anything should be disclosed
+to TypeSafe before public posting, that goes first; otherwise a focused
+calibration report goes to TypeSafe as early-user feedback. The detailed
+report lives in the repo on this branch. A prose article on migatchev-lounge
+links to it. If the results look worthy, co-authors and a peer-reviewed
+publication are on the table.
+
+## 6. Decision log
+
+| Decision | Outcome | Date |
+|---|---|---|
+| D1, v0 judgment shape | Nothing picked upfront; the S0 shape studio compares A, B and C plus framing and output axes first | 2026-09-20 |
+| D2, gold set | S0b expansion ladder: cavet, then fragmt, then benchmark; verify, modify, rerun each round | 2026-09-20 |
+| D3, sampling policy | Hawk: 100% crit/high dismissals, 50% near-threshold, 20% far band | 2026-09-20 |
+| D4, report vehicle | All three, ordered: TypeSafe disclosure if needed, calibration report to TypeSafe, branch report, lounge article; peer review possible | 2026-09-20 |
+
+## 7. Out of scope
+
+Gating and scheduling via serve or cron, parked until Jev is public. Any
+non-cavet use of Jev. Changes to the agent's triage skill or verdict
+vocabulary. Anything on `main`. Any modification of the private benchmark project. If the
+experiment dies at any stage, the residue is a logged dataset and a draft
+report, which is the point of a spike.
+
+## 8. References
+
+- TypeSafe docs index: <https://docs.typesafe.ai/llms.txt> (Mintlify pages
+  serve Markdown with a `.md` suffix). HTTP API: `POST
+  https://api.typesafe.ai/v1/systemone`, bearer auth, `state` + `model` +
+  `questions`.
+- Article: *A Gut Feeling With a Type Signature*,
+  <https://migatchev.co.za/writing/a-gut-feeling-with-a-type-signature>.
+- Benchmark methodology (report style borrowed from here): a separate private
+  benchmark project, read-only from this experiment.
+- Review artifact: `.lavish/jev-triage-spike.html` (gitignored, local only).
