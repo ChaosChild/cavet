@@ -42,6 +42,11 @@ RUNS = HERE / "runs"
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 CONFIRM_GATE = 0.5
+# Wording version of the MV criteria definitions. r1 (2026-09-20, committed
+# run files) blurred the boundary; r2 sharpens it: not-security means the
+# observation is genuinely valid but not a security concern, dismissed means
+# the security claim itself is wrong here.
+WORDING_VERSION = "r2"
 
 # Triage vocabulary: confirmed/dismissed exist today; not-security, deferred
 # (reworked with an until-date) and worked-elsewhere are the additions tracked
@@ -65,12 +70,15 @@ MV_STATUS_DEFS = {
         "A real security issue in this project that warrants action."
     ),
     "dismissed": (
-        "Not worth acting on: a false positive, or a deliberate pattern with "
-        "no remaining value to track."
+        "The security claim itself is wrong for this project: a false "
+        "positive, a misread of the code, or a pattern that is safe as "
+        "used. Nothing valid remains to track."
     ),
     "not-security": (
-        "Technically real as reported but not a security issue for this "
-        "project; it may still be worth tracking outside the security gate."
+        "A genuinely valid observation about this project's code or "
+        "dependencies, but not a security concern here: a deliberate "
+        "engineering choice, test fixtures or other non-shipped code, or a "
+        "quality issue. Worth tracking as ordinary engineering work."
     ),
     "deferred": (
         "Real and relevant, but action should wait for a later horizon. "
@@ -203,7 +211,7 @@ def q_confirm(verbosity):
         ),
         "criteria": {
             "true": "A real security issue in this project that warrants action.",
-            "false": "Not actionable as a security issue in this project: a false positive, a test fixture or fake value, a deliberate pattern, or real but without security impact here.",
+            "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice).",
         },
     }}
 
@@ -356,7 +364,7 @@ def main():
             runner = run_single if var["flow"] == "single" else run_twostep
             rec = runner(f, details, var)
             rec.update({"finding": f["id"], "fingerprint": f["fingerprint"],
-                        "variant": name})
+                        "variant": name, "wording": WORDING_VERSION})
             (RUNS / f"{f['id']}__{name}.json").write_text(
                 json.dumps(rec, indent=2), encoding="utf-8")
             models = {(c.get("response") or {}).get("model") for c in rec["calls"]}
@@ -365,6 +373,7 @@ def main():
                 "final": rec["final"],
                 "calls": len(rec["calls"]),
                 "wall_ms": wall,
+                "wording": WORDING_VERSION,
                 "models": sorted(m for m in models if m),
                 "answers": [summarize(c.get("response") or {})
                             for c in rec["calls"]],

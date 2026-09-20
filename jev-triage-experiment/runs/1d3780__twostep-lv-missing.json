@@ -1,0 +1,88 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:54:46Z",
+      "http": 200,
+      "wall_ms": 998.7,
+      "request": {
+        "model": "jev-latest",
+        "state": "opt.opengrep-rules.javascript.lang.security.html-in-template-string (medium) at internal/serve/assets/app.js:200: internal/serve/assets/app.js:317\ninternal/serve/assets/app.js:523\nThis template literal looks like HTML and has interpolated variables. These variables are not HTML-encoded by default. If the variables contain HTML tags, these may be interpreted by the browser, resulting in cross-site scripting (XSS).\nverdict: dismissed (high confidence, by operator): Dashboard renders cavet's own loopback JSON API over local .cavet state; every interpolation passes through esc(), and linkify() escapes both the href and the label (reviewed line-by-line 2026-09-15). Sink flagged, no untrusted-HTML path. Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "Is this a genuine security finding that warrants action in this project?"
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Is the information provided sufficient to choose the correct status?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.06
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.83
+          }
+        },
+        "usage": {
+          "input_tokens": 542,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T16:54:47Z",
+      "http": 200,
+      "wall_ms": 1105.4,
+      "request": {
+        "model": "jev-latest",
+        "state": "opt.opengrep-rules.javascript.lang.security.html-in-template-string (medium) at internal/serve/assets/app.js:200: internal/serve/assets/app.js:317\ninternal/serve/assets/app.js:523\nThis template literal looks like HTML and has interpolated variables. These variables are not HTML-encoded by default. If the variables contain HTML tags, these may be interpreted by the browser, resulting in cross-site scripting (XSS).\nverdict: dismissed (high confidence, by operator): Dashboard renders cavet's own loopback JSON API over local .cavet state; every interpolation passes through esc(), and linkify() escapes both the href and the label (reviewed line-by-line 2026-09-15). Sink flagged, no untrusted-HTML path. Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue. Which closure fits it?",
+            "criteria": {
+              "dismissed": null,
+              "not-security": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.99,
+            "probabilities": {
+              "dismissed": 1.0,
+              "not-security": 0.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 545,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.06,
+    "state_sufficient": 0.83,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.99
+  },
+  "finding": "1d3780",
+  "fingerprint": "1d3780b4f9fec61b5366030694054438299d2ca62d20601146c8dfb1c19b75df",
+  "variant": "twostep-lv-missing",
+  "wording": "r2"
+}

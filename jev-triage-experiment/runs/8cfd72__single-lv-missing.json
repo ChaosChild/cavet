@@ -1,0 +1,63 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:54:57Z",
+      "http": 200,
+      "wall_ms": 1001.9,
+      "request": {
+        "model": "jev-latest",
+        "state": "opt.opengrep-rules.javascript.jquery.security.audit.jquery-insecure-selector (medium) at internal/serve/assets/app.js:163: internal/serve/assets/app.js:210\nUser controlled data in a `$(...)` is an anti-pattern that can lead to XSS vulnerabilities\nverdict: dismissed (high confidence, by operator): $ in app.js is a local getElementById helper invoked with literal element ids, not jQuery; no selector is built from data. Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "Which triage status fits this finding?",
+            "criteria": {
+              "confirmed": null,
+              "dismissed": null,
+              "not-security": null,
+              "deferred": null,
+              "worked-elsewhere": null
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Is the information provided sufficient to choose the correct status?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 1.0,
+            "probabilities": {
+              "worked-elsewhere": 0.0,
+              "not-security": 0.0,
+              "confirmed": 0.0,
+              "dismissed": 1.0,
+              "deferred": 0.0
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.81
+          }
+        },
+        "usage": {
+          "input_tokens": 509,
+          "output_tokens": 84
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "dismissed",
+    "state_sufficient": 0.81
+  },
+  "finding": "8cfd72",
+  "fingerprint": "8cfd720ff71b9a31066b9cbf9338fa59a8711a7c12082e51a449d7aa1d2e1093",
+  "variant": "single-lv-missing",
+  "wording": "r2"
+}

@@ -1,0 +1,88 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:56:15Z",
+      "http": 200,
+      "wall_ms": 1073.8,
+      "request": {
+        "model": "jev-latest",
+        "state": "CVE-2020-1747 (critical) at internal/finding/testdata/fixture/requirements.txt:4: PyYAML: arbitrary command execution through python/object/new when FullLoader is used\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "Is this a genuine security finding that warrants action in this project?"
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Is the information provided sufficient to choose the correct status?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.07
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.86
+          }
+        },
+        "usage": {
+          "input_tokens": 457,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T16:56:16Z",
+      "http": 200,
+      "wall_ms": 1096.6,
+      "request": {
+        "model": "jev-latest",
+        "state": "CVE-2020-1747 (critical) at internal/finding/testdata/fixture/requirements.txt:4: PyYAML: arbitrary command execution through python/object/new when FullLoader is used\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue. Which closure fits it?",
+            "criteria": {
+              "dismissed": null,
+              "not-security": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.98,
+            "probabilities": {
+              "dismissed": 0.99,
+              "not-security": 0.01
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 460,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.07,
+    "state_sufficient": 0.86,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.98
+  },
+  "finding": "bc30cd",
+  "fingerprint": "bc30cddb4b3591ea4b9903d6c77d230d32eb86da0d4ce8f9b40a9d9540cd6fdb",
+  "variant": "twostep-lv-missing",
+  "wording": "r2"
+}

@@ -1,7 +1,7 @@
 {
   "experiment": "jev-triage-s0a",
   "created": "2026-09-20",
-  "note": "S0a shape-studio dataset: 10 real findings from the cavet repository triage log, varied by severity, scanner and outcome. expected_closure is a suggested mapping of the operator verdict onto the planned vocabulary (dismissed = not worth acting on / false positive; not-security = real as reported but no security impact here); operator arbitration remains the definitive label.",
+  "note": "S0a shape-studio dataset: real findings from the cavet repository triage log, varied by severity, scanner and outcome. Findings without a \"round\" field are round 1 (20 entries total: 10 r1 + 10 r2). expected_closure is a suggested mapping of the operator verdict onto the planned vocabulary (dismissed = the security claim itself is wrong here; not-security = genuinely valid observation, no security concern); operator arbitration remains the definitive label. Results carry a \"wording\" field: r2 uses sharpened not-security/dismissed definitions; results without the field are r1 wording.",
   "findings": [
     {
       "id": "215a27",
@@ -2438,6 +2438,2582 @@
                 "probabilities": {
                   "not-security": 0.02,
                   "dismissed": 0.98
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "daa948",
+      "fingerprint": "daa9486e98b9a260196a52f145aa4620b4b36ee9e57fd15c6194cdd15c814b7e",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "high",
+      "rule": "opt.opengrep-rules.dockerfile.security.missing-user-entrypoint",
+      "location": "engine/Dockerfile:131",
+      "expected_verdict": "confirmed",
+      "expected_closure": "confirmed",
+      "operator_reason": "the entrypoint at engine/Dockerfile:155 runs under the stage default of root because final-core sets no USER; only linux-built CLI invocations override it (internal/engineclient/client.go:139-141), so the entrypoint executes as root in normal use on the primary platform",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "confirmed",
+            "state_sufficient": 0.77
+          },
+          "calls": 1,
+          "wall_ms": 1164.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "confirmed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 0.0,
+                  "deferred": 0.0,
+                  "confirmed": 1.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.77
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "confirmed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1078.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "confirmed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "deferred": 0.0,
+                  "dismissed": 0.0,
+                  "confirmed": 1.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.83,
+            "state_sufficient": 0.76,
+            "status": "confirmed",
+            "step2_ran": false
+          },
+          "calls": 1,
+          "wall_ms": 1049.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.83
+              },
+              "state_sufficient": {
+                "noul": 0.76
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.85,
+            "state_sufficient": null,
+            "status": "confirmed",
+            "step2_ran": false
+          },
+          "calls": 1,
+          "wall_ms": 1030.3,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.85
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.81,
+            "state_sufficient": 0.45,
+            "status": "confirmed",
+            "step2_ran": false
+          },
+          "calls": 1,
+          "wall_ms": 1047.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.81
+              },
+              "state_sufficient": {
+                "noul": 0.45
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "confirmed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1026.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "confirmed",
+                "confidence": 0.99,
+                "probabilities": {
+                  "dismissed": 0.0,
+                  "not-security": 0.01,
+                  "worked-elsewhere": 0.0,
+                  "deferred": 0.0,
+                  "confirmed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "confirmed",
+            "state_sufficient": 0.47
+          },
+          "calls": 1,
+          "wall_ms": 1070.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "confirmed",
+                "confidence": 0.99,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "confirmed": 0.99,
+                  "dismissed": 0.0,
+                  "deferred": 0.0,
+                  "not-security": 0.01
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.47
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.82,
+            "state_sufficient": null,
+            "status": "confirmed",
+            "step2_ran": false
+          },
+          "calls": 1,
+          "wall_ms": 1055.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.82
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0a96fd",
+      "fingerprint": "0a96fdb8361fb54748cdde9a97466b568f69a30a081162098650d0d04968cabb",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "high",
+      "rule": "opt.opengrep-rules.javascript.browser.security.insecure-document-method",
+      "location": "internal/serve/assets/app.js:278",
+      "expected_verdict": "dismissed",
+      "expected_closure": "dismissed",
+      "operator_reason": "Dashboard renders cavet's own loopback JSON API over local .cavet state; every interpolation passes through esc(), and linkify() escapes both the href and the label (reviewed line-by-line 2026-09-15). Sink flagged, no untrusted-HTML path.",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.82
+          },
+          "calls": 1,
+          "wall_ms": 1123.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "not-security": 0.0,
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.82
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1075.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "dismissed": 1.0,
+                  "deferred": 0.0,
+                  "confirmed": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.07,
+            "state_sufficient": 0.82,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2177.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.07
+              },
+              "state_sufficient": {
+                "noul": 0.82
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "dismissed": 0.99,
+                  "not-security": 0.01
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.07,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2088.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.07
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.12,
+            "state_sufficient": 0.37,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 1.0
+          },
+          "calls": 2,
+          "wall_ms": 2098.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.12
+              },
+              "state_sufficient": {
+                "noul": 0.37
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 1.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1028.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "not-security": 0.0,
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.39
+          },
+          "calls": 1,
+          "wall_ms": 1047.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.39
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.12,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 1.0
+          },
+          "calls": 2,
+          "wall_ms": 2178.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.12
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 1.0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1d3780",
+      "fingerprint": "1d3780b4f9fec61b5366030694054438299d2ca62d20601146c8dfb1c19b75df",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "medium",
+      "rule": "opt.opengrep-rules.javascript.lang.security.html-in-template-string",
+      "location": "internal/serve/assets/app.js:200",
+      "expected_verdict": "dismissed",
+      "expected_closure": "dismissed",
+      "operator_reason": "Dashboard renders cavet's own loopback JSON API over local .cavet state; every interpolation passes through esc(), and linkify() escapes both the href and the label (reviewed line-by-line 2026-09-15). Sink flagged, no untrusted-HTML path.",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.83
+          },
+          "calls": 1,
+          "wall_ms": 996.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 1.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.83
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1038.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "deferred": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": 0.83,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.99
+          },
+          "calls": 2,
+          "wall_ms": 2104.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              },
+              "state_sufficient": {
+                "noul": 0.83
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.99,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.99
+          },
+          "calls": 2,
+          "wall_ms": 2140.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.99,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.08,
+            "state_sufficient": 0.46,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 1.0
+          },
+          "calls": 2,
+          "wall_ms": 2134.3,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.08
+              },
+              "state_sufficient": {
+                "noul": 0.46
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 1.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1027.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "dismissed": 1.0,
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.44
+          },
+          "calls": 1,
+          "wall_ms": 1038.3,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "not-security": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "dismissed": 1.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.44
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.08,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 1.0
+          },
+          "calls": 2,
+          "wall_ms": 2127.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.08
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8cfd72",
+      "fingerprint": "8cfd720ff71b9a31066b9cbf9338fa59a8711a7c12082e51a449d7aa1d2e1093",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "medium",
+      "rule": "opt.opengrep-rules.javascript.jquery.security.audit.jquery-insecure-selector",
+      "location": "internal/serve/assets/app.js:163",
+      "expected_verdict": "dismissed",
+      "expected_closure": "dismissed",
+      "operator_reason": "$ in app.js is a local getElementById helper invoked with literal element ids, not jQuery; no selector is built from data.",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.81
+          },
+          "calls": 1,
+          "wall_ms": 1001.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "dismissed": 1.0,
+                  "deferred": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.81
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1026.2,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.05,
+            "state_sufficient": 0.82,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2100.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.05
+              },
+              "state_sufficient": {
+                "noul": 0.82
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.05,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.97
+          },
+          "calls": 2,
+          "wall_ms": 2125.8,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.05
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.97,
+                "probabilities": {
+                  "dismissed": 0.99,
+                  "not-security": 0.01
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.09,
+            "state_sufficient": 0.3,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 1.0
+          },
+          "calls": 2,
+          "wall_ms": 2171.3,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.09
+              },
+              "state_sufficient": {
+                "noul": 0.3
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1060.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.99,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "dismissed": 1.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.29
+          },
+          "calls": 1,
+          "wall_ms": 1091.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.99,
+                "probabilities": {
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "not-security": 0.0,
+                  "dismissed": 1.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.29
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.09,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 1.0
+          },
+          "calls": 2,
+          "wall_ms": 2127.8,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.09
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 1.0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "34d1e3",
+      "fingerprint": "34d1e341ac34e6ac7a1272e391d99f142b6984db2830f4a6b979c18df4c7c4d6",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "info",
+      "rule": "opt.opengrep-rules.dockerfile.audit.dockerfile-source-not-pinned",
+      "location": "engine/Dockerfile:15",
+      "expected_verdict": "dismissed",
+      "expected_closure": "not-security",
+      "operator_reason": "floating the debian:bookworm-slim tag is deliberate and documented in the Dockerfile itself (lines 16-17): a digest-pinned base would freeze a stale apt snapshot, so the build runs apt-get -y upgrade to pull security updates instead; the golang builder stages remain digest-pinned (lines 41, 63)",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.87
+          },
+          "calls": 1,
+          "wall_ms": 1037.6,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.87
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1064.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "dismissed": 1.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.15,
+            "state_sufficient": 0.87,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.59
+          },
+          "calls": 2,
+          "wall_ms": 2107.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.15
+              },
+              "state_sufficient": {
+                "noul": 0.87
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.59,
+                "probabilities": {
+                  "not-security": 0.2,
+                  "dismissed": 0.8
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.15,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.64
+          },
+          "calls": 2,
+          "wall_ms": 2071.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.15
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.64,
+                "probabilities": {
+                  "not-security": 0.18,
+                  "dismissed": 0.82
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.09,
+            "state_sufficient": 0.62,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.16
+          },
+          "calls": 2,
+          "wall_ms": 2054.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.09
+              },
+              "state_sufficient": {
+                "noul": 0.62
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.16,
+                "probabilities": {
+                  "dismissed": 0.58,
+                  "not-security": 0.42
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1061.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.74,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "not-security": 0.2,
+                  "dismissed": 0.8,
+                  "worked-elsewhere": 0.0,
+                  "confirmed": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.64
+          },
+          "calls": 1,
+          "wall_ms": 1036.6,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.67,
+                "probabilities": {
+                  "not-security": 0.26,
+                  "worked-elsewhere": 0.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "dismissed": 0.74
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.64
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.09,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.07
+          },
+          "calls": 2,
+          "wall_ms": 2027.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.09
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.07,
+                "probabilities": {
+                  "dismissed": 0.53,
+                  "not-security": 0.47
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3ba9ab",
+      "fingerprint": "3ba9ab995e1109545b02c07c9777eb2a8e4ba621b4ee2961741f3c014898da34",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "medium",
+      "rule": "opt.opengrep-rules.html.security.audit.insecure-document-method",
+      "location": "docs/serve-mock.html:654",
+      "expected_verdict": "dismissed",
+      "expected_closure": "not-security",
+      "operator_reason": "docs/serve-mock.html is the design artifact, never executed or served by cavet; the flagged innerHTML lives in the mock's own demo script.",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.84
+          },
+          "calls": 1,
+          "wall_ms": 1029.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "dismissed": 1.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.84
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1113.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "dismissed": 1.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": 0.83,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.92
+          },
+          "calls": 2,
+          "wall_ms": 2064.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              },
+              "state_sufficient": {
+                "noul": 0.83
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.92,
+                "probabilities": {
+                  "not-security": 0.04,
+                  "dismissed": 0.96
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.9
+          },
+          "calls": 2,
+          "wall_ms": 2112.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.9,
+                "probabilities": {
+                  "not-security": 0.05,
+                  "dismissed": 0.95
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": 0.47,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.7
+          },
+          "calls": 2,
+          "wall_ms": 2104.6,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              },
+              "state_sufficient": {
+                "noul": 0.47
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.7,
+                "probabilities": {
+                  "dismissed": 0.85,
+                  "not-security": 0.15
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1001.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.91,
+                "probabilities": {
+                  "dismissed": 0.93,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.07
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.51
+          },
+          "calls": 1,
+          "wall_ms": 1082.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.9,
+                "probabilities": {
+                  "confirmed": 0.0,
+                  "not-security": 0.07,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "dismissed": 0.93
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.51
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.75
+          },
+          "calls": 2,
+          "wall_ms": 2105.8,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.75,
+                "probabilities": {
+                  "not-security": 0.12,
+                  "dismissed": 0.88
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fae623",
+      "fingerprint": "fae6234301533a2e433990fae806029c27c8cafb2aca791c4aaf93c5475d1803",
+      "round": 2,
+      "scanner": "gitleaks",
+      "severity": "high",
+      "rule": "opt.opengrep-rules.generic.secrets.security.detected-generic-api-key",
+      "location": "internal/finding/testdata/fixture/config.py:9",
+      "expected_verdict": "dismissed",
+      "expected_closure": "not-security",
+      "operator_reason": "fake credentials in deliberate fixture internal/finding/testdata/fixture/config.py consumed by scanner tests; not imported by production code",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.87
+          },
+          "calls": 1,
+          "wall_ms": 1024.6,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "confirmed": 0.0,
+                  "not-security": 0.0,
+                  "dismissed": 1.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.87
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1072.8,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "confirmed": 0.0,
+                  "dismissed": 1.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0,
+                  "deferred": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.04,
+            "state_sufficient": 0.86,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.92
+          },
+          "calls": 2,
+          "wall_ms": 2120.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.04
+              },
+              "state_sufficient": {
+                "noul": 0.86
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.92,
+                "probabilities": {
+                  "not-security": 0.04,
+                  "dismissed": 0.96
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.04,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.9
+          },
+          "calls": 2,
+          "wall_ms": 2011.3,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.04
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.9,
+                "probabilities": {
+                  "dismissed": 0.95,
+                  "not-security": 0.05
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.05,
+            "state_sufficient": 0.58,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.15
+          },
+          "calls": 2,
+          "wall_ms": 2084.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.05
+              },
+              "state_sufficient": {
+                "noul": 0.58
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.15,
+                "probabilities": {
+                  "not-security": 0.42,
+                  "dismissed": 0.58
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1016.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.56,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "dismissed": 0.65,
+                  "not-security": 0.35
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.59
+          },
+          "calls": 1,
+          "wall_ms": 1058.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.55,
+                "probabilities": {
+                  "dismissed": 0.64,
+                  "deferred": 0.0,
+                  "not-security": 0.36,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.59
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.05,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.17
+          },
+          "calls": 2,
+          "wall_ms": 2127.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.05
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.17,
+                "probabilities": {
+                  "not-security": 0.42,
+                  "dismissed": 0.58
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "7c8dce",
+      "fingerprint": "7c8dce0ad7721bdb7bf1eaf8e2210bf7ffe17c4a09976958a408d81bfb774e77",
+      "round": 2,
+      "scanner": "opengrep",
+      "severity": "high",
+      "rule": "opt.opengrep-rules.python.sqlalchemy.security.sqlalchemy-execute-raw-query",
+      "location": "internal/finding/testdata/fixture/api/users.py:6",
+      "expected_verdict": "dismissed",
+      "expected_closure": "not-security",
+      "operator_reason": "deliberate vulnerable fixture internal/finding/testdata/fixture/api/users.py consumed by scanner tests; not imported by production code",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.88
+          },
+          "calls": 1,
+          "wall_ms": 1045.3,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "dismissed": 1.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.88
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1118.2,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "worked-elsewhere": 0.0,
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "not-security": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.04,
+            "state_sufficient": 0.87,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2118.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.04
+              },
+              "state_sufficient": {
+                "noul": 0.87
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.04,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2100.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.04
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": 0.59,
+            "status": "not-security",
+            "step2_ran": true,
+            "closure_confidence": 0.46
+          },
+          "calls": 2,
+          "wall_ms": 2155.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              },
+              "state_sufficient": {
+                "noul": 0.59
+              }
+            },
+            {
+              "closure": {
+                "choice": "not-security",
+                "confidence": 0.46,
+                "probabilities": {
+                  "dismissed": 0.27,
+                  "not-security": 0.73
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1055.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.42,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.46,
+                  "dismissed": 0.54,
+                  "confirmed": 0.0,
+                  "deferred": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.6
+          },
+          "calls": 1,
+          "wall_ms": 1007.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 0.38,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "confirmed": 0.0,
+                  "not-security": 0.49,
+                  "dismissed": 0.51
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.6
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": null,
+            "status": "not-security",
+            "step2_ran": true,
+            "closure_confidence": 0.54
+          },
+          "calls": 2,
+          "wall_ms": 2134.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              }
+            },
+            {
+              "closure": {
+                "choice": "not-security",
+                "confidence": 0.54,
+                "probabilities": {
+                  "dismissed": 0.23,
+                  "not-security": 0.77
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a0658e",
+      "fingerprint": "a0658ec43fe80b9d3aadc391c6e8d85e10096ee71ae5f78956686ecea61d4791",
+      "round": 2,
+      "scanner": "checkov",
+      "severity": "low",
+      "rule": "AWS-0089",
+      "location": "internal/finding/testdata/fixture/infra/main.tf:11",
+      "expected_verdict": "dismissed",
+      "expected_closure": "not-security",
+      "operator_reason": "deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.87
+          },
+          "calls": 1,
+          "wall_ms": 1068.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "dismissed": 1.0,
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.87
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1075.6,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "deferred": 0.0,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0,
+                  "dismissed": 1.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.04,
+            "state_sufficient": 0.88,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.97
+          },
+          "calls": 2,
+          "wall_ms": 2161.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.04
+              },
+              "state_sufficient": {
+                "noul": 0.88
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.97,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.04,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.97
+          },
+          "calls": 2,
+          "wall_ms": 2092.0,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.04
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.97,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.05,
+            "state_sufficient": 0.62,
+            "status": "not-security",
+            "step2_ran": true,
+            "closure_confidence": 0.35
+          },
+          "calls": 2,
+          "wall_ms": 2046.8,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.05
+              },
+              "state_sufficient": {
+                "noul": 0.62
+              }
+            },
+            {
+              "closure": {
+                "choice": "not-security",
+                "confidence": 0.35,
+                "probabilities": {
+                  "not-security": 0.67,
+                  "dismissed": 0.33
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "not-security",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1022.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "not-security",
+                "confidence": 0.5,
+                "probabilities": {
+                  "worked-elsewhere": 0.0,
+                  "deferred": 0.0,
+                  "not-security": 0.6,
+                  "confirmed": 0.0,
+                  "dismissed": 0.4
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "not-security",
+            "state_sufficient": 0.61
+          },
+          "calls": 1,
+          "wall_ms": 1030.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "not-security",
+                "confidence": 0.53,
+                "probabilities": {
+                  "dismissed": 0.37,
+                  "deferred": 0.0,
+                  "not-security": 0.63,
+                  "confirmed": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.61
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.05,
+            "state_sufficient": null,
+            "status": "not-security",
+            "step2_ran": true,
+            "closure_confidence": 0.4
+          },
+          "calls": 2,
+          "wall_ms": 2088.6,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.05
+              }
+            },
+            {
+              "closure": {
+                "choice": "not-security",
+                "confidence": 0.4,
+                "probabilities": {
+                  "dismissed": 0.3,
+                  "not-security": 0.7
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bc30cd",
+      "fingerprint": "bc30cddb4b3591ea4b9903d6c77d230d32eb86da0d4ce8f9b40a9d9540cd6fdb",
+      "round": 2,
+      "scanner": "trivy",
+      "severity": "critical",
+      "rule": "CVE-2020-1747",
+      "location": "internal/finding/testdata/fixture/requirements.txt:4",
+      "expected_verdict": "dismissed",
+      "expected_closure": "not-security",
+      "operator_reason": "deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code",
+      "results": {
+        "single-lv-missing": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": 0.87
+          },
+          "calls": 1,
+          "wall_ms": 1006.8,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "dismissed": 1.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.87
+              }
+            }
+          ]
+        },
+        "single-lv": {
+          "final": {
+            "status": "dismissed",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1054.1,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "dismissed",
+                "confidence": 1.0,
+                "probabilities": {
+                  "not-security": 0.0,
+                  "confirmed": 0.0,
+                  "deferred": 0.0,
+                  "dismissed": 1.0,
+                  "worked-elsewhere": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv-missing": {
+          "final": {
+            "step1_noul": 0.07,
+            "state_sufficient": 0.86,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2170.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.07
+              },
+              "state_sufficient": {
+                "noul": 0.86
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "dismissed": 0.99,
+                  "not-security": 0.01
+                }
+              }
+            }
+          ]
+        },
+        "twostep-lv": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": null,
+            "status": "dismissed",
+            "step2_ran": true,
+            "closure_confidence": 0.98
+          },
+          "calls": 2,
+          "wall_ms": 2063.2,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              }
+            },
+            {
+              "closure": {
+                "choice": "dismissed",
+                "confidence": 0.98,
+                "probabilities": {
+                  "not-security": 0.01,
+                  "dismissed": 0.99
+                }
+              }
+            }
+          ]
+        },
+        "twostep-mv-missing": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": 0.56,
+            "status": "not-security",
+            "step2_ran": true,
+            "closure_confidence": 0.63
+          },
+          "calls": 2,
+          "wall_ms": 2040.9,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              },
+              "state_sufficient": {
+                "noul": 0.56
+              }
+            },
+            {
+              "closure": {
+                "choice": "not-security",
+                "confidence": 0.63,
+                "probabilities": {
+                  "not-security": 0.82,
+                  "dismissed": 0.18
+                }
+              }
+            }
+          ]
+        },
+        "single-mv": {
+          "final": {
+            "status": "not-security",
+            "state_sufficient": null
+          },
+          "calls": 1,
+          "wall_ms": 1073.5,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "not-security",
+                "confidence": 0.49,
+                "probabilities": {
+                  "confirmed": 0.0,
+                  "dismissed": 0.4,
+                  "not-security": 0.6,
+                  "deferred": 0.0,
+                  "worked-elsewhere": 0.0
+                }
+              }
+            }
+          ]
+        },
+        "single-mv-missing": {
+          "final": {
+            "status": "not-security",
+            "state_sufficient": 0.56
+          },
+          "calls": 1,
+          "wall_ms": 1055.7,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "status": {
+                "choice": "not-security",
+                "confidence": 0.46,
+                "probabilities": {
+                  "dismissed": 0.43,
+                  "worked-elsewhere": 0.0,
+                  "not-security": 0.57,
+                  "deferred": 0.0,
+                  "confirmed": 0.0
+                }
+              },
+              "state_sufficient": {
+                "noul": 0.56
+              }
+            }
+          ]
+        },
+        "twostep-mv": {
+          "final": {
+            "step1_noul": 0.06,
+            "state_sufficient": null,
+            "status": "not-security",
+            "step2_ran": true,
+            "closure_confidence": 0.51
+          },
+          "calls": 2,
+          "wall_ms": 2071.4,
+          "wording": "r2",
+          "models": [
+            "jev-1.13.0"
+          ],
+          "answers": [
+            {
+              "is_confirmed": {
+                "noul": 0.06
+              }
+            },
+            {
+              "closure": {
+                "choice": "not-security",
+                "confidence": 0.51,
+                "probabilities": {
+                  "not-security": 0.76,
+                  "dismissed": 0.24
                 }
               }
             }

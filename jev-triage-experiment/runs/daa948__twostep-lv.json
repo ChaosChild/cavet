@@ -1,0 +1,42 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:54:26Z",
+      "http": 200,
+      "wall_ms": 1030.3,
+      "request": {
+        "model": "jev-latest",
+        "state": "opt.opengrep-rules.dockerfile.security.missing-user-entrypoint (high) at engine/Dockerfile:131: engine/Dockerfile:147\nengine/Dockerfile:155\nengine/Dockerfile:171\nBy not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.\nverdict: confirmed (high confidence, by operator): the entrypoint at engine/Dockerfile:155 runs under the stage default of root because final-core sets no USER; only linux-built CLI invocations override it (internal/engineclient/client.go:139-141), so the entrypoint executes as root in normal use on the primary platform Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "Is this a genuine security finding that warrants action in this project?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.85
+          }
+        },
+        "usage": {
+          "input_tokens": 552,
+          "output_tokens": 23
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.85,
+    "state_sufficient": null,
+    "status": "confirmed",
+    "step2_ran": false
+  },
+  "finding": "daa948",
+  "fingerprint": "daa9486e98b9a260196a52f145aa4620b4b36ee9e57fd15c6194cdd15c814b7e",
+  "variant": "twostep-lv",
+  "wording": "r2"
+}
