@@ -1,0 +1,83 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:31:47Z",
+      "http": 200,
+      "wall_ms": 1142.6,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "AWS-0089",
+            "severity": "low",
+            "location": "internal/finding/testdata/fixture/infra/main.tf:11",
+            "description": "S3 Bucket Logging\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+            "current_status": "dismissed"
+          },
+          "cavet_lookup": "| id       | severity | range | fixed | kev | epss | summary               | url |\n|----------|----------|-------|-------|-----|------|-----------------------|-----|\n| AWS-0089 | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Using only the finding and the project context provided, which triage status fits it best?",
+            "criteria": {
+              "confirmed": "A real security issue in this project that warrants action.",
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here: a deliberate engineering choice, test fixtures or other non-shipped code, or a quality issue. Worth tracking as ordinary engineering work.",
+              "deferred": "Real and relevant, but action should wait for a later horizon. Deciding this needs information about fix availability, package management and shipped usage that is rarely in the finding alone.",
+              "worked-elsewhere": "Already being addressed in another tracker or workflow."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.54,
+            "probabilities": {
+              "not-security": 0.63,
+              "dismissed": 0.37,
+              "confirmed": 0.0,
+              "deferred": 0.0,
+              "worked-elsewhere": 0.0
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.55
+          }
+        },
+        "usage": {
+          "input_tokens": 921,
+          "output_tokens": 83
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "not-security",
+    "state_sufficient": 0.55
+  },
+  "finding": "a0658e",
+  "fingerprint": "a0658ec43fe80b9d3aadc391c6e8d85e10096ee71ae5f78956686ecea61d4791",
+  "variant": "single-mv-lookup-m",
+  "wording": "r2",
+  "enriched": false,
+  "lookup": true
+}

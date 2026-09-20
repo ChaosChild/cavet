@@ -1,0 +1,124 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:33:53Z",
+      "http": 200,
+      "wall_ms": 1065.0,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "AWS-0099",
+            "severity": "low",
+            "location": "internal/finding/testdata/fixture/infra/main.tf:1",
+            "description": "Missing description for security group.\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+            "current_status": "dismissed"
+          }
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.04
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.65
+          }
+        },
+        "usage": {
+          "input_tokens": 723,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:33:54Z",
+      "http": 200,
+      "wall_ms": 1051.1,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "AWS-0099",
+            "severity": "low",
+            "location": "internal/finding/testdata/fixture/infra/main.tf:1",
+            "description": "Missing description for security group.\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+            "current_status": "dismissed"
+          }
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here: a deliberate engineering choice, test fixtures or other non-shipped code, or a quality issue. Worth tracking as ordinary engineering work."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.31,
+            "probabilities": {
+              "dismissed": 0.34,
+              "not-security": 0.66
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 610,
+          "output_tokens": 35
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.04,
+    "state_sufficient": 0.65,
+    "status": "not-security",
+    "step2_ran": true,
+    "closure_confidence": 0.31
+  },
+  "finding": "28ee47",
+  "fingerprint": "28ee47b99728b5a2ecc5c461e910caf10f149464c3d4c5dd1d1624e0f19ef44e",
+  "variant": "twostep-mv-missing-r2",
+  "wording": "r2",
+  "enriched": false,
+  "lookup": false
+}

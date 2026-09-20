@@ -6,17 +6,27 @@ CLI, submits them to the TypeSafe System One API across the variant matrix,
 and records full request/response pairs under runs/ plus per-variant results
 back into dataset.json.
 
-Variants (12 calls per finding, 120 across the dataset):
-  single-lv(-missing), single-mv(-missing)  one call, full status vocabulary
-  twostep-{lv,mv}(-missing)                 step 1: confirmed? (noul, gate at
-                                            0.5); if not confirmed, step 2:
-                                            dismissed vs not-security choice
-Verbosity: lv = string state, terse instructions, bare criteria labels.
-           mv = named-field object state, spelled-out instructions and
-           criteria definitions (per docs.typesafe.ai guidance: prefer
-           objects so each part of the state has a descriptive name).
-Missing: adds a state_sufficient noul asking whether anything needed for the
-decision is absent from the state.
+State tiers:
+  lv            string state, terse instructions, bare criteria labels
+  mv            named-field object state, spelled-out instructions and
+                criteria (docs.typesafe.ai: prefer objects with descriptive
+                names; give every option a description)
+  +enriched     mv plus mechanical_context: a deterministic path-class rule
+                and a fixed-width source excerpt around the finding location
+                (file reads and prefix rules only, no agent involvement)
+  +lookup       lv/mv plus the raw `cavet lookup <identifier>` output (CVE
+                advisory data: fixed version, KEV, EPSS, CVSS; rule -> CWE
+                mapping; deterministic CLI, identifiers only)
+
+Flows: single (one call, full status vocabulary) and twostep (step 1
+is_confirmed noul, gate at 0.5; step 2 closure choice dismissed vs
+not-security). Optional state_sufficient noul ("anything missing?").
+
+Wording versions (MV criteria definitions only):
+  r2  not-security = valid observation, no security concern; dismissed =
+      security claim wrong here
+  r3  r2 with the not-security examples spelled out (documented deliberate
+      choices, design artifacts/docs/mocks, test fixtures)
 
 Usage:
   python harness.py                     # run everything not already recorded
@@ -42,16 +52,7 @@ RUNS = HERE / "runs"
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 CONFIRM_GATE = 0.5
-# Wording version of the MV criteria definitions. r1 (2026-09-20, committed
-# run files) blurred the boundary; r2 sharpens it: not-security means the
-# observation is genuinely valid but not a security concern, dismissed means
-# the security claim itself is wrong here.
-WORDING_VERSION = "r2"
 
-# Triage vocabulary: confirmed/dismissed exist today; not-security, deferred
-# (reworked with an until-date) and worked-elsewhere are the additions tracked
-# in docs/BACKLOG.md. deferred stays an option only in the optimistic
-# single-step run; the two-step flow deliberately cannot produce it.
 STATUSES = ["confirmed", "dismissed", "not-security", "deferred", "worked-elsewhere"]
 
 PROJECT = {
@@ -65,29 +66,53 @@ PROJECT = {
     "note": "This finding comes from a scan of the cavet repository itself.",
 }
 
-MV_STATUS_DEFS = {
-    "confirmed": (
-        "A real security issue in this project that warrants action."
-    ),
-    "dismissed": (
-        "The security claim itself is wrong for this project: a false "
-        "positive, a misread of the code, or a pattern that is safe as "
-        "used. Nothing valid remains to track."
-    ),
-    "not-security": (
-        "A genuinely valid observation about this project's code or "
-        "dependencies, but not a security concern here: a deliberate "
-        "engineering choice, test fixtures or other non-shipped code, or a "
-        "quality issue. Worth tracking as ordinary engineering work."
-    ),
-    "deferred": (
-        "Real and relevant, but action should wait for a later horizon. "
-        "Deciding this needs information about fix availability, package "
-        "management and shipped usage that is rarely in the finding alone."
-    ),
-    "worked-elsewhere": (
-        "Already being addressed in another tracker or workflow."
-    ),
+WORDINGS = {
+    "r2": {
+        "confirmed": "A real security issue in this project that warrants action.",
+        "dismissed": (
+            "The security claim itself is wrong for this project: a false "
+            "positive, a misread of the code, or a pattern that is safe as "
+            "used. Nothing valid remains to track."
+        ),
+        "not-security": (
+            "A genuinely valid observation about this project's code or "
+            "dependencies, but not a security concern here: a deliberate "
+            "engineering choice, test fixtures or other non-shipped code, or a "
+            "quality issue. Worth tracking as ordinary engineering work."
+        ),
+        "deferred": (
+            "Real and relevant, but action should wait for a later horizon. "
+            "Deciding this needs information about fix availability, package "
+            "management and shipped usage that is rarely in the finding alone."
+        ),
+        "worked-elsewhere": (
+            "Already being addressed in another tracker or workflow."
+        ),
+    },
+    "r3": {
+        "confirmed": "A real security issue in this project that warrants action.",
+        "dismissed": (
+            "The security claim itself is wrong for this project: a false "
+            "positive, a misread of the code, or a pattern that is safe as "
+            "used. Nothing valid remains to track."
+        ),
+        "not-security": (
+            "A genuinely valid observation about this project's code or "
+            "dependencies, but not a security concern here. Examples: a "
+            "documented, deliberate engineering choice; a test fixture or "
+            "other non-shipped code such as design artifacts, mocks and "
+            "documentation; a quality or correctness issue. These deserve "
+            "tracking as ordinary engineering work, outside the security gate."
+        ),
+        "deferred": (
+            "Real and relevant, but action should wait for a later horizon. "
+            "Deciding this needs information about fix availability, package "
+            "management and shipped usage that is rarely in the finding alone."
+        ),
+        "worked-elsewhere": (
+            "Already being addressed in another tracker or workflow."
+        ),
+    },
 }
 
 
@@ -123,6 +148,49 @@ def finding_details(fingerprint):
     }
 
 
+def path_class(path):
+    """Deterministic path classification: prefix rules only."""
+    p = path.replace("\\", "/")
+    if "testdata" in p or "fixture" in p:
+        return "test fixture or test data (non-shipped; consumed by tests)"
+    if p.startswith("docs/"):
+        return "documentation or design artifact (not executed by the product)"
+    if p.startswith("internal/serve/assets/"):
+        return "shipped dashboard asset (executed by cavet serve on loopback)"
+    if p.startswith("engine/"):
+        return "container image build definition (shipped as the scanner engine image)"
+    if p.startswith("internal/") or p.startswith("cmd/"):
+        return "production code"
+    return "repository file"
+
+
+def source_excerpt(location, before=6, after=6):
+    """Fixed-width source excerpt around the finding location."""
+    try:
+        path, line = location.rsplit(":", 1)
+        line = int(line)
+    except ValueError:
+        return None
+    full = REPO / path
+    try:
+        lines = full.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    lo = max(1, line - before)
+    hi = min(len(lines), line + after)
+    return "\n".join(f"{n:5d} | {lines[n - 1]}" for n in range(lo, hi + 1))
+
+
+def lookup_output(rule):
+    """Raw `cavet lookup` output for the finding's rule identifier."""
+    out = subprocess.run(
+        ["cavet", "lookup", rule],
+        capture_output=True, text=True,
+    )
+    text = (out.stdout or "").strip() or (out.stderr or "").strip()
+    return text or "no lookup output"
+
+
 def state_lv(d):
     return (
         f"{d['rule']} ({d['severity']}) at {d['location']}: {d['description']} "
@@ -147,7 +215,25 @@ def state_mv(d):
     }
 
 
-def q_single(verbosity):
+def build_state(var, d):
+    if var["verbosity"] == "lv":
+        st = state_lv(d)
+        if var.get("lookup"):
+            st = st + " cavet lookup output: " + " ".join(
+                lookup_output(d["rule"]).split())
+        return st
+    st = state_mv(d)
+    if var.get("enriched"):
+        st["mechanical_context"] = {
+            "path_class": path_class(d["location"].rsplit(":", 1)[0]),
+            "source_excerpt": source_excerpt(d["location"]),
+        }
+    if var.get("lookup"):
+        st["cavet_lookup"] = lookup_output(d["rule"])
+    return st
+
+
+def q_single(verbosity, defs):
     if verbosity == "lv":
         return {"status": {
             "type": "choice",
@@ -161,7 +247,7 @@ def q_single(verbosity):
             "described in the state. Using only the finding and the project "
             "context provided, which triage status fits it best?"
         ),
-        "criteria": MV_STATUS_DEFS,
+        "criteria": defs,
     }}
 
 
@@ -216,7 +302,7 @@ def q_confirm(verbosity):
     }}
 
 
-def q_closure(verbosity):
+def q_closure(verbosity, defs):
     if verbosity == "lv":
         return {"closure": {
             "type": "choice",
@@ -233,21 +319,39 @@ def q_closure(verbosity):
             "project. Which closure fits it best?"
         ),
         "criteria": {
-            "dismissed": MV_STATUS_DEFS["dismissed"],
-            "not-security": MV_STATUS_DEFS["not-security"],
+            "dismissed": defs["dismissed"],
+            "not-security": defs["not-security"],
         },
     }}
 
 
 VARIANTS = {
-    "single-lv":          {"flow": "single",  "verbosity": "lv", "missing": False},
-    "single-lv-missing":  {"flow": "single",  "verbosity": "lv", "missing": True},
-    "single-mv":          {"flow": "single",  "verbosity": "mv", "missing": False},
-    "single-mv-missing":  {"flow": "single",  "verbosity": "mv", "missing": True},
-    "twostep-lv":         {"flow": "twostep", "verbosity": "lv", "missing": False},
-    "twostep-lv-missing": {"flow": "twostep", "verbosity": "lv", "missing": True},
-    "twostep-mv":         {"flow": "twostep", "verbosity": "mv", "missing": False},
-    "twostep-mv-missing": {"flow": "twostep", "verbosity": "mv", "missing": True},
+    # rounds 1-2 baseline matrix (wording r2)
+    "single-lv":          {"flow": "single",  "verbosity": "lv", "missing": False, "wording": "r2"},
+    "single-lv-missing":  {"flow": "single",  "verbosity": "lv", "missing": True,  "wording": "r2"},
+    "single-mv":          {"flow": "single",  "verbosity": "mv", "missing": False, "wording": "r2"},
+    "single-mv-missing":  {"flow": "single",  "verbosity": "mv", "missing": True,  "wording": "r2"},
+    "twostep-lv":         {"flow": "twostep", "verbosity": "lv", "missing": False, "wording": "r2"},
+    "twostep-lv-missing": {"flow": "twostep", "verbosity": "lv", "missing": True,  "wording": "r2"},
+    "twostep-mv":         {"flow": "twostep", "verbosity": "mv", "missing": False, "wording": "r2"},
+    "twostep-mv-missing": {"flow": "twostep", "verbosity": "mv", "missing": True,  "wording": "r2"},
+    # r3 wording nudge (mv only: lv carries no definitions)
+    "single-mv-r3":           {"flow": "single",  "verbosity": "mv", "missing": False, "wording": "r3"},
+    "single-mv-r3-missing":   {"flow": "single",  "verbosity": "mv", "missing": True,  "wording": "r3"},
+    "twostep-mv-r3":          {"flow": "twostep", "verbosity": "mv", "missing": False, "wording": "r3"},
+    "twostep-mv-r3-missing":  {"flow": "twostep", "verbosity": "mv", "missing": True,  "wording": "r3"},
+    # mechanical enrichment (mv, r2 defs to isolate the axis)
+    "single-mv-enriched":          {"flow": "single",  "verbosity": "mv", "missing": False, "wording": "r2", "enriched": True},
+    "single-mv-enriched-missing":  {"flow": "single",  "verbosity": "mv", "missing": True,  "wording": "r2", "enriched": True},
+    "twostep-mv-enriched-missing": {"flow": "twostep", "verbosity": "mv", "missing": True,  "wording": "r2", "enriched": True},
+    # r2-wording baselines for round-1 findings whose mv-missing rows are r1 wording
+    "single-mv-missing-r2": {"flow": "single",  "verbosity": "mv", "missing": True,  "wording": "r2"},
+    "twostep-mv-missing-r2": {"flow": "twostep", "verbosity": "mv", "missing": True,  "wording": "r2"},
+    # cavet lookup axis (lv/mv, with the missing question so sufficiency moves are visible)
+    "single-lv-lookup-m": {"flow": "single",  "verbosity": "lv", "missing": True, "wording": "r2", "lookup": True},
+    "single-mv-lookup-m": {"flow": "single",  "verbosity": "mv", "missing": True, "wording": "r2", "lookup": True},
+    "twostep-lv-lookup-m": {"flow": "twostep", "verbosity": "lv", "missing": True, "wording": "r2", "lookup": True},
+    "twostep-mv-lookup-m": {"flow": "twostep", "verbosity": "mv", "missing": True, "wording": "r2", "lookup": True},
 }
 
 
@@ -284,7 +388,6 @@ def call_jev(state, questions):
 
 
 def summarize(resp):
-    """Compact answer view for dataset.json."""
     out = {}
     for qid, a in (resp.get("answers") or {}).items():
         if a.get("type") == "noul":
@@ -298,22 +401,19 @@ def summarize(resp):
     return out
 
 
-def run_single(finding, details, var):
-    state = state_lv(details) if var["verbosity"] == "lv" else state_mv(details)
-    questions = q_single(var["verbosity"])
+def run_single(state, var):
+    questions = q_single(var["verbosity"], WORDINGS[var["wording"]])
     if var["missing"]:
         questions.update(q_missing(var["verbosity"]))
     call = call_jev(state, questions)
-    resp = call.get("response") or {}
-    answers = resp.get("answers") or {}
-    final = answers.get("status", {}).get("choice")
+    answers = (call.get("response") or {}).get("answers") or {}
     return {"calls": [call],
-            "final": {"status": final,
+            "final": {"status": answers.get("status", {}).get("choice"),
                       "state_sufficient": (answers.get("state_sufficient") or {}).get("noul")}}
 
 
-def run_twostep(finding, details, var):
-    state = state_lv(details) if var["verbosity"] == "lv" else state_mv(details)
+def run_twostep(state, var):
+    defs = WORDINGS[var["wording"]]
     s1q = q_confirm(var["verbosity"])
     if var["missing"]:
         s1q.update(q_missing(var["verbosity"]))
@@ -327,7 +427,7 @@ def run_twostep(finding, details, var):
         final["status"] = "confirmed"
         final["step2_ran"] = False
     else:
-        c2 = call_jev(state, q_closure(var["verbosity"]))
+        c2 = call_jev(state, q_closure(var["verbosity"], defs))
         a2 = (c2.get("response") or {}).get("answers") or {}
         calls.append(c2)
         final["status"] = a2.get("closure", {}).get("choice")
@@ -356,15 +456,18 @@ def main():
         details = finding_details(f["fingerprint"])
         print(f"[{f['id']}] {details['severity']} {details['rule']} "
               f"({details['status']})")
-        for name in want_v:
+        for name in sorted(want_v):
             var = VARIANTS[name]
             if not args.force and name in f["results"]:
                 print(f"    {name}: recorded, skipping")
                 continue
+            state = build_state(var, details)
             runner = run_single if var["flow"] == "single" else run_twostep
-            rec = runner(f, details, var)
+            rec = runner(state, var)
             rec.update({"finding": f["id"], "fingerprint": f["fingerprint"],
-                        "variant": name, "wording": WORDING_VERSION})
+                        "variant": name, "wording": var["wording"],
+                        "enriched": bool(var.get("enriched")),
+                        "lookup": bool(var.get("lookup"))})
             (RUNS / f"{f['id']}__{name}.json").write_text(
                 json.dumps(rec, indent=2), encoding="utf-8")
             models = {(c.get("response") or {}).get("model") for c in rec["calls"]}
@@ -373,7 +476,7 @@ def main():
                 "final": rec["final"],
                 "calls": len(rec["calls"]),
                 "wall_ms": wall,
-                "wording": WORDING_VERSION,
+                "wording": var["wording"],
                 "models": sorted(m for m in models if m),
                 "answers": [summarize(c.get("response") or {})
                             for c in rec["calls"]],

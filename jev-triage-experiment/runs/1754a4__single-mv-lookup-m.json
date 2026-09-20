@@ -1,0 +1,83 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:31:35Z",
+      "http": 200,
+      "wall_ms": 1052.7,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "DS-0002",
+            "severity": "high",
+            "location": "engine/Dockerfile:1",
+            "description": "Image user should not be 'root'\nverdict: confirmed (high confidence, by operator): engine/Dockerfile defines no USER in any stage, so the image default is root; internal/engineclient/client.go:139-141 sets cfg.User only when the CLI is built for linux, so on the primary Windows dev platform the long-lived container and exec'd scanners run as root with the repository bind-mounted read-write; real hardening gap if a scan target escapes, only mitigated on Linux hosts",
+            "current_status": "confirmed"
+          },
+          "cavet_lookup": "| id      | severity | range | fixed | kev | epss | summary               | url |\n|---------|----------|-------|-------|-----|------|-----------------------|-----|\n| DS-0002 | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Using only the finding and the project context provided, which triage status fits it best?",
+            "criteria": {
+              "confirmed": "A real security issue in this project that warrants action.",
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here: a deliberate engineering choice, test fixtures or other non-shipped code, or a quality issue. Worth tracking as ordinary engineering work.",
+              "deferred": "Real and relevant, but action should wait for a later horizon. Deciding this needs information about fix availability, package management and shipped usage that is rarely in the finding alone.",
+              "worked-elsewhere": "Already being addressed in another tracker or workflow."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "confirmed",
+            "confidence": 0.97,
+            "probabilities": {
+              "worked-elsewhere": 0.0,
+              "dismissed": 0.0,
+              "deferred": 0.01,
+              "not-security": 0.01,
+              "confirmed": 0.98
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.46
+          }
+        },
+        "usage": {
+          "input_tokens": 969,
+          "output_tokens": 82
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "confirmed",
+    "state_sufficient": 0.46
+  },
+  "finding": "1754a4",
+  "fingerprint": "1754a418616bc02c8b75522ff947b44f60815b3e0d3e60596ee2598ea4f13996",
+  "variant": "single-mv-lookup-m",
+  "wording": "r2",
+  "enriched": false,
+  "lookup": true
+}

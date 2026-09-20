@@ -1,0 +1,70 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:30:17Z",
+      "http": 200,
+      "wall_ms": 1048.4,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "AWS-0089",
+            "severity": "low",
+            "location": "internal/finding/testdata/fixture/infra/main.tf:11",
+            "description": "S3 Bucket Logging\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+            "current_status": "dismissed"
+          }
+        },
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Using only the finding and the project context provided, which triage status fits it best?",
+            "criteria": {
+              "confirmed": "A real security issue in this project that warrants action.",
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate.",
+              "deferred": "Real and relevant, but action should wait for a later horizon. Deciding this needs information about fix availability, package management and shipped usage that is rarely in the finding alone.",
+              "worked-elsewhere": "Already being addressed in another tracker or workflow."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.66,
+            "probabilities": {
+              "not-security": 0.73,
+              "worked-elsewhere": 0.0,
+              "dismissed": 0.27,
+              "deferred": 0.0,
+              "confirmed": 0.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 739,
+          "output_tokens": 62
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "not-security",
+    "state_sufficient": null
+  },
+  "finding": "a0658e",
+  "fingerprint": "a0658ec43fe80b9d3aadc391c6e8d85e10096ee71ae5f78956686ecea61d4791",
+  "variant": "single-mv-r3",
+  "wording": "r3",
+  "enriched": false,
+  "lookup": false
+}

@@ -1,0 +1,65 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:31:46Z",
+      "http": 200,
+      "wall_ms": 1048.1,
+      "request": {
+        "model": "jev-latest",
+        "state": "AWS-0089 (low) at internal/finding/testdata/fixture/infra/main.tf:11: S3 Bucket Logging\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself. cavet lookup output: | id | severity | range | fixed | kev | epss | summary | url | |----------|----------|-------|-------|-----|------|-----------------------|-----| | AWS-0089 | \u2014 | \u2014 | | \u2014 | \u2014 | rule not in catalogue | |",
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "Which triage status fits this finding?",
+            "criteria": {
+              "confirmed": null,
+              "dismissed": null,
+              "not-security": null,
+              "deferred": null,
+              "worked-elsewhere": null
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Is the information provided sufficient to choose the correct status?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.99,
+            "probabilities": {
+              "deferred": 0.0,
+              "worked-elsewhere": 0.0,
+              "not-security": 0.0,
+              "dismissed": 1.0,
+              "confirmed": 0.0
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.8
+          }
+        },
+        "usage": {
+          "input_tokens": 543,
+          "output_tokens": 84
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "dismissed",
+    "state_sufficient": 0.8
+  },
+  "finding": "a0658e",
+  "fingerprint": "a0658ec43fe80b9d3aadc391c6e8d85e10096ee71ae5f78956686ecea61d4791",
+  "variant": "single-lv-lookup-m",
+  "wording": "r2",
+  "enriched": false,
+  "lookup": true
+}
