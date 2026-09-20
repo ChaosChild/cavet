@@ -36,6 +36,7 @@ Usage:
 """
 
 import argparse
+import glob
 import json
 import os
 import subprocess
@@ -198,7 +199,7 @@ def state_lv(d):
     )
 
 
-def state_mv(d):
+def state_mv(d, fresh=False):
     return {
         "project": {
             "name": PROJECT["name"],
@@ -210,7 +211,9 @@ def state_mv(d):
             "severity": d["severity"],
             "location": d["location"],
             "description": d["description"],
-            "current_status": d["status"],
+            # fresh-init simulation: a just-scanned finding is open; never
+            # leak an existing operator verdict into the state
+            "current_status": "open" if fresh else d["status"],
         },
     }
 
@@ -222,7 +225,7 @@ def build_state(var, d):
             st = st + " cavet lookup output: " + " ".join(
                 lookup_output(d["rule"]).split())
         return st
-    st = state_mv(d)
+    st = state_mv(d, fresh=var.get("fresh", False))
     if var.get("enriched"):
         st["mechanical_context"] = {
             "path_class": path_class(d["location"].rsplit(":", 1)[0]),
@@ -347,6 +350,9 @@ VARIANTS = {
     # r2-wording baselines for round-1 findings whose mv-missing rows are r1 wording
     "single-mv-missing-r2": {"flow": "single",  "verbosity": "mv", "missing": True,  "wording": "r2"},
     "twostep-mv-missing-r2": {"flow": "twostep", "verbosity": "mv", "missing": True,  "wording": "r2"},
+    # settled S0a default: mv + mechanical enrichment + lookup, r3 wording,
+    # fresh-init semantics (current_status is always open)
+    "final": {"flow": "twostep", "verbosity": "mv", "missing": True,  "wording": "r3", "enriched": True, "lookup": True, "fresh": True},
     # cavet lookup axis (lv/mv, with the missing question so sufficiency moves are visible)
     "single-lv-lookup-m": {"flow": "single",  "verbosity": "lv", "missing": True, "wording": "r2", "lookup": True},
     "single-mv-lookup-m": {"flow": "single",  "verbosity": "mv", "missing": True, "wording": "r2", "lookup": True},
@@ -436,13 +442,103 @@ def run_twostep(state, var):
     return {"calls": calls, "final": final}
 
 
+def enumerate_all_findings():
+    """Every distinct fingerprint cavet has flagged, minus remediated ones.
+
+    Read-only enumeration from the append-only log (the CLI's log view caps
+    at 50 rows today); a fresh cavet init would re-flag exactly this set.
+    """
+    events = []
+    for f in glob.glob(str(REPO / ".cavet" / "log" / "events-*.jsonl")):
+        with open(f, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line:
+                    events.append(json.loads(line))
+    det, rem = {}, set()
+    for e in events:
+        if e["event"] == "detected":
+            det.setdefault(e["fingerprint"], e)
+        elif e["event"] == "remediated" and e.get("fingerprint"):
+            rem.add(e["fingerprint"])
+    return [fp for fp in det if fp not in rem]
+
+
+def run_full(args):
+    full_path = HERE / "full-run.json"
+    if full_path.exists():
+        doc = json.loads(full_path.read_text(encoding="utf-8"))
+    else:
+        doc = {
+            "experiment": "jev-triage-s0a-final",
+            "note": (
+                "Fresh-init simulation: every finding cavet has flagged "
+                "(detected events, remediated excluded), triaged by Jev with "
+                "current_status open, mv state + mechanical enrichment + "
+                "cavet lookup, r3 wording, two-step flow with the "
+                "state_sufficient question."
+            ),
+            "variant": "final",
+            "findings": [],
+        }
+    byfp = {x["fingerprint"]: x for x in doc["findings"]}
+    fps = enumerate_all_findings()
+    if args.limit:
+        fps = fps[: args.limit]
+    todo = [fp for fp in fps if "final" not in byfp.get(fp, {}).get("results", {})]
+    print(f"full run: {len(fps)} findings in universe, {len(todo)} to run")
+    var = VARIANTS["final"]
+    done = errors = 0
+    for fp in todo:
+        try:
+            d = finding_details(fp)
+        except subprocess.CalledProcessError:
+            print(f"  [{fp[:6]}] cavet finding failed, skipping")
+            errors += 1
+            continue
+        rec = byfp.setdefault(fp, {
+            "id": fp[:6], "fingerprint": fp,
+            "severity": d["severity"], "rule": d["rule"],
+            "location": d["location"], "results": {}})
+        out = run_twostep(build_state(var, d), var)
+        out.update({"finding": rec["id"], "fingerprint": fp,
+                    "variant": "final", "wording": var["wording"],
+                    "enriched": True, "lookup": True, "fresh": True})
+        (RUNS / f"{rec['id']}__final.json").write_text(
+            json.dumps(out, indent=2), encoding="utf-8")
+        models = {(c.get("response") or {}).get("model") for c in out["calls"]}
+        rec["results"]["final"] = {
+            "final": out["final"],
+            "calls": len(out["calls"]),
+            "wall_ms": round(sum(c["wall_ms"] for c in out["calls"]), 1),
+            "wording": var["wording"],
+            "models": sorted(m for m in models if m),
+            "answers": [summarize(c.get("response") or {}) for c in out["calls"]],
+        }
+        doc["findings"] = list(byfp.values())
+        full_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        done += 1
+        if done % 25 == 0:
+            print(f"  ... {done}/{len(todo)} done")
+    print(f"full run complete: {done} processed, {errors} cli errors")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--findings", help="comma-separated short ids")
     ap.add_argument("--variants", help="comma-separated variant names")
     ap.add_argument("--force", action="store_true",
                     help="re-run variants already recorded")
+    ap.add_argument("--all", action="store_true",
+                    help="fresh-init run over every finding in the log "
+                         "into full-run.json")
+    ap.add_argument("--limit", type=int,
+                    help="cap the --all universe (smoke tests)")
     args = ap.parse_args()
+
+    if args.all:
+        run_full(args)
+        return
 
     doc = json.loads(DATASET.read_text(encoding="utf-8"))
     want_f = set(args.findings.split(",")) if args.findings else None

@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:50:50Z",
+      "http": 200,
+      "wall_ms": 1056.6,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "CVE-2025-14104",
+            "severity": "low",
+            "location": "engine/Dockerfile:1",
+            "description": "util-linux: util-linux: Heap buffer overread in setpwnam() when processing 256-byte usernames",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "container image build definition (shipped as the scanner engine image)",
+            "source_excerpt": "    1 | # syntax=docker/dockerfile:1\n    2 | #\n    3 | # cavet-engine \u2014 digest-pinned scanner image (engine-spec.md).\n    4 | # Everything is baked at build time; nothing installs at runtime (spec \u00a77.2.1).\n    5 | #\n    6 | # One build-args block is the only place versions appear (engine-spec \u00a72.1).\n    7 | "
+          },
+          "cavet_lookup": "| id             | severity      | range             | fixed         | kev | epss      | summary                                                                                       | url                                             |\n|----------------|---------------|-------------------|---------------|-----|-----------|-----------------------------------------------------------------------------------------------|-------------------------------------------------|\n| CVE-2025-14104 | not available | no range recorded | not available | no  | 0.2% (p9) | Util-linux: util-linux: heap buffer overread in setpwnam() when processing 256-byte usernames | https://nvd.nist.gov/vuln/detail/CVE-2025-14104 |\nnote: CVE-2025-14104: cvss 6.1 CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:H"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.27
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.18
+          }
+        },
+        "usage": {
+          "input_tokens": 1028,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:50:51Z",
+      "http": 200,
+      "wall_ms": 1064.6,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "CVE-2025-14104",
+            "severity": "low",
+            "location": "engine/Dockerfile:1",
+            "description": "util-linux: util-linux: Heap buffer overread in setpwnam() when processing 256-byte usernames",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "container image build definition (shipped as the scanner engine image)",
+            "source_excerpt": "    1 | # syntax=docker/dockerfile:1\n    2 | #\n    3 | # cavet-engine \u2014 digest-pinned scanner image (engine-spec.md).\n    4 | # Everything is baked at build time; nothing installs at runtime (spec \u00a77.2.1).\n    5 | #\n    6 | # One build-args block is the only place versions appear (engine-spec \u00a72.1).\n    7 | "
+          },
+          "cavet_lookup": "| id             | severity      | range             | fixed         | kev | epss      | summary                                                                                       | url                                             |\n|----------------|---------------|-------------------|---------------|-----|-----------|-----------------------------------------------------------------------------------------------|-------------------------------------------------|\n| CVE-2025-14104 | not available | no range recorded | not available | no  | 0.2% (p9) | Util-linux: util-linux: heap buffer overread in setpwnam() when processing 256-byte usernames | https://nvd.nist.gov/vuln/detail/CVE-2025-14104 |\nnote: CVE-2025-14104: cvss 6.1 CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:H"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.27,
+            "probabilities": {
+              "not-security": 0.36,
+              "dismissed": 0.64
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 935,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.27,
+    "state_sufficient": 0.18,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.27
+  },
+  "finding": "d15e05",
+  "fingerprint": "d15e05fec779d44142da4c7d1f882bcb1015426408ed7d319864749ea457900f",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

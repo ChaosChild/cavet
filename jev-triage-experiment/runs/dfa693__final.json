@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:48:56Z",
+      "http": 200,
+      "wall_ms": 1071.8,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "AWS-0094",
+            "severity": "low",
+            "location": "internal/finding/testdata/fixture/infra/main.tf:11",
+            "description": "S3 buckets should each define an aws_s3_bucket_public_access_block\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": "    5 |     to_port     = 65535\n    6 |     protocol    = \"tcp\"\n    7 |     cidr_blocks = [\"0.0.0.0/0\"]\n    8 |   }\n    9 | }\n   10 | \n   11 | resource \"aws_s3_bucket\" \"data\" {\n   12 |   bucket = \"my-unencrypted-bucket\"\n   13 |   acl    = \"public-read\"\n   14 | }"
+          },
+          "cavet_lookup": "| id       | severity | range | fixed | kev | epss | summary               | url |\n|----------|----------|-------|-------|-----|------|-----------------------|-----|\n| AWS-0094 | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.05
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.7
+          }
+        },
+        "usage": {
+          "input_tokens": 963,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:48:57Z",
+      "http": 200,
+      "wall_ms": 1120.6,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "AWS-0094",
+            "severity": "low",
+            "location": "internal/finding/testdata/fixture/infra/main.tf:11",
+            "description": "S3 buckets should each define an aws_s3_bucket_public_access_block\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/infra/main.tf consumed by scanner tests; not shipped, not applied anywhere",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": "    5 |     to_port     = 65535\n    6 |     protocol    = \"tcp\"\n    7 |     cidr_blocks = [\"0.0.0.0/0\"]\n    8 |   }\n    9 | }\n   10 | \n   11 | resource \"aws_s3_bucket\" \"data\" {\n   12 |   bucket = \"my-unencrypted-bucket\"\n   13 |   acl    = \"public-read\"\n   14 | }"
+          },
+          "cavet_lookup": "| id       | severity | range | fixed | kev | epss | summary               | url |\n|----------|----------|-------|-------|-----|------|-----------------------|-----|\n| AWS-0094 | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.72,
+            "probabilities": {
+              "not-security": 0.86,
+              "dismissed": 0.14
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 870,
+          "output_tokens": 35
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.05,
+    "state_sufficient": 0.7,
+    "status": "not-security",
+    "step2_ran": true,
+    "closure_confidence": 0.72
+  },
+  "finding": "dfa693",
+  "fingerprint": "dfa693cb132caf6d064718e1a29fa606d8c14ca9b88b3e6306e9d585718b4aed",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

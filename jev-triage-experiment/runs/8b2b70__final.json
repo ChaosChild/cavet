@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:49:26Z",
+      "http": 200,
+      "wall_ms": 1072.1,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.dockerfile.best-practice.missing-image-version",
+            "severity": "medium",
+            "location": "engine/Dockerfile:133",
+            "description": "engine/Dockerfile:157\nDetected docker image with no explicit version attached. Images should be tagged with an explicit version to produce deterministic container images -- attach a version when using `FROM <image>`.\nverdict: dismissed (high confidence, by operator): engine/Dockerfile:157 FROM rules references the internal stage defined at line 111 of the same Dockerfile, not a registry image; internal stages cannot carry a version tag",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "container image build definition (shipped as the scanner engine image)",
+            "source_excerpt": "  127 | # seeded scan at build time bakes it (spike \u00a74, engine-spec \u00a75).\n  128 | RUN set -e; \\\n  129 |     mkdir -p /seed; \\\n  130 |     printf 'resource \"aws_s3_bucket\" \"b\" {}\\n' > /seed/main.tf; \\\n  131 |     trivy fs --scanners misconfig --skip-db-update /seed || true; \\\n  132 |     rm -rf /seed; \\\n  133 |     test -d /opt/trivy-cache/policy/content\n  134 | \n  135 | FROM trivy-data-core AS trivy-data-full\n  136 | # java-db: only needed for JARs lacking a resolvable pom; excluded from core\n  137 | # (spec \u00a77.2.1).\n  138 | RUN trivy image --download-java-db-only\n  139 | "
+          },
+          "cavet_lookup": "| id                                                                | severity | range | fixed | kev | epss | summary                                                                             | url |\n|-------------------------------------------------------------------|----------|-------|-------|-----|------|-------------------------------------------------------------------------------------|-----|\n| opt.opengrep-rules.dockerfile.best-practice.missing-image-version | \u2014      | \u2014   |       | \u2014 | \u2014  | Opengrep Finding: opt.opengrep-rules.dockerfile.best-practice.missing-image-version |     |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.09
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.52
+          }
+        },
+        "usage": {
+          "input_tokens": 1159,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:49:27Z",
+      "http": 200,
+      "wall_ms": 1047.1,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.dockerfile.best-practice.missing-image-version",
+            "severity": "medium",
+            "location": "engine/Dockerfile:133",
+            "description": "engine/Dockerfile:157\nDetected docker image with no explicit version attached. Images should be tagged with an explicit version to produce deterministic container images -- attach a version when using `FROM <image>`.\nverdict: dismissed (high confidence, by operator): engine/Dockerfile:157 FROM rules references the internal stage defined at line 111 of the same Dockerfile, not a registry image; internal stages cannot carry a version tag",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "container image build definition (shipped as the scanner engine image)",
+            "source_excerpt": "  127 | # seeded scan at build time bakes it (spike \u00a74, engine-spec \u00a75).\n  128 | RUN set -e; \\\n  129 |     mkdir -p /seed; \\\n  130 |     printf 'resource \"aws_s3_bucket\" \"b\" {}\\n' > /seed/main.tf; \\\n  131 |     trivy fs --scanners misconfig --skip-db-update /seed || true; \\\n  132 |     rm -rf /seed; \\\n  133 |     test -d /opt/trivy-cache/policy/content\n  134 | \n  135 | FROM trivy-data-core AS trivy-data-full\n  136 | # java-db: only needed for JARs lacking a resolvable pom; excluded from core\n  137 | # (spec \u00a77.2.1).\n  138 | RUN trivy image --download-java-db-only\n  139 | "
+          },
+          "cavet_lookup": "| id                                                                | severity | range | fixed | kev | epss | summary                                                                             | url |\n|-------------------------------------------------------------------|----------|-------|-------|-----|------|-------------------------------------------------------------------------------------|-----|\n| opt.opengrep-rules.dockerfile.best-practice.missing-image-version | \u2014      | \u2014   |       | \u2014 | \u2014  | Opengrep Finding: opt.opengrep-rules.dockerfile.best-practice.missing-image-version |     |"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.91,
+            "probabilities": {
+              "dismissed": 0.96,
+              "not-security": 0.04
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1066,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.09,
+    "state_sufficient": 0.52,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.91
+  },
+  "finding": "8b2b70",
+  "fingerprint": "8b2b70bdd09117d6c9ef657fb41acb17d849a193e4e5fe3881b1dca747dc2f46",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:49:52Z",
+      "http": 200,
+      "wall_ms": 1148.5,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission",
+            "severity": "medium",
+            "location": "internal/store/store.go:31",
+            "description": "Detected file permissions that are set to more than `0600` (user/owner can read and write). Setting file permissions to higher than `0600` is most likely unnecessary and violates the principle of least privilege. Instead, set permissions to be `0600` or less for os.Chmod, os.Mkdir, os.OpenFile, os.MkdirAll, and ioutil.WriteFile\nverdict: dismissed (high confidence, by operator): internal/store/store.go:31 is 0755 scaffolding of .cavet subdirs per the artefacts spec; nothing is written at this site, state/ cache/ reports/ are gitignored, no secret-bearing content, and Windows is the primary platform where modes are moot",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "production code",
+            "source_excerpt": "   25 | \n   26 | // Init scaffolds .cavet/ exactly as artefacts \u00a71.1. Existing files are never\n   27 | // overwritten \u2014 operator edits win (artefacts \u00a71.1).\n   28 | func Init(root string) (*Store, error) {\n   29 | \tc := cavetDir(root)\n   30 | \tfor _, d := range []string{\"log\", \"state\", \"cache/advisories\", \"design/decisions\", \"reports\"} {\n   31 | \t\tif err := os.MkdirAll(filepath.Join(c, d), 0o755); err != nil {\n   32 | \t\t\treturn nil, err\n   33 | \t\t}\n   34 | \t}\n   35 | \tfiles := map[string]string{\n   36 | \t\t\"config.yaml\":    defaultConfigYAML,\n   37 | \t\t\".gitattributes\": \"log/*.jsonl merge=union\\n\","
+          },
+          "cavet_lookup": "| id                                                                              | severity | range | fixed                                  | kev | epss | summary                                                                                           | url |\n|---------------------------------------------------------------------------------|----------|-------|----------------------------------------|-----|------|---------------------------------------------------------------------------------------------------|-----|\n| opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission | \u2014      | \u2014   | CWE-276: Incorrect Default Permissions | \u2014 | \u2014  | Opengrep Finding: opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission |     |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.12
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.65
+          }
+        },
+        "usage": {
+          "input_tokens": 1228,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:49:54Z",
+      "http": 200,
+      "wall_ms": 1100.7,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission",
+            "severity": "medium",
+            "location": "internal/store/store.go:31",
+            "description": "Detected file permissions that are set to more than `0600` (user/owner can read and write). Setting file permissions to higher than `0600` is most likely unnecessary and violates the principle of least privilege. Instead, set permissions to be `0600` or less for os.Chmod, os.Mkdir, os.OpenFile, os.MkdirAll, and ioutil.WriteFile\nverdict: dismissed (high confidence, by operator): internal/store/store.go:31 is 0755 scaffolding of .cavet subdirs per the artefacts spec; nothing is written at this site, state/ cache/ reports/ are gitignored, no secret-bearing content, and Windows is the primary platform where modes are moot",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "production code",
+            "source_excerpt": "   25 | \n   26 | // Init scaffolds .cavet/ exactly as artefacts \u00a71.1. Existing files are never\n   27 | // overwritten \u2014 operator edits win (artefacts \u00a71.1).\n   28 | func Init(root string) (*Store, error) {\n   29 | \tc := cavetDir(root)\n   30 | \tfor _, d := range []string{\"log\", \"state\", \"cache/advisories\", \"design/decisions\", \"reports\"} {\n   31 | \t\tif err := os.MkdirAll(filepath.Join(c, d), 0o755); err != nil {\n   32 | \t\t\treturn nil, err\n   33 | \t\t}\n   34 | \t}\n   35 | \tfiles := map[string]string{\n   36 | \t\t\"config.yaml\":    defaultConfigYAML,\n   37 | \t\t\".gitattributes\": \"log/*.jsonl merge=union\\n\","
+          },
+          "cavet_lookup": "| id                                                                              | severity | range | fixed                                  | kev | epss | summary                                                                                           | url |\n|---------------------------------------------------------------------------------|----------|-------|----------------------------------------|-----|------|---------------------------------------------------------------------------------------------------|-----|\n| opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission | \u2014      | \u2014   | CWE-276: Incorrect Default Permissions | \u2014 | \u2014  | Opengrep Finding: opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission |     |"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.8,
+            "probabilities": {
+              "not-security": 0.1,
+              "dismissed": 0.9
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1135,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.12,
+    "state_sufficient": 0.65,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.8
+  },
+  "finding": "7d1ff0",
+  "fingerprint": "7d1ff0c0d4816aae5747c43860cb2493746b72213696b3ae538eef1bbaeeb2c9",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

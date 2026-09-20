@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:48:37Z",
+      "http": 200,
+      "wall_ms": 1046.9,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "CVE-2025-50181",
+            "severity": "medium",
+            "location": "internal/finding/testdata/fixture/requirements.txt:2",
+            "description": "urllib3: urllib3 redirects are not disabled when retries are disabled on PoolManager instantiation\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": "    1 | requests==2.19.1\n    2 | urllib3==1.24.1\n    3 | jinja2==2.10\n    4 | PyYAML==5.1"
+          },
+          "cavet_lookup": "| id             | severity      | range             | fixed         | kev | epss       | summary                                                                                   | url                                             |\n|----------------|---------------|-------------------|---------------|-----|------------|-------------------------------------------------------------------------------------------|-------------------------------------------------|\n| CVE-2025-50181 | not available | no range recorded | not available | no  | 0.5% (p40) | urllib3 redirects are not disabled when retries are disabled on PoolManager instantiation | https://nvd.nist.gov/vuln/detail/CVE-2025-50181 |\nnote: CVE-2025-50181: cvss 5.3 CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.05
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.66
+          }
+        },
+        "usage": {
+          "input_tokens": 1024,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:48:38Z",
+      "http": 200,
+      "wall_ms": 1080.2,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "CVE-2025-50181",
+            "severity": "medium",
+            "location": "internal/finding/testdata/fixture/requirements.txt:2",
+            "description": "urllib3: urllib3 redirects are not disabled when retries are disabled on PoolManager instantiation\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": "    1 | requests==2.19.1\n    2 | urllib3==1.24.1\n    3 | jinja2==2.10\n    4 | PyYAML==5.1"
+          },
+          "cavet_lookup": "| id             | severity      | range             | fixed         | kev | epss       | summary                                                                                   | url                                             |\n|----------------|---------------|-------------------|---------------|-----|------------|-------------------------------------------------------------------------------------------|-------------------------------------------------|\n| CVE-2025-50181 | not available | no range recorded | not available | no  | 0.5% (p40) | urllib3 redirects are not disabled when retries are disabled on PoolManager instantiation | https://nvd.nist.gov/vuln/detail/CVE-2025-50181 |\nnote: CVE-2025-50181: cvss 5.3 CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.76,
+            "probabilities": {
+              "not-security": 0.88,
+              "dismissed": 0.12
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 931,
+          "output_tokens": 35
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.05,
+    "state_sufficient": 0.66,
+    "status": "not-security",
+    "step2_ran": true,
+    "closure_confidence": 0.76
+  },
+  "finding": "4ed8e2",
+  "fingerprint": "4ed8e263af6a1dbb680037f2cb89471faf0dc6af741c45405bd7729df1b30032",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

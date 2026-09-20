@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:47:48Z",
+      "http": 200,
+      "wall_ms": 1046.0,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "CVE-2019-11324",
+            "severity": "high",
+            "location": "internal/finding/testdata/fixture/requirements.txt:2",
+            "description": "python-urllib3: Certification mishandle when error should be thrown\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": "    1 | requests==2.19.1\n    2 | urllib3==1.24.1\n    3 | jinja2==2.10\n    4 | PyYAML==5.1"
+          },
+          "cavet_lookup": "| id             | severity      | range        | fixed  | kev | epss       | summary                                    | url                                             |\n|----------------|---------------|--------------|--------|-----|------------|--------------------------------------------|-------------------------------------------------|\n| CVE-2019-11324 | not available | 0 \u2192 1.24.2 | 1.24.2 | no  | 2.8% (p86) | Improper Certificate Validation in urllib3 | https://nvd.nist.gov/vuln/detail/CVE-2019-11324 |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.05
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.73
+          }
+        },
+        "usage": {
+          "input_tokens": 966,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:47:49Z",
+      "http": 200,
+      "wall_ms": 1069.5,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "CVE-2019-11324",
+            "severity": "high",
+            "location": "internal/finding/testdata/fixture/requirements.txt:2",
+            "description": "python-urllib3: Certification mishandle when error should be thrown\nverdict: dismissed (high confidence, by operator): deliberate vulnerable fixture under internal/finding/testdata/fixture/requirements.txt consumed by scanner tests; not imported by production code",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": "    1 | requests==2.19.1\n    2 | urllib3==1.24.1\n    3 | jinja2==2.10\n    4 | PyYAML==5.1"
+          },
+          "cavet_lookup": "| id             | severity      | range        | fixed  | kev | epss       | summary                                    | url                                             |\n|----------------|---------------|--------------|--------|-----|------------|--------------------------------------------|-------------------------------------------------|\n| CVE-2019-11324 | not available | 0 \u2192 1.24.2 | 1.24.2 | no  | 2.8% (p86) | Improper Certificate Validation in urllib3 | https://nvd.nist.gov/vuln/detail/CVE-2019-11324 |"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.77,
+            "probabilities": {
+              "not-security": 0.88,
+              "dismissed": 0.12
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 873,
+          "output_tokens": 35
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.05,
+    "state_sufficient": 0.73,
+    "status": "not-security",
+    "step2_ran": true,
+    "closure_confidence": 0.77
+  },
+  "finding": "5d3559",
+  "fingerprint": "5d355960fa66e4800e3237844d4b81fb2d820fde5c45b0f9f8f3d780b35a2d65",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

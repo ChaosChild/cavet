@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:46:32Z",
+      "http": 200,
+      "wall_ms": 1094.0,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.generic.secrets.gitleaks.generic-api-key",
+            "severity": "info",
+            "location": "scripts/smoke.ps1:34",
+            "description": "A gitleaks generic-api-key was detected which attempts to identify hard-coded credentials. It is not recommended to store credentials in source-code, as this risks secrets being leaked and used by either an internal or external malicious adversary. It is recommended to use environment variables to securely provide credentials or retrieve credentials from a secure vault or HSM (Hardware Security Module). This rule can introduce a lot of false positives, it is not recommended to be used in PR comments.\nverdict: dismissed (high confidence, by operator): opengrep view of the same synthetic smoke-test literal at scripts/smoke.ps1 line 34; invented test value shaped to trigger gitleaks generic-api-key, used against a temp repo, not a credential for any system",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "repository file",
+            "source_excerpt": "   28 |     $p.WaitForExit()\n   29 |     [pscustomobject]@{ Code = $p.ExitCode; Out = $out; Err = $err }\n   30 | }\n   31 | \n   32 | # High-entropy alnum key, deliberately distinct from the fixture's SERVICE_API_KEY,\n   33 | # shaped so gitleaks' generic-api-key rule flags the staged content.\n   34 | $SmokeKey = 'Xk49Wq7Rt2ZhB8VyNc3Jm6LpQd4FsGwKr5TwYb2HnUeA7xDc'\n   35 | \n   36 | # --- build ---\n   37 | \n   38 | if (-not (Get-Command go -ErrorAction SilentlyContinue) -and $IsWindows) {\n   39 |     $env:Path = \"C:\\Program Files\\Go\\bin;$env:Path\" # AGENTS.md: Go lives here on dev machines\n   40 | }"
+          },
+          "cavet_lookup": "| id                                                          | severity | range | fixed                                  | kev | epss | summary                                                                       | url |\n|-------------------------------------------------------------|----------|-------|----------------------------------------|-----|------|-------------------------------------------------------------------------------|-----|\n| opt.opengrep-rules.generic.secrets.gitleaks.generic-api-key | \u2014      | \u2014   | CWE-798: Use of Hard-coded Credentials | \u2014 | \u2014  | Opengrep Finding: opt.opengrep-rules.generic.secrets.gitleaks.generic-api-key |     |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.05
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.79
+          }
+        },
+        "usage": {
+          "input_tokens": 1223,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:46:33Z",
+      "http": 200,
+      "wall_ms": 1112.5,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.generic.secrets.gitleaks.generic-api-key",
+            "severity": "info",
+            "location": "scripts/smoke.ps1:34",
+            "description": "A gitleaks generic-api-key was detected which attempts to identify hard-coded credentials. It is not recommended to store credentials in source-code, as this risks secrets being leaked and used by either an internal or external malicious adversary. It is recommended to use environment variables to securely provide credentials or retrieve credentials from a secure vault or HSM (Hardware Security Module). This rule can introduce a lot of false positives, it is not recommended to be used in PR comments.\nverdict: dismissed (high confidence, by operator): opengrep view of the same synthetic smoke-test literal at scripts/smoke.ps1 line 34; invented test value shaped to trigger gitleaks generic-api-key, used against a temp repo, not a credential for any system",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "repository file",
+            "source_excerpt": "   28 |     $p.WaitForExit()\n   29 |     [pscustomobject]@{ Code = $p.ExitCode; Out = $out; Err = $err }\n   30 | }\n   31 | \n   32 | # High-entropy alnum key, deliberately distinct from the fixture's SERVICE_API_KEY,\n   33 | # shaped so gitleaks' generic-api-key rule flags the staged content.\n   34 | $SmokeKey = 'Xk49Wq7Rt2ZhB8VyNc3Jm6LpQd4FsGwKr5TwYb2HnUeA7xDc'\n   35 | \n   36 | # --- build ---\n   37 | \n   38 | if (-not (Get-Command go -ErrorAction SilentlyContinue) -and $IsWindows) {\n   39 |     $env:Path = \"C:\\Program Files\\Go\\bin;$env:Path\" # AGENTS.md: Go lives here on dev machines\n   40 | }"
+          },
+          "cavet_lookup": "| id                                                          | severity | range | fixed                                  | kev | epss | summary                                                                       | url |\n|-------------------------------------------------------------|----------|-------|----------------------------------------|-----|------|-------------------------------------------------------------------------------|-----|\n| opt.opengrep-rules.generic.secrets.gitleaks.generic-api-key | \u2014      | \u2014   | CWE-798: Use of Hard-coded Credentials | \u2014 | \u2014  | Opengrep Finding: opt.opengrep-rules.generic.secrets.gitleaks.generic-api-key |     |"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.59,
+            "probabilities": {
+              "not-security": 0.21,
+              "dismissed": 0.79
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1130,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.05,
+    "state_sufficient": 0.79,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.59
+  },
+  "finding": "099c0b",
+  "fingerprint": "099c0b9a8d36d4bb40606f0d9acf3f0f159f176e1760401e1e64b65c3d3732ae",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

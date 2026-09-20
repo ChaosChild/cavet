@@ -1,0 +1,135 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:50:02Z",
+      "http": 200,
+      "wall_ms": 1179.8,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "sourcegraph-access-token",
+            "severity": "high",
+            "location": "internal/finding/testdata/gitleaks.sarif:1372",
+            "description": "sourcegraph-access-token has detected secret for file internal/finding/testdata/gitleaks.sarif at commit 626dd3b3d05d3697fa063754cff37dd64416d58f.\nverdict: dismissed (high confidence, by operator): token embedded in SARIF test file internal/finding/testdata/gitleaks.sarif, consumed by scanner tests; a test artefact, not a credential in source",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": " 1366 |          }\n 1367 |         }\n 1368 |        }\n 1369 |       }\n 1370 |      ],\n 1371 |      \"partialFingerprints\": {\n 1372 |       \"commitSha\": \"54e12fd9f6f8f78220ad5a7339893cc8fa8ed907\",\n 1373 |       \"email\": \"spike@local\",\n 1374 |       \"author\": \"spike\",\n 1375 |       \"date\": \"2026-08-21T13:24:53Z\",\n 1376 |       \"commitMessage\": \"planted fixtures\"\n 1377 |      },\n 1378 |      \"properties\": {"
+          },
+          "cavet_lookup": "| id                       | severity | range | fixed | kev | epss | summary               | url |\n|--------------------------|----------|-------|-------|-----|------|-----------------------|-----|\n| sourcegraph-access-token | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.06
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.55
+          }
+        },
+        "usage": {
+          "input_tokens": 1104,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T17:50:03Z",
+      "http": 200,
+      "wall_ms": 1095.3,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "sourcegraph-access-token",
+            "severity": "high",
+            "location": "internal/finding/testdata/gitleaks.sarif:1372",
+            "description": "sourcegraph-access-token has detected secret for file internal/finding/testdata/gitleaks.sarif at commit 626dd3b3d05d3697fa063754cff37dd64416d58f.\nverdict: dismissed (high confidence, by operator): token embedded in SARIF test file internal/finding/testdata/gitleaks.sarif, consumed by scanner tests; a test artefact, not a credential in source",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "test fixture or test data (non-shipped; consumed by tests)",
+            "source_excerpt": " 1366 |          }\n 1367 |         }\n 1368 |        }\n 1369 |       }\n 1370 |      ],\n 1371 |      \"partialFingerprints\": {\n 1372 |       \"commitSha\": \"54e12fd9f6f8f78220ad5a7339893cc8fa8ed907\",\n 1373 |       \"email\": \"spike@local\",\n 1374 |       \"author\": \"spike\",\n 1375 |       \"date\": \"2026-08-21T13:24:53Z\",\n 1376 |       \"commitMessage\": \"planted fixtures\"\n 1377 |      },\n 1378 |      \"properties\": {"
+          },
+          "cavet_lookup": "| id                       | severity | range | fixed | kev | epss | summary               | url |\n|--------------------------|----------|-------|-------|-----|------|-----------------------|-----|\n| sourcegraph-access-token | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "The security claim itself is wrong for this project: a false positive, a misread of the code, or a pattern that is safe as used. Nothing valid remains to track.",
+              "not-security": "A genuinely valid observation about this project's code or dependencies, but not a security concern here. Examples: a documented, deliberate engineering choice; a test fixture or other non-shipped code such as design artifacts, mocks and documentation; a quality or correctness issue. These deserve tracking as ordinary engineering work, outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "not-security",
+            "confidence": 0.29,
+            "probabilities": {
+              "not-security": 0.64,
+              "dismissed": 0.36
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1011,
+          "output_tokens": 35
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.06,
+    "state_sufficient": 0.55,
+    "status": "not-security",
+    "step2_ran": true,
+    "closure_confidence": 0.29
+  },
+  "finding": "31a94d",
+  "fingerprint": "31a94db0b17a9e34e0bb858ab340819423934993953b505c3ce7616de00b78c3",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}

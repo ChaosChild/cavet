@@ -1,0 +1,79 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T17:48:39Z",
+      "http": 200,
+      "wall_ms": 1069.6,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "DS-0002",
+            "severity": "high",
+            "location": "engine/Dockerfile:1",
+            "description": "Image user should not be 'root'\nverdict: confirmed (high confidence, by operator): engine/Dockerfile defines no USER in any stage, so the image default is root; internal/engineclient/client.go:139-141 sets cfg.User only when the CLI is built for linux, so on the primary Windows dev platform the long-lived container and exec'd scanners run as root with the repository bind-mounted read-write; real hardening gap if a scan target escapes, only mitigated on Linux hosts",
+            "current_status": "open"
+          },
+          "mechanical_context": {
+            "path_class": "container image build definition (shipped as the scanner engine image)",
+            "source_excerpt": "    1 | # syntax=docker/dockerfile:1\n    2 | #\n    3 | # cavet-engine \u2014 digest-pinned scanner image (engine-spec.md).\n    4 | # Everything is baked at build time; nothing installs at runtime (spec \u00a77.2.1).\n    5 | #\n    6 | # One build-args block is the only place versions appear (engine-spec \u00a72.1).\n    7 | "
+          },
+          "cavet_lookup": "| id      | severity | range | fixed | kev | epss | summary               | url |\n|---------|----------|-------|-------|-----|------|-----------------------|-----|\n| DS-0002 | \u2014      | \u2014   |       | \u2014 | \u2014  | rule not in catalogue |     |"
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: either the security claim is wrong here (false positive, misread, safe as used) or the observation is genuinely valid but not a security concern (test fixture, non-shipped code, deliberate engineering choice)."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.76
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.41
+          }
+        },
+        "usage": {
+          "input_tokens": 984,
+          "output_tokens": 43
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.76,
+    "state_sufficient": 0.41,
+    "status": "confirmed",
+    "step2_ran": false
+  },
+  "finding": "1754a4",
+  "fingerprint": "1754a418616bc02c8b75522ff947b44f60815b3e0d3e60596ee2598ea4f13996",
+  "variant": "final",
+  "wording": "r3",
+  "enriched": true,
+  "lookup": true,
+  "fresh": true
+}
