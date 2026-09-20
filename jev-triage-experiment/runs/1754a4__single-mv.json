@@ -1,0 +1,67 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:20:42Z",
+      "http": 200,
+      "wall_ms": 1048.4,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "DS-0002",
+            "severity": "high",
+            "location": "engine/Dockerfile:1",
+            "description": "Image user should not be 'root'\nverdict: confirmed (high confidence, by operator): engine/Dockerfile defines no USER in any stage, so the image default is root; internal/engineclient/client.go:139-141 sets cfg.User only when the CLI is built for linux, so on the primary Windows dev platform the long-lived container and exec'd scanners run as root with the repository bind-mounted read-write; real hardening gap if a scan target escapes, only mitigated on Linux hosts",
+            "current_status": "confirmed"
+          }
+        },
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Using only the finding and the project context provided, which triage status fits it best?",
+            "criteria": {
+              "confirmed": "A real security issue in this project that warrants action.",
+              "dismissed": "Not worth acting on: a false positive, or a deliberate pattern with no remaining value to track.",
+              "not-security": "Technically real as reported but not a security issue for this project; it may still be worth tracking outside the security gate.",
+              "deferred": "Real and relevant, but action should wait for a later horizon. Deciding this needs information about fix availability, package management and shipped usage that is rarely in the finding alone.",
+              "worked-elsewhere": "Already being addressed in another tracker or workflow."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "confirmed",
+            "confidence": 0.98,
+            "probabilities": {
+              "deferred": 0.01,
+              "dismissed": 0.0,
+              "not-security": 0.0,
+              "confirmed": 0.99,
+              "worked-elsewhere": 0.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 732,
+          "output_tokens": 61
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "confirmed",
+    "state_sufficient": null
+  },
+  "finding": "1754a4",
+  "fingerprint": "1754a418616bc02c8b75522ff947b44f60815b3e0d3e60596ee2598ea4f13996",
+  "variant": "single-mv"
+}

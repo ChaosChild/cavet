@@ -1,0 +1,54 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:20:32Z",
+      "http": 200,
+      "wall_ms": 1041.0,
+      "request": {
+        "model": "jev-latest",
+        "state": "opt.opengrep-rules.dockerfile.security.missing-user (high) at engine/Dockerfile:130: engine/Dockerfile:146\nengine/Dockerfile:154\nengine/Dockerfile:170\nBy not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.\nverdict: confirmed (high confidence, by operator): final-core stage (FROM rules at engine/Dockerfile:141) has no USER before its HEALTHCHECK/ENTRYPOINT, so the scanner image runs as root; the CLI's --user override applies only on linux builds (internal/engineclient/client.go:139-141), leaving root as the effective user on Windows/Docker Desktop Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "Which triage status fits this finding?",
+            "criteria": {
+              "confirmed": null,
+              "dismissed": null,
+              "not-security": null,
+              "deferred": null,
+              "worked-elsewhere": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "confirmed",
+            "confidence": 1.0,
+            "probabilities": {
+              "dismissed": 0.0,
+              "deferred": 0.0,
+              "confirmed": 1.0,
+              "worked-elsewhere": 0.0,
+              "not-security": 0.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 595,
+          "output_tokens": 61
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "confirmed",
+    "state_sufficient": null
+  },
+  "finding": "856924",
+  "fingerprint": "8569248d20d2571cb5d495d08a0f8f2afe7bc600adc5b6869881c9868641088a",
+  "variant": "single-lv"
+}

@@ -1,0 +1,79 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:21:07Z",
+      "http": 200,
+      "wall_ms": 1058.1,
+      "request": {
+        "model": "jev-latest",
+        "state": "generic-api-key (high) at internal/finding/testdata/fixture/config.py:9: generic-api-key has detected secret for file internal/finding/testdata/fixture/config.py at commit 626dd3b3d05d3697fa063754cff37dd64416d58f.\nverdict: dismissed (high confidence, by operator): fake credentials in deliberate fixture internal/finding/testdata/fixture/config.py consumed by scanner tests; not imported by production code Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "Is this a genuine security finding that warrants action in this project?"
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.04
+          }
+        },
+        "usage": {
+          "input_tokens": 468,
+          "output_tokens": 23
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T16:21:08Z",
+      "http": 200,
+      "wall_ms": 1069.3,
+      "request": {
+        "model": "jev-latest",
+        "state": "generic-api-key (high) at internal/finding/testdata/fixture/config.py:9: generic-api-key has detected secret for file internal/finding/testdata/fixture/config.py at commit 626dd3b3d05d3697fa063754cff37dd64416d58f.\nverdict: dismissed (high confidence, by operator): fake credentials in deliberate fixture internal/finding/testdata/fixture/config.py consumed by scanner tests; not imported by production code Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue. Which closure fits it?",
+            "criteria": {
+              "dismissed": null,
+              "not-security": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.93,
+            "probabilities": {
+              "not-security": 0.03,
+              "dismissed": 0.97
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 489,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.04,
+    "state_sufficient": null,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.93
+  },
+  "finding": "8d20db",
+  "fingerprint": "8d20db717912ff7143a6d52dba64dcce12e81f45bdfe8a994aa5a33aabf4e1d3",
+  "variant": "twostep-lv"
+}

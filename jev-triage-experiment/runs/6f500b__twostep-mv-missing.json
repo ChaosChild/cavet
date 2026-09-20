@@ -1,0 +1,121 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:21:09Z",
+      "http": 200,
+      "wall_ms": 1062.5,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission",
+            "severity": "medium",
+            "location": "internal/cli/hook.go:15",
+            "description": "Detected file permissions that are set to more than `0600` (user/owner can read and write). Setting file permissions to higher than `0600` is most likely unnecessary and violates the principle of least privilege. Instead, set permissions to be `0600` or less for os.Chmod, os.Mkdir, os.OpenFile, os.MkdirAll, and ioutil.WriteFile\nverdict: dismissed (high confidence, by operator): internal/cli/hook.go:15 mkdir 0755 and the hook shims at 0755 are deliberate: git only executes hooks carrying the executable bit, and the shim content is a fixed two-line cavet scan invocation with no secrets; 0755 grants write only to the owner",
+            "current_status": "dismissed"
+          }
+        },
+        "questions": {
+          "is_confirmed": {
+            "type": "noul",
+            "instructions": "You are triaging a security scanner finding for the project described in the state. Does this finding describe a genuine security issue that warrants action in this project? Judge only from the finding and the project context provided.",
+            "criteria": {
+              "true": "A real security issue in this project that warrants action.",
+              "false": "Not actionable as a security issue in this project: a false positive, a test fixture or fake value, a deliberate pattern, or real but without security impact here."
+            }
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "instructions": "Before deciding the triage status: does the state contain everything a knowledgeable reviewer would need to decide this finding with confidence? Answer no if a specific kind of information is missing, for example whether the flagged file is production code or a test fixture, whether the affected package is imported by production code, whether a flagged secret is real, or whether a fix is available.",
+            "criteria": {
+              "true": "The state is sufficient; the decision can be made from what is provided.",
+              "false": "Specific information is missing from the state and the status decision would be a guess."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "is_confirmed": {
+            "type": "noul",
+            "noul": 0.1
+          },
+          "state_sufficient": {
+            "type": "noul",
+            "noul": 0.53
+          }
+        },
+        "usage": {
+          "input_tokens": 828,
+          "output_tokens": 43
+        }
+      }
+    },
+    {
+      "ts": "2026-09-20T16:21:10Z",
+      "http": 200,
+      "wall_ms": 1140.6,
+      "request": {
+        "model": "jev-latest",
+        "state": {
+          "project": {
+            "name": "cavet",
+            "description": "A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log.",
+            "context": "This finding comes from a scan of the cavet repository itself."
+          },
+          "finding": {
+            "rule_id": "opt.opengrep-rules.go.lang.correctness.permissions.incorrect-default-permission",
+            "severity": "medium",
+            "location": "internal/cli/hook.go:15",
+            "description": "Detected file permissions that are set to more than `0600` (user/owner can read and write). Setting file permissions to higher than `0600` is most likely unnecessary and violates the principle of least privilege. Instead, set permissions to be `0600` or less for os.Chmod, os.Mkdir, os.OpenFile, os.MkdirAll, and ioutil.WriteFile\nverdict: dismissed (high confidence, by operator): internal/cli/hook.go:15 mkdir 0755 and the hook shims at 0755 are deliberate: git only executes hooks carrying the executable bit, and the shim content is a fixed two-line cavet scan invocation with no secrets; 0755 grants write only to the owner",
+            "current_status": "dismissed"
+          }
+        },
+        "questions": {
+          "closure": {
+            "type": "choice",
+            "instructions": "The finding is not actionable as a security issue in this project. Which closure fits it best?",
+            "criteria": {
+              "dismissed": "Not worth acting on: a false positive, or a deliberate pattern with no remaining value to track.",
+              "not-security": "Technically real as reported but not a security issue for this project; it may still be worth tracking outside the security gate."
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "closure": {
+            "type": "choice",
+            "choice": "dismissed",
+            "confidence": 0.96,
+            "probabilities": {
+              "dismissed": 0.98,
+              "not-security": 0.02
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 699,
+          "output_tokens": 36
+        }
+      }
+    }
+  ],
+  "final": {
+    "step1_noul": 0.1,
+    "state_sufficient": 0.53,
+    "status": "dismissed",
+    "step2_ran": true,
+    "closure_confidence": 0.96
+  },
+  "finding": "6f500b",
+  "fingerprint": "6f500b4206d4931a53b324d937ce658b92d10a3ce9ed6b480cdfe937990ebb88",
+  "variant": "twostep-mv-missing"
+}

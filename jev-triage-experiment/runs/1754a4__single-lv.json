@@ -1,0 +1,54 @@
+{
+  "calls": [
+    {
+      "ts": "2026-09-20T16:20:41Z",
+      "http": 200,
+      "wall_ms": 1020.6,
+      "request": {
+        "model": "jev-latest",
+        "state": "DS-0002 (high) at engine/Dockerfile:1: Image user should not be 'root'\nverdict: confirmed (high confidence, by operator): engine/Dockerfile defines no USER in any stage, so the image default is root; internal/engineclient/client.go:139-141 sets cfg.User only when the CLI is built for linux, so on the primary Windows dev platform the long-lived container and exec'd scanners run as root with the repository bind-mounted read-write; real hardening gap if a scan target escapes, only mitigated on Linux hosts Project: cavet, A Go CLI security-triage tool for coding agents. It runs scanners (trivy, opengrep, gitleaks, checkov) inside an offline container engine and records every finding and decision in an append-only audit log. This finding comes from a scan of the cavet repository itself.",
+        "questions": {
+          "status": {
+            "type": "choice",
+            "instructions": "Which triage status fits this finding?",
+            "criteria": {
+              "confirmed": null,
+              "dismissed": null,
+              "not-security": null,
+              "deferred": null,
+              "worked-elsewhere": null
+            }
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "status": {
+            "type": "choice",
+            "choice": "confirmed",
+            "confidence": 1.0,
+            "probabilities": {
+              "not-security": 0.0,
+              "worked-elsewhere": 0.0,
+              "confirmed": 1.0,
+              "dismissed": 0.0,
+              "deferred": 0.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 511,
+          "output_tokens": 61
+        }
+      }
+    }
+  ],
+  "final": {
+    "status": "confirmed",
+    "state_sufficient": null
+  },
+  "finding": "1754a4",
+  "fingerprint": "1754a418616bc02c8b75522ff947b44f60815b3e0d3e60596ee2598ea4f13996",
+  "variant": "single-lv"
+}
