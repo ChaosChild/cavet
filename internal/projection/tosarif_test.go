@@ -2,6 +2,7 @@ package projection
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -23,6 +24,24 @@ func TestTrivySARIFRunGolden(t *testing.T) {
 	want := `{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"Trivy","version":"0.74.0","rules":[{"id":"CVE-2026-67213","defaultConfiguration":{"level":"error"},"properties":{"tags":["security","HIGH"]}},{"id":"CVE-2020-28500","defaultConfiguration":{"level":"warning"},"properties":{"tags":["security","MEDIUM"]}},{"id":"github-pat","defaultConfiguration":{"level":"error"},"properties":{"tags":["security","CRITICAL"]}}]}},"results":[{"ruleId":"CVE-2026-67213","level":"error","message":{"text":"nanoid DoS"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"package-lock.json"},"region":{"startLine":6}}}],"properties":{"dev":true}},{"ruleId":"CVE-2020-28500","level":"warning","message":{"text":"lodash ReDoS"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"package-lock.json"},"region":{"startLine":5}}}]},{"ruleId":"github-pat","level":"error","message":{"text":"GitHub Personal Access Token"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"creds.txt"},"region":{"startLine":3}}}]}]}]}`
 	if string(got) != want {
 		t.Fatalf("projected run mismatch:\n got: %s\nwant: %s", got, want)
+	}
+}
+
+// A clean scan (zero findings, the common case) must emit empty arrays, never
+// null: strict SARIF consumers such as GitHub code scanning reject a null
+// rules or results field.
+func TestTrivySARIFRunEmptyInputEmitsEmptyArrays(t *testing.T) {
+	got, err := TrivySARIFRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"rules":[]`, `"results":[]`} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("clean-scan run missing %s: %s", want, got)
+		}
+	}
+	if strings.Contains(string(got), "null") {
+		t.Errorf("clean-scan run marshals a null field: %s", got)
 	}
 }
 

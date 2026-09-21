@@ -57,6 +57,11 @@ func TrivySARIFRun(fs []Finding) ([]byte, error) {
 	var run runOut
 	run.Tool.Driver.Name = "Trivy"
 	run.Tool.Driver.Version = "0.74.0" // the pinned engine these findings were parsed from
+	// Empty slices, not nil: a clean scan (zero findings, the common case)
+	// must marshal "rules":[] / "results":[], never null, which strict SARIF
+	// consumers such as GitHub code scanning reject.
+	run.Tool.Driver.Rules = []ruleOut{}
+	run.Results = []resultOut{}
 
 	rules := map[string]bool{}
 	for _, f := range fs {

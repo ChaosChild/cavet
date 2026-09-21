@@ -149,6 +149,22 @@ func TestTrivyDevDepsFlagAndRows(t *testing.T) {
 	if !r.ran("--include-dev-deps") {
 		t.Fatalf("dev-deps on must pass --include-dev-deps to trivy, cmds: %v", r.cmds)
 	}
+	// Pin the exact argument slice: --include-dev-deps must sit right after
+	// "trivy fs"; inserting it between --scanners and its value would orphan
+	// the scanner list.
+	wantCmd := "trivy fs --include-dev-deps --scanners vuln,misconfig,secret" +
+		" --skip-db-update --skip-check-update --offline-scan" +
+		" --format json --output /reports/trivy.json /scan/1"
+	gotCmd := ""
+	for _, c := range r.cmds {
+		if strings.HasPrefix(c, "trivy fs") {
+			gotCmd = c
+			break
+		}
+	}
+	if gotCmd != wantCmd {
+		t.Fatalf("trivy invocation:\n got: %s\nwant: %s", gotCmd, wantCmd)
+	}
 	if !res.DevIncluded {
 		t.Error("result must record DevIncluded")
 	}
