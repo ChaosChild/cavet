@@ -166,6 +166,17 @@ func (s *Store) Rebuild() (*State, error) {
 	if err := s.loadBaseline(st); err != nil {
 		return nil, err
 	}
+	// Baseline membership is not log-derivable (§6.3): re-mark it the way
+	// rebaseline writes it, untriaged pre-existing debt only.
+	inBaseline := map[string]bool{}
+	for _, fp := range st.Baseline.Fingerprints {
+		inBaseline[fp] = true
+	}
+	for _, f := range st.Findings {
+		if f.Verdict == nil && inBaseline[f.Fingerprint] {
+			f.InBaseline = true
+		}
+	}
 	assignDisplayIDs(st.Findings)
 	return st, s.writeState(st)
 }
