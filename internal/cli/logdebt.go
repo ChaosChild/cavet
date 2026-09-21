@@ -5,11 +5,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/store"
 	"github.com/spf13/cobra"
 )
 
 func newLogCmd() *cobra.Command {
 	var since, fingerprint string
+	var limit int
 	cmd := &cobra.Command{
 		Use:   "log [--since <date>] [--fingerprint <id>]",
 		Short: "Read the audit trail, newest first",
@@ -39,8 +41,11 @@ func newLogCmd() *cobra.Command {
 				}
 				sinceT = t
 			}
+			if limit < 1 {
+				return fail("--limit must be at least 1")
+			}
 			shown := 0
-			for i := len(evs) - 1; i >= 0 && shown < 50; i-- {
+			for i := len(evs) - 1; i >= 0 && shown < limit; i-- {
 				e := evs[i]
 				if since != "" && e.TS.Before(sinceT) {
 					continue
@@ -62,6 +67,7 @@ func newLogCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&since, "since", "", "only events at or after this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&fingerprint, "fingerprint", "", "one finding's history")
+	cmd.Flags().IntVar(&limit, "limit", 50, "maximum rows to show")
 	return cmd
 }
 
@@ -74,6 +80,7 @@ func truncateExcerpt(s string) string {
 
 func newDebtCmd() *cobra.Command {
 	var severity string
+	var showAll bool
 	cmd := &cobra.Command{
 		Use:   "debt [--severity <level>]",
 		Short: "The pre-existing baseline, on demand only",
@@ -97,10 +104,7 @@ func newDebtCmd() *cobra.Command {
 			for _, fp := range st.Baseline.Fingerprints {
 				inBaseline[fp] = true
 			}
-			rows := 0
-			fmt.Printf("| %-6s | %-8s | %-24s | %-24s | %s |\n", "id", "sev", "rule", "location", "description")
-			fmt.Printf("|%s|%s|%s|%s|%s|\n", strings.Repeat("-", 8), strings.Repeat("-", 10),
-				strings.Repeat("-", 26), strings.Repeat("-", 26), strings.Repeat("-", 12))
+			var rows []store.Finding
 			for _, f := range st.Findings {
 				if !inBaseline[f.Fingerprint] {
 					continue
@@ -108,18 +112,70 @@ func newDebtCmd() *cobra.Command {
 				if severity != "" && f.Severity != severity {
 					continue
 				}
-				loc := ""
-				if len(f.Locations) > 0 {
-					loc = fmt.Sprintf("%s:%d", f.Locations[0].Path, f.Locations[0].Line)
-				}
-				fmt.Printf("| %-6s | %-8s | %-24s | %-24s | %s |\n",
-					f.DisplayID, f.Severity, f.RuleID, loc, truncateExcerpt(f.Description))
-				rows++
+				rows = append(rows, *f)
 			}
-			fmt.Printf("baseline: %d findings (%d shown)\n", len(st.Baseline.Fingerprints), rows)
+			hidden := 0
+			for i := range rows {
+				if !undecided(&rows[i]) {
+					hidden++
+				}
+			}
+			fmt.Print(debtTable(rows, showAll))
+			fmt.Printf("baseline: %d findings (%d undecided shown, %d hidden; --all shows everything)\n",
+				len(st.Baseline.Fingerprints), len(rows)-hidden, hidden)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&severity, "severity", "", "critical|high|medium|low|info")
+	cmd.Flags().BoolVar(&showAll, "all", false, "show triaged rows too, with a verdict column")
 	return cmd
+}
+
+// undecided reports whether a finding still awaits a triage decision.
+// Deferred rows stay visible until the deferred-rework item lands; suppressed
+// rows are decisions too.
+func undecided(f *store.Finding) bool {
+	if f.Verdict != nil {
+		return false
+	}
+	return f.Status != "suppressed"
+}
+
+func debtTable(rows []store.Finding, showAll bool) string {
+	var b strings.Builder
+	if showAll {
+		fmt.Fprintf(&b, "| %-6s | %-8s | %-24s | %-24s | %-10s | %s |\n",
+			"id", "sev", "rule", "location", "verdict", "description")
+	} else {
+		fmt.Fprintf(&b, "| %-6s | %-8s | %-24s | %-24s | %s |\n",
+			"id", "sev", "rule", "location", "description")
+	}
+	b.WriteString("|" + strings.Repeat("-", 8) + "|" + strings.Repeat("-", 10) + "|" +
+		strings.Repeat("-", 26) + "|" + strings.Repeat("-", 26) + "|" +
+		strings.Repeat("-", 12) + "|")
+	if showAll {
+		b.WriteString(strings.Repeat("-", 12) + "|")
+	}
+	b.WriteString("\n")
+	for _, f := range rows {
+		if !showAll && !undecided(&f) {
+			continue
+		}
+		loc := ""
+		if len(f.Locations) > 0 {
+			loc = fmt.Sprintf("%s:%d", f.Locations[0].Path, f.Locations[0].Line)
+		}
+		verdict := f.Status
+		if f.Verdict != nil {
+			verdict = f.Verdict.Verdict
+		}
+		if showAll {
+			fmt.Fprintf(&b, "| %-6s | %-8s | %-24s | %-24s | %-10s | %s |\n",
+				f.DisplayID, f.Severity, f.RuleID, loc, verdict, truncateExcerpt(f.Description))
+		} else {
+			fmt.Fprintf(&b, "| %-6s | %-8s | %-24s | %-24s | %s |\n",
+				f.DisplayID, f.Severity, f.RuleID, loc, truncateExcerpt(f.Description))
+		}
+	}
+	return b.String()
 }
