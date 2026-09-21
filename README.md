@@ -352,6 +352,7 @@ scoop install cavet
 | `engine` | Control the long-lived scanner container; `prune` removes containers whose repository is gone |
 | `rebaseline` | After a deliberate engine change: regenerate the baseline |
 | `rebuild` | Regenerate `state/` from the log (the source of truth) |
+| `doctor` | replays the log and diffs state/ against it; doctor fix repairs log-derivable drift, refuses the rest |
 | `serve` | Dashboard on loopback: posture, findings, metrics (`--port`) |
 | `describe` | Machine contract for third-party installers |
 | `update` | Update the cavet binary in place from GitHub releases, checksum and Sigstore verified |

@@ -380,6 +380,8 @@ cavet lookup <identifier>... [--refresh]   # advisory / rule lookup, allowlisted
 cavet items                         # open items: design concerns + verification requests
 cavet engine (status|start|stop|pull|prune|shell)   # prune: remove containers whose repo root is gone
 cavet rebuild                       # regenerate state/ from log/
+cavet doctor                        # replay the log, diff state/ against it; exit 1 = drift present (informational)
+cavet doctor fix                    # repair log-derivable drift; refuses rows the log cannot regenerate
 cavet serve [--port <port>]         # loopback dashboard (default 8765)
 cavet rebaseline                    # after a deliberate engine image change
 cavet describe --json               # machine contract for third-party installers

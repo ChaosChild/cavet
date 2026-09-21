@@ -103,6 +103,7 @@ func newRoot() (*cobra.Command, error) {
 		newLogCmd(),
 		newDebtCmd(),
 		newRebuildCmd(),
+		newDoctorCmd(),
 		newRebaselineCmd(),
 		newEngineCmd(),
 		newImageCmd(),
