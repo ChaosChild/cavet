@@ -87,15 +87,33 @@ def main():
     proj = Path(args.project_dir).resolve()
     if not (proj / ".cavet").exists():
         sys.exit(f"no .cavet state in {proj}")
-    pkg = json.loads((proj / "package.json").read_text(encoding="utf-8"))
-    name = pkg.get("name") or proj.name
+    import re
+    if re.fullmatch(r"corpus-\d+", proj.name):
+        # benchmark subjects: never read package.json identity — the
+        # subject's own name must not reach the model or any record
+        name = proj.name
+        desc = "De-identified benchmark repository used for triage research."
+    else:
+        pkg_path = proj / "package.json"
+        if pkg_path.exists():
+            pkg = json.loads(pkg_path.read_text(encoding="utf-8"))
+            name = pkg.get("name") or proj.name
+            desc = pkg.get("description") or ""
+        else:
+            name = proj.name
+            desc = "De-identified benchmark repository used for triage research."
     os.chdir(proj)  # cavet CLI calls resolve against the project repo
 
     batch.PROJECT = {
         "name": name,
-        "description": pkg.get("description") or "",
+        "description": desc,
         "note": f"This finding comes from a scan of the {name} repository itself.",
     }
+    if name.startswith("corpus-"):
+        # benchmark subjects: finding-level records (paths, descriptions)
+        # stay under the gitignored s0b/ area, never in committed files
+        batch.OUT = HERE / "s0b" / "runs"
+        batch.DETAILS_CACHE = HERE / "s0b" / f"details-cache-{name}.json"
     batch.path_class = js_path_class
     batch.DETAILS_CACHE = HERE / f"details-cache-{name}.json"
 

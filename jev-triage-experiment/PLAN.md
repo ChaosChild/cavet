@@ -134,6 +134,29 @@ similarity batches triaged all 663 findings in 255 seconds (4.2
 minutes, 5.5x versus the single-call run) at 98.0 percent agreement and
 zero operator-triaged regressions.
 
+### S0b progress (2026-09-21)
+
+fragmt (JS): 40 findings through the adopted config in 7 seconds; zero
+actionable disagreements against operator verdicts; the not-security
+verdict fired on 17 findings, 16 of them in the real served web UI -
+valid findings, not security, exactly the intended routing.
+
+Benchmark corpora (scanned sequentially on local scratch copies; the
+benchmark tree untouched; finding-level records stay local): 1090
+findings total, ground truth confirms 128 of them (95 dependency-SCA
+via trivy, 33 opengrep code findings). First pass with a generic
+project block collapsed recall on confirmed findings to 25/127
+(19.7 percent) - the silent-failure mode this experiment exists to
+catch, concentrated in dependency-lockfile SCA findings judged without
+project context. The prescribed counterfactual, a mechanically derived
+identity-free project archetype ("a Node.js software project that
+ships a dependency lockfile") plus a lockfile path-class rule, lifted
+corpus-2 recall from 0/87 to 77/87 (88.5 percent), with 78 total
+confirmations of which 77 are ground-truth-confirmed. Remaining S0b
+work: apply archetype derivation across all corpora, autopsy the
+residual misses (10 in corpus-2, 3 near-zero in corpus-4), and fold
+archetype detection into the mechanical state builder.
+
 ### S0b: expansion rounds
 
 Grow the corpus step by step: more cavet findings, then fragmt findings, then
