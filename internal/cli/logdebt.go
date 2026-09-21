@@ -67,7 +67,7 @@ func newLogCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&since, "since", "", "only events at or after this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&fingerprint, "fingerprint", "", "one finding's history")
-	cmd.Flags().IntVar(&limit, "limit", 50, "maximum rows to show (default 50)")
+	cmd.Flags().IntVar(&limit, "limit", 50, "maximum rows to show")
 	return cmd
 }
 
