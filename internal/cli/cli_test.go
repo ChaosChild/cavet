@@ -221,3 +221,23 @@ func TestScanTimeout(t *testing.T) {
 		t.Fatalf("image scan cap = %v, want 2h", got)
 	}
 }
+
+func TestAdvisoryHook(t *testing.T) {
+	cases := []struct {
+		ctx   string
+		exit1 bool
+		want  bool // true: nothing may block the commit
+	}{
+		{string(events.ContextPreCommit), false, true},
+		{string(events.ContextPreCommit), true, false},
+		{string(events.ContextDispatch), false, false},
+		{string(events.ContextDispatch), true, false},
+		{string(events.ContextPosture), false, false},
+		{"", false, false},
+	}
+	for _, c := range cases {
+		if got := advisoryHook(c.ctx, c.exit1); got != c.want {
+			t.Errorf("advisoryHook(%q, %v) = %v, want %v", c.ctx, c.exit1, got, c.want)
+		}
+	}
+}

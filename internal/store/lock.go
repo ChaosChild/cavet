@@ -31,6 +31,13 @@ type lockInfo struct {
 // exceptions (artefacts §7.1). The returned function releases it.
 func (s *Store) Lock() (func(), error) {
 	path := filepath.Join(s.Cavet, "state", "lock")
+	// state/ is derived and gitignored, so a fresh clone or worktree of a
+	// repository that tracks .cavet/ has config and log but no state
+	// directory (artefacts §1.1). Missing state files mean fresh state
+	// (load.go); the directory gets the same on-demand treatment.
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
 	deadline := time.Now().Add(lockWait)
 	for {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)

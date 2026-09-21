@@ -66,7 +66,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	ctx, cancel := context.WithTimeout(context.Background(), scanTimeout(image || len(images) > 0))
 	defer cancel()
 	if err := c.EnsureRunning(ctx); err != nil {
-		return fail(err.Error())
+		return scanFail(surfaceCtx, cfg.Scan.HookExit1, err)
 	}
 
 	var scope scan.Scope
@@ -84,10 +84,10 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	default:
 		// Default: staged when the index is non-empty, else full with a note
 		// (cli-spec §5).
-		scope, err = scan.ResolveDefaultScope(ctx, c)
-		if err != nil {
-			return fail(err.Error())
-		}
+			scope, err = scan.ResolveDefaultScope(ctx, c)
+			if err != nil {
+				return scanFail(surfaceCtx, cfg.Scan.HookExit1, err)
+			}
 		if scope == scan.ScopeFull {
 			fmt.Fprintln(os.Stderr, "note: index empty; scanning full workspace")
 		}
@@ -112,7 +112,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 	})
 	if err != nil {
-		return fail(err.Error())
+		return scanFail(surfaceCtx, cfg.Scan.HookExit1, err)
 	}
 	if res.NothingStaged {
 		fmt.Println("nothing staged")
@@ -149,14 +149,34 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	fmt.Print(output.RenderResult(view))
 
 	// Advisory hook contract: pre-commit always exits 0 unless configured
-	// otherwise (cli-spec §13).
-	if surfaceCtx == string(events.ContextPreCommit) && !cfg.Scan.HookExit1 {
-		return nil
-	}
-	if len(res.Rows) > 0 {
+	// otherwise (cli-spec §13, §9).
+	if !advisoryHook(surfaceCtx, cfg.Scan.HookExit1) && len(res.Rows) > 0 {
 		return &exitErr{code: 1} // findings present — informational, not gating
 	}
 	return nil
+}
+
+// advisoryHook reports whether this scan runs in the advisory pre-commit
+// surface, where nothing may block the commit: neither findings (unless
+// scan.hook_exit_1 opts in) nor a failed scan. The hook is a convenience
+// trigger (spec §9); a fresh clone or worktree without derived state used to
+// fail here and block every commit.
+func advisoryHook(surfaceCtx string, hookExit1 bool) bool {
+	return surfaceCtx == string(events.ContextPreCommit) && !hookExit1
+}
+
+// scanFail fails the scan unless the advisory pre-commit contract forbids
+// blocking, in which case it warns on stderr and exits 0 whatever the failure
+// class: engine down, container git errors, scanner crashes. Flag-validation
+// errors stay hard — a misconfigured hook should be visible, not silently
+// absorbed. The warning goes to stderr so it lands in the agent context the
+// hook feeds.
+func scanFail(surfaceCtx string, hookExit1 bool, err error) error {
+	if advisoryHook(surfaceCtx, hookExit1) {
+		fmt.Fprintf(os.Stderr, "cavet: pre-commit scan failed, not blocking (advisory): %s\n", err)
+		return nil
+	}
+	return fail(err.Error())
 }
 
 // scanTimeout caps a scan run; filesystem scans stay at thirty minutes,
