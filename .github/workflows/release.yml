@@ -184,6 +184,21 @@ jobs:
           fi
           git commit -m "chore(release): engine digests + plugin version $GITHUB_REF_NAME"
           git push origin "HEAD:release/digests-$GITHUB_REF_NAME"
-          gh pr create --title "chore(release): engine digests + plugin version $GITHUB_REF_NAME" \
-            --body "Digest record from the $GITHUB_REF_NAME release engine job. Auto-generated; merge to record what shipped." \
-            --base main --head "release/digests-$GITHUB_REF_NAME" || true
+          # The record ships as a PR: main is protected. PR creation by
+          # GITHUB_TOKEN needs the repo setting Actions > General > "Allow
+          # GitHub Actions to create and approve pull requests"; with it off,
+          # gh pr create fails and this step MUST fail with it - the || true
+          # that used to sit here is exactly how plugin.json went stale for
+          # three releases (0.2.0-0.2.2) while every release stayed green.
+          if pr_out=$(gh pr create \
+              --title "chore(release): engine digests + plugin version $GITHUB_REF_NAME" \
+              --body "Digest record from the $GITHUB_REF_NAME release engine job. Auto-generated; merge to record what shipped." \
+              --base main --head "release/digests-$GITHUB_REF_NAME" 2>&1); then
+            echo "$pr_out"
+          elif grep -q 'already exists' <<< "$pr_out"; then
+            echo "digests PR already open; record already surfaced"
+          else
+            echo "::error::gh pr create failed: $pr_out" >&2
+            echo "::error::branch release/digests-$GITHUB_REF_NAME is pushed; open the PR by hand, or enable Settings > Actions > General > 'Allow GitHub Actions to create and approve pull requests'" >&2
+            exit 1
+          fi
