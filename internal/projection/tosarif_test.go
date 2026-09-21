@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Golden: the projected run is a pinned small document — one rule per unique
+// Golden: the projected run is a pinned small document, one rule per unique
 // RuleID, level from severity, dev property only on dev rows.
 func TestTrivySARIFRunGolden(t *testing.T) {
 	fs := []Finding{

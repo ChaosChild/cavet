@@ -9,13 +9,13 @@ import (
 // trivy 0.74.0 (route A: the fs scan switched from SARIF to JSON so the
 // per-package Dev flag becomes reachable). Identity inputs (RuleID, CWE,
 // Snippet) must reproduce exactly what the SARIF path produced for the same
-// scan — the spike capture in testdata/trivy-fs.json / trivy-fs.sarif is the
+// scan: the spike capture in testdata/trivy-fs.json / trivy-fs.sarif is the
 // byte-level contract, and TestTrivyJSONIdentityParityWithSARIF enforces it in
 // CI forever:
 //
 //   - trivy 0.74.0 fs SARIF carries zero CWE tags and zero region snippets for
-//     every class, so identity is (RuleID, "", ""). The JSON's richer fields —
-//     CweIDs, Secrets[].Match, CauseMetadata.Code — are deliberately ignored
+//     every class, so identity is (RuleID, "", ""). The JSON's richer fields
+//     (CweIDs, Secrets[].Match, CauseMetadata.Code) are deliberately ignored
 //     here; adopting any of them would re-roll every trivy-fs fingerprint.
 //   - rule ids are byte-identical across both formats (trivy emits bare
 //     DS-xxxx misconfig ids, not AVD-DS-xxxx).
