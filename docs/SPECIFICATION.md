@@ -374,8 +374,8 @@ cavet suppress <id> --reason "..."
 cavet defer <id> --reason "..."
 cavet raise --kind (design|verification) --question "..." [--fingerprint <id>]
 cavet resolve <item-id> --answer "..." [--source <url>]...
-cavet debt [--severity <level>]     # pre-existing baseline, on demand only
-cavet log [--since <date>] [--fingerprint <id>]
+cavet debt [--severity <level>] [--all]   # pre-existing baseline, undecided rows; --all for everything
+cavet log [--since <date>] [--fingerprint <id>] [--limit <n>]
 cavet lookup <identifier>... [--refresh]   # advisory / rule lookup, allowlisted sources
 cavet items                         # open items: design concerns + verification requests
 cavet engine (status|start|stop|pull|prune|shell)   # prune: remove containers whose repo root is gone

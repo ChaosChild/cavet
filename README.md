@@ -340,11 +340,11 @@ scoop install cavet
 | `scan` | Run scanners for a scope (`--staged`, `--diff`, `--full`, `--image`) and fold the delta |
 | `image` | Manage the Dockerfiles cavet scans as container images: `add`, `remove`, `list` |
 | `finding` | Show one finding: row, locations, verdict |
-| `debt` | The pre-existing baseline, on demand only |
+| `debt` | The pre-existing baseline, on demand only; shows undecided rows, `--all` for everything |
 | `triage` | Record a confirm or dismiss verdict with reason and confidence |
 | `suppress` | Silence a finding deliberately, with a reason |
 | `defer` | Acknowledge a finding, act later |
-| `log` | Read the audit trail, newest first |
+| `log` | Read the audit trail, newest first; limit with `--limit` |
 | `items` | List open items: design concerns and verification requests |
 | `raise` | Open an item: a design concern or a verification request |
 | `resolve` | Close an open item with the decision or answer |
