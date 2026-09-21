@@ -108,6 +108,32 @@ single shots.
 Exit: a winning shape is locked, with dismissal FN rate and calibration by
 confidence band known.
 
+### S0a outcome and the adopted fast path (2026-09-21)
+
+S0a completed across three shape-studio rounds plus a fresh-init run of all
+663 cavet findings (full-run-report.md in this directory: zero actionable
+disagreements with recorded operator verdicts). Adopted default: the
+two-step cascade (step-1 is_confirmed noul gated at 0.5, step-2 closure
+choice for the remainder), mv object state with mechanical enrichment
+(path-class prefix rules, fixed source excerpts) and cavet lookup folded
+into the enriched state, r3 wording, current_status always open.
+
+Batching study (batch.py, batch-eval.json): grouping by similarity
+(source file plus rule-family prefix rule) at batch size 40 keeps 98.6
+percent verdict agreement with the single-call run and zero regressions
+on the 98 operator-triaged findings, at 66 calls instead of 1323
+(95 percent fewer), 0.87M tokens (34 percent fewer), about $0.042, 17.8
+minutes wall. Severity grouping is rejected: 87 to 93 percent agreement
+with 46 to 86 flips dominated by dismissed-to-not-security boundary
+drift. Findings with state_sufficient below 0.3 (the thin-context
+image-CVE band) route to the slow single-finding path. Everything
+outside the Jev calls is deterministic code: grouping keys, prefix
+rules, excerpts, lookup, gates, thresholds. Concurrency was executed the
+same day as the second pass: 6 workers over the 33 independent
+similarity batches triaged all 663 findings in 255 seconds (4.2
+minutes, 5.5x versus the single-call run) at 98.0 percent agreement and
+zero operator-triaged regressions.
+
 ### S0b: expansion rounds
 
 Grow the corpus step by step: more cavet findings, then fragmt findings, then
@@ -179,6 +205,8 @@ publication are on the table.
 | D2, gold set | S0b expansion ladder: cavet, then fragmt, then benchmark; verify, modify, rerun each round | 2026-09-20 |
 | D3, sampling policy | Hawk: 100% crit/high dismissals, 50% near-threshold, 20% far band | 2026-09-20 |
 | D4, report vehicle | All three, ordered: TypeSafe disclosure if needed, calibration report to TypeSafe, branch report, lounge article; peer review possible | 2026-09-20 |
+| Batching config | similarity-40 with a thin-context carve-out (state_sufficient below 0.3 routes to the slow path) adopted as the default triage configuration for S0b | 2026-09-21 |
+| Next experiment | concurrent similarity-40 batches over 4 to 8 workers; run same day: 255 s for all 663 findings, 98.0 percent agreement, zero triaged regressions | 2026-09-21 |
 
 ## 7. Out of scope
 

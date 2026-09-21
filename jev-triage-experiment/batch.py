@@ -184,70 +184,93 @@ def q_closure(find):
     }}
 
 
-def run_plan(findings, strategy, size, force=False):
-    out_path = OUT / f"{strategy}-{size:02d}.json"
+def process_batch(batch, bi):
+    """Step 1 + optional step 2 for one batch. Independent per batch."""
+    state = {"project": PROJECT,
+             "findings": [finding_record(f) for f in batch]}
+    questions = {}
+    for f in batch:
+        questions.update(q_confirmed(f))
+    calls = []
+    per_finding = {}
+    in_tok = out_tok = 0
+
+    def absorb(call):
+        nonlocal in_tok, out_tok
+        calls.append(call)
+        u = (call.get("response") or {}).get("usage") or {}
+        in_tok += u.get("input_tokens", 0)
+        out_tok += u.get("output_tokens", 0)
+
+    c1 = batch_call(state, questions)
+    absorb(c1)
+    a1 = (c1.get("response") or {}).get("answers") or {}
+    step2 = []
+    for f in batch:
+        fid = f["id"]
+        p1 = (a1.get(f"{fid}_confirmed") or {}).get("noul")
+        suff = (a1.get(f"{fid}_sufficient") or {}).get("noul")
+        per_finding[fid] = {"step1_noul": p1, "state_sufficient": suff,
+                            "batch": bi}
+        if p1 is None:
+            per_finding[fid]["status"] = None
+            per_finding[fid]["error"] = "missing step1 answer"
+        elif p1 >= CONFIRM_GATE:
+            per_finding[fid]["status"] = "confirmed"
+        else:
+            step2.append(f)
+    if step2:
+        s2q = {}
+        for f in step2:
+            s2q.update(q_closure(f))
+        c2 = batch_call(state, s2q)
+        absorb(c2)
+        a2 = (c2.get("response") or {}).get("answers") or {}
+        for f in step2:
+            fid = f["id"]
+            ans = a2.get(f"{fid}_closure") or {}
+            per_finding[fid]["status"] = ans.get("choice")
+            per_finding[fid]["closure_confidence"] = ans.get("confidence")
+            per_finding[fid]["closure_probabilities"] = ans.get("probabilities")
+    return calls, per_finding, in_tok, out_tok
+
+
+def run_plan(findings, strategy, size, force=False, workers=1, tag=""):
+    out_path = OUT / f"{strategy}-{size:02d}{tag}.json"
     if out_path.exists() and not force:
-        print(f"[{strategy}-{size:02d}] recorded, skipping")
+        print(f"[{strategy}-{size:02d}{tag}] recorded, skipping")
         return json.loads(out_path.read_text(encoding="utf-8"))
     batches = make_batches(findings, strategy, size)
     calls = []
     per_finding = {}
+    in_tok = out_tok = 0
     t0 = time.perf_counter()
 
-    def absorb(call):
-        calls.append(call)
-        resp = call.get("response") or {}
-        u = resp.get("usage") or {}
-        return u.get("input_tokens", 0), u.get("output_tokens", 0)
-
-    in_tok = out_tok = 0
-    step2_hold = []
-    for bi, batch in enumerate(batches):
-        state = {"project": PROJECT,
-                 "findings": [finding_record(f) for f in batch]}
-        questions = {}
-        for f in batch:
-            questions.update(q_confirmed(f))
-        c1 = batch_call(state, questions)
-        it, ot = absorb(c1)
-        in_tok += it
-        out_tok += ot
-        a1 = (c1.get("response") or {}).get("answers") or {}
-        for f in batch:
-            fid = f["id"]
-            p1 = (a1.get(f"{fid}_confirmed") or {}).get("noul")
-            suff = (a1.get(f"{fid}_sufficient") or {}).get("noul")
-            per_finding[fid] = {"step1_noul": p1, "state_sufficient": suff,
-                                "batch": bi}
-            if p1 is None:
-                per_finding[fid]["status"] = None
-                per_finding[fid]["error"] = "missing step1 answer"
-            elif p1 >= CONFIRM_GATE:
-                per_finding[fid]["status"] = "confirmed"
-            else:
-                step2_hold.append((f, bi))
-        c2 = None
-        if step2_hold:
-            s2q = {}
-            for f, _ in step2_hold:
-                s2q.update(q_closure(f))
-            c2 = batch_call(state, s2q)
-            it, ot = absorb(c2)
-            in_tok += it
-            out_tok += ot
-            a2 = (c2.get("response") or {}).get("answers") or {}
-            for f, bi2 in step2_hold:
-                fid = f["id"]
-                ans = a2.get(f"{fid}_closure") or {}
-                per_finding[fid]["status"] = ans.get("choice")
-                per_finding[fid]["closure_confidence"] = ans.get("confidence")
-                per_finding[fid]["closure_probabilities"] = ans.get("probabilities")
-            step2_hold = []
-        if (bi + 1) % 10 == 0:
-            print(f"  [{strategy}-{size:02d}] batch {bi + 1}/{len(batches)}")
+    if workers > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for calls_b, pf_b, in_b, out_b in ex.map(
+                    lambda t: process_batch(t[1], t[0]), enumerate(batches)):
+                calls.extend(calls_b)
+                per_finding.update(pf_b)
+                in_tok += in_b
+                out_tok += out_b
+                if len(per_finding) % (size * 10) < size:
+                    print(f"  [{strategy}-{size:02d}{tag}] "
+                          f"{len(per_finding)} findings in")
+    else:
+        for bi, batch in enumerate(batches):
+            calls_b, pf_b, in_b, out_b = process_batch(batch, bi)
+            calls.extend(calls_b)
+            per_finding.update(pf_b)
+            in_tok += in_b
+            out_tok += out_b
+            if (bi + 1) % 10 == 0:
+                print(f"  [{strategy}-{size:02d}{tag}] batch "
+                      f"{bi + 1}/{len(batches)}")
 
     doc = {
-        "strategy": strategy, "size": size,
+        "strategy": strategy, "size": size, "workers": workers,
         "wording": "r3",
         "batches": len(batches),
         "calls": calls,
@@ -263,7 +286,7 @@ def run_plan(findings, strategy, size, force=False):
     OUT.mkdir(exist_ok=True)
     out_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     errs = doc["totals"]["errors"]
-    print(f"[{strategy}-{size:02d}] done: {len(batches)} batches, "
+    print(f"[{strategy}-{size:02d}{tag}] done: {len(batches)} batches, "
           f"{len(calls)} calls, {doc['totals']['wall_s']} s, "
           f"{in_tok}/{out_tok} tok, {errs} missing answers")
     return doc
@@ -276,6 +299,10 @@ def main():
     ap.add_argument("--all", action="store_true", help="full sweep")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="parallel workers over independent batches")
+    ap.add_argument("--tag", default="",
+                    help="suffix for the output file name")
     args = ap.parse_args()
 
     findings = load_universe()
@@ -291,7 +318,8 @@ def main():
                  for z in args.sizes.split(",")]
 
     for strategy, size in plans:
-        run_plan(findings, strategy, size, force=args.force)
+        run_plan(findings, strategy, size, force=args.force,
+                 workers=args.workers, tag=args.tag)
 
 
 if __name__ == "__main__":
