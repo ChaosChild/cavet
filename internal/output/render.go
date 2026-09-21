@@ -29,6 +29,7 @@ type FindingView struct {
 	Line int
 	Desc string
 	Conf string
+	Dev  bool // finding sits in a dev dependency chain
 }
 
 type ScanView struct {
@@ -39,6 +40,8 @@ type ScanView struct {
 	Counts      Counts
 	Findings    []FindingView
 	Hints       []string
+	DevIncluded bool
+	DevCount    int
 }
 
 const descLimit = 60
@@ -52,6 +55,11 @@ func RenderResult(v ScanView) string {
 	fmt.Fprintf(&b, "scan: %s · scanners: %s · phase: %s · engine: %s\n",
 		v.Scope, strings.Join(v.Scanners, ","), v.Phase, v.EngineShort)
 	b.WriteString(aggregate(v.Counts))
+	if !v.DevIncluded {
+		b.WriteString("\ndev dependencies: excluded (scanners.dev-deps: false)")
+	} else if v.DevCount > 0 {
+		fmt.Fprintf(&b, "\ndev dependency chains: %d finding(s) marked +", v.DevCount)
+	}
 	b.WriteString("\n\n")
 	if len(v.Findings) == 0 {
 		b.WriteString("0 new findings\n")
@@ -164,15 +172,20 @@ func truncate(s string) string {
 	return string(r[:descLimit-1]) + "…"
 }
 
-// sevCell marks verdict confidence on triaged rows (cli-spec §16.22):
-// `high*` = confirmed high confidence, `high^` = low; untriaged rows stay
-// bare. One glyph, fixed-width table discipline.
+// sevCell marks verdict confidence on triaged rows (cli-spec §16.22) and the
+// dev-dependency marker on every dev-chain row: `high*` = confirmed high
+// confidence, `high^` = low, `high*+` = dev chain; untriaged prod rows stay
+// bare. One glyph per dimension, fixed-width table discipline.
 func sevCell(f FindingView) string {
+	s := f.Sev
 	switch f.Conf {
 	case "high":
-		return f.Sev + "*"
+		s += "*"
 	case "low":
-		return f.Sev + "^"
+		s += "^"
 	}
-	return f.Sev
+	if f.Dev {
+		s += "+"
+	}
+	return s
 }

@@ -200,6 +200,12 @@ table.data td:first-child::before {
 .sev.medium{color:var(--med);background:var(--med-bg)}     .sev.low{color:var(--low);background:var(--low-bg)}
 .sev.info{color:var(--info);background:var(--info-bg)}
 
+/* dev dependency chain marker (scanners.dev-deps): a quiet steel pill that
+   reads as metadata next to the severity, never as a second severity */
+.devtag { display:inline-block; padding:2px 6px; margin-left:6px; border:1px solid var(--steel);
+          border-radius:6px; font-size:10px; font-weight:600; letter-spacing:0.08em;
+          text-transform:uppercase; color:var(--ink-3); vertical-align:middle; }
+
 .status { font-size:11.5px; font-weight:600; white-space:nowrap; }
 .status.open{color:var(--high)} .status.confirmed{color:var(--crit)}
 .status.dismissed{color:var(--ink-3)} .status.suppressed{color:var(--ink-3)}

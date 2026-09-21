@@ -332,7 +332,7 @@ function findingsRow(f) {
   const extra = locs.length > 1 ? ` +${locs.length - 1}` : '';
   const sev = f.severity || 'info';
   return `<tr tabindex="0" data-id="${esc(f.id)}" style="--sev:${SEVCOLOR[sev] || C.info}">
-    <td><span class="sev ${esc(sev)}">${esc(sev)}</span></td>
+    <td><span class="sev ${esc(sev)}">${esc(sev)}</span>${f.dev ? ' <span class="devtag" title="dev dependency chain">dev</span>' : ''}</td>
     <td><div class="rule">${ns ? `<span class="ns">${LRM}${esc(ns)}</span>` : ''}<span class="name">${esc(name)}</span></div></td>
     <td class="mono scanner" style="font-size:11.5px;color:${C.ink2}">${esc(f.scanner)}</td>
     <td><div class="loc" title="${esc(loc + extra)}">${LRM}${esc(loc)}${extra}</div></td>

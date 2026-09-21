@@ -136,7 +136,7 @@ func TestStagedScanStagesIndexAndScansScanDir(t *testing.T) {
 		stdout: map[string]string{"git diff --cached": "api/users.py\x00auth/tokens.py\x00"},
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":     fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 		},
 	}
 	res, err := Run(context.Background(), newTestStore(t), r, Options{Scope: ScopeStaged, Engine: "ghcr.io/x@sha256:t"})
@@ -168,6 +168,16 @@ func TestStagedScanStagesIndexAndScansScanDir(t *testing.T) {
 	if !sawPaths["auth/tokens.py"] || !sawPaths["requirements.txt"] {
 		t.Fatalf("staged scan paths must be repo-relative, rows: %+v", res.Rows)
 	}
+}
+
+// fixtureTrivyJSON builds a one-vulnerability trivy fs JSON document in the
+// shape the pinned engine 0.74.0 emits (captured: .superpowers/sdd/spike/).
+func fixtureTrivyJSON(ruleID, path string, line int) []byte {
+	doc := fmt.Sprintf(`{"Results":[{"Target":%q,"Class":"lang-pkgs","Type":"npm",`+
+		`"Packages":[{"ID":"pkg@1.0.0","Name":"pkg","Version":"1.0.0","Locations":[{"StartLine":%d}]}],`+
+		`"Vulnerabilities":[{"VulnerabilityID":%q,"PkgID":"pkg@1.0.0","PkgName":"pkg",`+
+		`"InstalledVersion":"1.0.0","Severity":"HIGH","Title":"pkg vuln"}]}]}`, path, line, ruleID)
+	return []byte(doc)
 }
 
 // fixtureSARIF builds a one-result document in each emitter's shape.

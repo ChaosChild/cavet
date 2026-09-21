@@ -1,0 +1,415 @@
+{
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Class": "lang-pkgs",
+      "Packages": [
+        {
+          "AnalyzedBy": "npm",
+          "ID": "lodash@4.17.20",
+          "Identifier": {
+            "PURL": "pkg:npm/lodash@4.17.20",
+            "UID": "b3b6bbc0b4df2a2c"
+          },
+          "Locations": [
+            {
+              "EndLine": 5,
+              "StartLine": 5
+            }
+          ],
+          "Name": "lodash",
+          "Relationship": "direct",
+          "Version": "4.17.20"
+        },
+        {
+          "AnalyzedBy": "npm",
+          "Dev": true,
+          "ID": "nanoid@3.1.20",
+          "Identifier": {
+            "PURL": "pkg:npm/nanoid@3.1.20",
+            "UID": "e401fc291e8e80ad"
+          },
+          "Indirect": true,
+          "Locations": [
+            {
+              "EndLine": 6,
+              "StartLine": 6
+            }
+          ],
+          "Name": "nanoid",
+          "Relationship": "indirect",
+          "Version": "3.1.20"
+        }
+      ],
+      "Target": "package-lock.json",
+      "Type": "npm",
+      "Vulnerabilities": [
+        {
+          "CVSS": {
+            "ghsa": {
+              "V3Score": 7.2,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+            },
+            "nvd": {
+              "V2Score": 6.5,
+              "V2Vector": "AV:N/AC:L/Au:S/C:P/I:P/A:P",
+              "V3Score": 7.2,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+            },
+            "redhat": {
+              "V3Score": 7.2,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+            }
+          },
+          "CweIDs": [
+            "CWE-94"
+          ],
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Description": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+          "Fingerprint": "sha256:547373a2e7c39aa91d2ad1d261b1c04962d23660fefc2d46a780d5b5699d7cfb",
+          "FixedVersion": "4.17.21",
+          "InstalledVersion": "4.17.20",
+          "LastModifiedDate": "2026-06-17T03:38:34.773Z",
+          "PkgID": "lodash@4.17.20",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/lodash@4.17.20",
+            "UID": "b3b6bbc0b4df2a2c"
+          },
+          "PkgName": "lodash",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2021-23337",
+          "PublishedDate": "2021-02-15T13:15:12.56Z",
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2021-23337",
+            "https://cert-portal.siemens.com/productcert/pdf/ssa-637483.pdf",
+            "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+            "https://github.com/lodash/lodash",
+            "https://github.com/lodash/lodash/blob/ddfd9b11a0126db2302cb70ec9973b66baec0975/lodash.js",
+            "https://github.com/lodash/lodash/blob/ddfd9b11a0126db2302cb70ec9973b66baec0975/lodash.js#L14851",
+            "https://github.com/lodash/lodash/blob/ddfd9b11a0126db2302cb70ec9973b66baec0975/lodash.js%23L14851",
+            "https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c",
+            "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2021-23337.yml",
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-23337",
+            "https://security.netapp.com/advisory/ntap-20210312-0006",
+            "https://security.netapp.com/advisory/ntap-20210312-0006/",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGFUJIONWEBJARS-1074932",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARS-1074930",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-1074928",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBLODASH-1074931",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-1074929",
+            "https://snyk.io/vuln/SNYK-JS-LODASH-1040724",
+            "https://ubuntu.com/security/notices/USN-8411-1",
+            "https://www.cve.org/CVERecord?id=CVE-2021-23337",
+            "https://www.oracle.com//security-alerts/cpujul2021.html",
+            "https://www.oracle.com/security-alerts/cpujan2022.html",
+            "https://www.oracle.com/security-alerts/cpujul2022.html",
+            "https://www.oracle.com/security-alerts/cpuoct2021.html"
+          ],
+          "Severity": "HIGH",
+          "SeveritySource": "ghsa",
+          "Status": "fixed",
+          "Title": "nodejs-lodash: command injection via template",
+          "VendorIDs": [
+            "GHSA-35jh-r3h4-6jhm"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 2,
+            "ruby-advisory-db": 3,
+            "ubuntu": 2
+          },
+          "VulnerabilityID": "CVE-2021-23337"
+        },
+        {
+          "CVSS": {
+            "ghsa": {
+              "V3Score": 5.3,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+            },
+            "nvd": {
+              "V2Score": 5,
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:P",
+              "V3Score": 5.3,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+            },
+            "redhat": {
+              "V3Score": 5.3,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+            }
+          },
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Description": "Lodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions.",
+          "Fingerprint": "sha256:b92862a331d52ac5345a12fdc589c13914e37ca49f28f7a64a8795342c39bbb9",
+          "FixedVersion": "4.17.21",
+          "InstalledVersion": "4.17.20",
+          "LastModifiedDate": "2026-06-17T03:10:32.757Z",
+          "PkgID": "lodash@4.17.20",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/lodash@4.17.20",
+            "UID": "b3b6bbc0b4df2a2c"
+          },
+          "PkgName": "lodash",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-28500",
+          "PublishedDate": "2021-02-15T11:15:12.397Z",
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2020-28500",
+            "https://cert-portal.siemens.com/productcert/pdf/ssa-637483.pdf",
+            "https://github.com/advisories/GHSA-29mw-wpgm-hmr9",
+            "https://github.com/github/advisory-database/pull/6139",
+            "https://github.com/lodash/lodash",
+            "https://github.com/lodash/lodash/blob/npm/trimEnd.js",
+            "https://github.com/lodash/lodash/blob/npm/trimEnd.js#L8",
+            "https://github.com/lodash/lodash/blob/npm/trimEnd.js%23L8",
+            "https://github.com/lodash/lodash/commit/c4847ebe7d14540bb28a8b932a9ce1b9ecbfee1a",
+            "https://github.com/lodash/lodash/pull/5065",
+            "https://github.com/lodash/lodash/pull/5065/commits/02906b8191d3c100c193fe6f7b27d1c40f200bb7",
+            "https://github.com/rubysec/ruby-advisory-db/blob/master/gems/lodash-rails/CVE-2020-28500.yml",
+            "https://nvd.nist.gov/vuln/detail/CVE-2020-28500",
+            "https://security.netapp.com/advisory/ntap-20210312-0006",
+            "https://security.netapp.com/advisory/ntap-20210312-0006/",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGFUJIONWEBJARS-1074896",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARS-1074894",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWER-1074892",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSBOWERGITHUBLODASH-1074895",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-1074893",
+            "https://snyk.io/vuln/SNYK-JS-LODASH-1018905",
+            "https://ubuntu.com/security/notices/USN-8411-1",
+            "https://www.cve.org/CVERecord?id=CVE-2020-28500",
+            "https://www.oracle.com//security-alerts/cpujul2021.html",
+            "https://www.oracle.com/security-alerts/cpujan2022.html",
+            "https://www.oracle.com/security-alerts/cpujul2022.html",
+            "https://www.oracle.com/security-alerts/cpuoct2021.html"
+          ],
+          "Severity": "MEDIUM",
+          "SeveritySource": "ghsa",
+          "Status": "fixed",
+          "Title": "nodejs-lodash: ReDoS via the toNumber, trim and trimEnd functions",
+          "VendorIDs": [
+            "GHSA-29mw-wpgm-hmr9"
+          ],
+          "VendorSeverity": {
+            "ghsa": 2,
+            "nvd": 2,
+            "redhat": 2,
+            "ruby-advisory-db": 2,
+            "ubuntu": 2
+          },
+          "VulnerabilityID": "CVE-2020-28500"
+        },
+        {
+          "CVSS": {
+            "ghsa": {
+              "V3Score": 5.9,
+              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Score": 8.2,
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N"
+            },
+            "nvd": {
+              "V3Score": 7.5,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "redhat": {
+              "V3Score": 7.5,
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            }
+          },
+          "CweIDs": [
+            "CWE-835"
+          ],
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Description": "nanoid (Nano ID) before 5.1.6 contains an infinite loop in the customAlphabet and customRandom functions. When these functions are configured with a size of 0, the internal generation loop never satisfies its exit condition and spins indefinitely, hanging the calling thread. An application that passes an unvalidated, attacker-controlled size of 0 to these functions is exposed to a denial-of-service condition.",
+          "Fingerprint": "sha256:e09f1aad9d00b1a4bbeeb5647d9f098dba128f47d10684fba12eec93d435ce92",
+          "FixedVersion": "3.3.18, 5.1.6",
+          "InstalledVersion": "3.1.20",
+          "LastModifiedDate": "2026-08-18T14:26:16.267Z",
+          "PkgID": "nanoid@3.1.20",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/nanoid@3.1.20",
+            "UID": "e401fc291e8e80ad"
+          },
+          "PkgName": "nanoid",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-67213",
+          "PublishedDate": "2026-07-29T14:16:34.89Z",
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-67213",
+            "https://github.com/ai/nanoid",
+            "https://github.com/ai/nanoid/commit/cb3626d0f3342fdf179cd425fd9c4fbb92c7d0e7",
+            "https://github.com/ai/nanoid/commit/e10f8d40ce9d1ab47f66d65a16b48086432730d0",
+            "https://github.com/ai/nanoid/commit/f9d13f150847d117877adee3460a46eceb0cf49b",
+            "https://github.com/ai/nanoid/releases/tag/3.3.17",
+            "https://github.com/ai/nanoid/releases/tag/3.3.18",
+            "https://github.com/ai/nanoid/releases/tag/5.1.6",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-67213",
+            "https://www.cve.org/CVERecord?id=CVE-2026-67213",
+            "https://www.vulncheck.com/advisories/nanoid-before-infinite-loop-via-zero-size-in-customalphabet-and-customrandom"
+          ],
+          "Severity": "HIGH",
+          "SeveritySource": "ghsa",
+          "Status": "fixed",
+          "Title": "nanoid: nanoid: Denial of Service via infinite loop in random ID generation",
+          "VendorIDs": [
+            "GHSA-2v37-7h3g-55p8"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 3
+          },
+          "VulnerabilityID": "CVE-2026-67213"
+        },
+        {
+          "CVSS": {
+            "ghsa": {
+              "V3Score": 5.5,
+              "V3Vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "nvd": {
+              "V2Score": 2.1,
+              "V2Vector": "AV:L/AC:L/Au:N/C:P/I:N/A:N",
+              "V3Score": 5.5,
+              "V3Vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "redhat": {
+              "V3Score": 5.5,
+              "V3Vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+            }
+          },
+          "CweIDs": [
+            "CWE-704"
+          ],
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Description": "The package nanoid from 3.0.0 and before 3.1.31 are vulnerable to Information Exposure via the valueOf() function which allows to reproduce the last id generated.",
+          "Fingerprint": "sha256:fca394ef96291f9f276e292bbc2a25e051f956d41ca1ba88f727abc9f5571908",
+          "FixedVersion": "3.1.31",
+          "InstalledVersion": "3.1.20",
+          "LastModifiedDate": "2026-06-17T03:38:49.813Z",
+          "PkgID": "nanoid@3.1.20",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/nanoid@3.1.20",
+            "UID": "e401fc291e8e80ad"
+          },
+          "PkgName": "nanoid",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2021-23566",
+          "PublishedDate": "2022-01-14T20:15:10.093Z",
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2021-23566",
+            "https://gist.github.com/artalar/bc6d1eb9a3477d15d2772e876169a444",
+            "https://github.com/advisories/GHSA-qrpm-p2h7-hrv2",
+            "https://github.com/ai/nanoid",
+            "https://github.com/ai/nanoid/commit/2b7bd9332bc49b6330c7ddb08e5c661833db2575",
+            "https://github.com/ai/nanoid/pull/328",
+            "https://lists.debian.org/debian-lts-announce/2024/12/msg00025.html",
+            "https://lists.debian.org/debian-lts-announce/2025/01/msg00006.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2021-23566",
+            "https://snyk.io/vuln/SNYK-JAVA-ORGWEBJARSNPM-2332550",
+            "https://snyk.io/vuln/SNYK-JS-NANOID-2332193",
+            "https://www.cve.org/CVERecord?id=CVE-2021-23566"
+          ],
+          "Severity": "MEDIUM",
+          "SeveritySource": "ghsa",
+          "Status": "fixed",
+          "Title": "nanoid: Information disclosure via valueOf() function",
+          "VendorIDs": [
+            "GHSA-qrpm-p2h7-hrv2"
+          ],
+          "VendorSeverity": {
+            "ghsa": 2,
+            "nvd": 2,
+            "redhat": 2
+          },
+          "VulnerabilityID": "CVE-2021-23566"
+        }
+      ]
+    },
+    {
+      "Class": "config",
+      "MisconfSummary": {
+        "Failures": 2,
+        "Successes": 25
+      },
+      "Misconfigurations": [
+        {
+          "CauseMetadata": {
+            "EndLine": 5,
+            "Provider": "Dockerfile",
+            "Service": "general",
+            "StartLine": 5
+          },
+          "Description": "Running containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile.",
+          "ID": "DS-0002",
+          "Message": "Last USER command in Dockerfile should not be 'root'",
+          "Namespace": "builtin.dockerfile.DS002",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0002",
+          "Query": "data.builtin.dockerfile.DS002.deny",
+          "References": [
+            "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+            "https://avd.aquasec.com/misconfig/ds-0002"
+          ],
+          "Resolution": "Add 'USER \u003cnon root user name\u003e' line to the Dockerfile",
+          "Severity": "HIGH",
+          "Status": "FAIL",
+          "Title": "Image user should not be 'root'",
+          "Type": "Dockerfile Security Check"
+        },
+        {
+          "CauseMetadata": {
+            "Provider": "Dockerfile",
+            "Service": "general"
+          },
+          "Description": "You should add HEALTHCHECK instruction in your docker container images to perform the health check on running containers.",
+          "ID": "DS-0026",
+          "Message": "Add HEALTHCHECK instruction in your Dockerfile",
+          "Namespace": "builtin.dockerfile.DS026",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0026",
+          "Query": "data.builtin.dockerfile.DS026.deny",
+          "References": [
+            "https://blog.aquasec.com/docker-security-best-practices",
+            "https://avd.aquasec.com/misconfig/ds-0026"
+          ],
+          "Resolution": "Add HEALTHCHECK instruction in Dockerfile",
+          "Severity": "LOW",
+          "Status": "FAIL",
+          "Title": "No HEALTHCHECK defined",
+          "Type": "Dockerfile Security Check"
+        }
+      ],
+      "Target": "Dockerfile",
+      "Type": "dockerfile"
+    },
+    {
+      "Class": "secret",
+      "Secrets": [
+        {
+          "Category": "GitHub",
+          "EndLine": 3,
+          "Offset": 95,
+          "RuleID": "github-pat",
+          "Severity": "CRITICAL",
+          "StartLine": 3,
+          "Title": "GitHub Personal Access Token"
+        }
+      ],
+      "Target": "creds.txt"
+    }
+  ],
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  }
+}

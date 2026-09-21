@@ -81,6 +81,7 @@ func Fold(state *store.State, merged []*projection.MergedFinding, cov Coverage, 
 			OriginatingScanner: m.Scanner,
 			AlsoDetectedBy:     m.CollapsedWith,
 			Secret:             m.Secret,
+			Dev:                m.Dev,
 			CollapsedWith:      m.CollapsedWith,
 			Severity:           m.Severity,
 			Description:        m.Description,
@@ -166,5 +167,6 @@ func detData(m *projection.MergedFinding, loc projection.Location) events.Detect
 		Description:    m.Description,
 		Scanner:        m.Scanner,
 		AlsoDetectedBy: m.CollapsedWith,
+		Dev:            m.Dev,
 	}
 }

@@ -1,0 +1,358 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "utf16CodeUnits",
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "package-lock.json: lodash@4.17.20"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.20\nVulnerability CVE-2021-23337\nSeverity: HIGH\nFixed Version: 4.17.21\nLink: [CVE-2021-23337](https://avd.aquasec.com/nvd/cve-2021-23337)"
+          },
+          "ruleId": "CVE-2021-23337",
+          "ruleIndex": 0
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "package-lock.json: lodash@4.17.20"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.20\nVulnerability CVE-2020-28500\nSeverity: MEDIUM\nFixed Version: 4.17.21\nLink: [CVE-2020-28500](https://avd.aquasec.com/nvd/cve-2020-28500)"
+          },
+          "ruleId": "CVE-2020-28500",
+          "ruleIndex": 1
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "package-lock.json: nanoid@3.1.20"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 6,
+                  "startColumn": 1,
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package: nanoid\nInstalled Version: 3.1.20\nVulnerability CVE-2026-67213\nSeverity: HIGH\nFixed Version: 3.3.18, 5.1.6\nLink: [CVE-2026-67213](https://avd.aquasec.com/nvd/cve-2026-67213)"
+          },
+          "ruleId": "CVE-2026-67213",
+          "ruleIndex": 2
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "package-lock.json: nanoid@3.1.20"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 6,
+                  "startColumn": 1,
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Package: nanoid\nInstalled Version: 3.1.20\nVulnerability CVE-2021-23566\nSeverity: MEDIUM\nFixed Version: 3.1.31\nLink: [CVE-2021-23566](https://avd.aquasec.com/nvd/cve-2021-23566)"
+          },
+          "ruleId": "CVE-2021-23566",
+          "ruleIndex": 3
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "Dockerfile"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Artifact: Dockerfile\nType: dockerfile\nVulnerability DS-0002\nSeverity: HIGH\nMessage: Last USER command in Dockerfile should not be 'root'\nLink: [DS-0002](https://avd.aquasec.com/misconfig/ds-0002)"
+          },
+          "ruleId": "DS-0002",
+          "ruleIndex": 4
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "Dockerfile"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Artifact: Dockerfile\nType: dockerfile\nVulnerability DS-0026\nSeverity: LOW\nMessage: Add HEALTHCHECK instruction in your Dockerfile\nLink: [DS-0026](https://avd.aquasec.com/misconfig/ds-0026)"
+          },
+          "ruleId": "DS-0026",
+          "ruleIndex": 5
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "creds.txt"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "creds.txt",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 3,
+                  "startColumn": 1,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Artifact: creds.txt\nType: \nSecret GitHub Personal Access Token\nSeverity: CRITICAL\nMatch: github_token = \"****************************************\""
+          },
+          "ruleId": "github-pat",
+          "ruleIndex": 6
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Trivy",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-23337",
+              "id": "CVE-2021-23337",
+              "name": "LanguageSpecificPackageVulnerability",
+              "properties": {
+                "cvssv3_baseScore": 7.2,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H",
+                "precision": "very-high",
+                "security-severity": "7.2",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              },
+              "shortDescription": {
+                "text": "nodejs-lodash: command injection via template"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2020-28500",
+              "id": "CVE-2020-28500",
+              "name": "LanguageSpecificPackageVulnerability",
+              "properties": {
+                "cvssv3_baseScore": 5.3,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+                "precision": "very-high",
+                "security-severity": "5.3",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              },
+              "shortDescription": {
+                "text": "nodejs-lodash: ReDoS via the toNumber, trim and trimEnd functions"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-67213",
+              "id": "CVE-2026-67213",
+              "name": "LanguageSpecificPackageVulnerability",
+              "properties": {
+                "cvssv3_baseScore": 5.9,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "cvssv40_baseScore": 8.2,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+                "precision": "very-high",
+                "security-severity": "5.9",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              },
+              "shortDescription": {
+                "text": "nanoid: nanoid: Denial of Service via infinite loop in random ID generation"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-23566",
+              "id": "CVE-2021-23566",
+              "name": "LanguageSpecificPackageVulnerability",
+              "properties": {
+                "cvssv3_baseScore": 5.5,
+                "cvssv3_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+                "precision": "very-high",
+                "security-severity": "5.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              },
+              "shortDescription": {
+                "text": "nanoid: Information disclosure via valueOf() function"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ds-0002",
+              "id": "DS-0002",
+              "name": "Misconfiguration",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "misconfiguration",
+                  "security",
+                  "HIGH"
+                ]
+              },
+              "shortDescription": {
+                "text": "Image user should not be 'root'"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ds-0026",
+              "id": "DS-0026",
+              "name": "Misconfiguration",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "2.0",
+                "tags": [
+                  "misconfiguration",
+                  "security",
+                  "LOW"
+                ]
+              },
+              "shortDescription": {
+                "text": "No HEALTHCHECK defined"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/aquasecurity/trivy/blob/main/pkg/fanal/secret/builtin-rules.go",
+              "id": "github-pat",
+              "name": "Secret",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "9.5",
+                "tags": [
+                  "secret",
+                  "security",
+                  "CRITICAL"
+                ]
+              },
+              "shortDescription": {
+                "text": "GitHub Personal Access Token"
+              }
+            }
+          ],
+          "version": "0.74.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

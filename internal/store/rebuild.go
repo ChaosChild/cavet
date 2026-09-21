@@ -67,6 +67,7 @@ func (s *Store) Rebuild() (*State, error) {
 				OriginatingScanner: d.Scanner,
 				AlsoDetectedBy:     d.AlsoDetectedBy,
 				Secret:             d.Scanner == "gitleaks" || len(d.AlsoDetectedBy) > 0 || isTrivySecretRule(d.Rule),
+				Dev:                d.Dev,
 				Severity:           string(d.Severity),
 				Description:        d.Description,
 				Locations:          []Location{{Path: d.Path, Line: d.Line}},

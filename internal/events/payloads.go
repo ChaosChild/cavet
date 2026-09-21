@@ -17,6 +17,10 @@ type DetectedData struct {
 	Description    string   `json:"description"`
 	Scanner        string   `json:"scanner"`
 	AlsoDetectedBy []string `json:"also_detected_by,omitempty"`
+	// Dev marks findings in a dev dependency chain (scanners.dev-deps).
+	// Additive and backward compatible: old events replay as false, which is
+	// semantically correct because those scans excluded dev deps.
+	Dev bool `json:"dev,omitempty"`
 }
 
 type TriagedData struct {

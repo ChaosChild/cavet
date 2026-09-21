@@ -37,6 +37,8 @@ func TestGoldenReference(t *testing.T) {
 	view := ScanView{
 		Scope: "staged", Scanners: []string{"gitleaks", "trivy"}, Phase: "build",
 		EngineShort: "cavet-engine@sha256:4f2a…",
+		// Default knob state: dev deps included, no dev findings, no extra line.
+		DevIncluded: true,
 		Counts: Counts{
 			Confirmed: 2, ConfirmedHigh: 1, ConfirmedLow: 1, High: 1, Medium: 1,
 			Dismissed: 14, Suppressed: 0, Baseline: 347,
@@ -126,5 +128,38 @@ func TestDescriptionTruncatedAt60(t *testing.T) {
 	}
 	if !strings.Contains(got, strings.Repeat("x", 59)+"…") {
 		t.Fatalf("want 59 chars + ellipsis, got:\n%s", got)
+	}
+}
+
+// Dev-chain rows carry the + glyph after any confidence glyph, and default
+// runs (knob on, no dev findings) print no extra line.
+func TestSevCellDevGlyph(t *testing.T) {
+	if got := sevCell(FindingView{Sev: "high", Conf: "high", Dev: true}); got != "high*+" {
+		t.Errorf("sevCell = %q, want high*+", got)
+	}
+	if got := sevCell(FindingView{Sev: "high", Conf: "low", Dev: true}); got != "high^+" {
+		t.Errorf("sevCell = %q, want high^+", got)
+	}
+	if got := sevCell(FindingView{Sev: "medium", Dev: true}); got != "medium+" {
+		t.Errorf("sevCell = %q, want medium+", got)
+	}
+	if got := sevCell(FindingView{Sev: "high"}); got != "high" {
+		t.Errorf("sevCell = %q, want high", got)
+	}
+}
+
+func TestRenderResultDeclaresExcluded(t *testing.T) {
+	out := RenderResult(ScanView{Scanners: []string{"trivy"}, Counts: Counts{}, DevIncluded: false})
+	if !strings.Contains(out, "dev dependencies: excluded") {
+		t.Errorf("exclusion not declared:\n%s", out)
+	}
+}
+
+func TestRenderResultDeclaresDevCount(t *testing.T) {
+	out := RenderResult(ScanView{
+		Scanners: []string{"trivy"}, Counts: Counts{}, DevIncluded: true, DevCount: 2,
+	})
+	if !strings.Contains(out, "dev dependency chains: 2 finding(s) marked +") {
+		t.Errorf("dev count not declared:\n%s", out)
 	}
 }

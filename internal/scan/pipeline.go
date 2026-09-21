@@ -40,6 +40,7 @@ type Options struct {
 	Images  []config.ImageEntry // configured Dockerfiles plus build targets (scan.container_images)
 	Deep    bool
 	Checkov bool // scanners.checkov: the opt-in second IaC scanner joins the filesystem tier
+	DevDeps bool // scanners.dev-deps: include dev dependency chains in the trivy fs scan
 	Actor   events.Actor
 	Phase   events.Phase
 	Context events.SurfaceContext
@@ -59,6 +60,7 @@ type Row struct {
 	Desc       string
 	Confidence string
 	Secret     bool
+	Dev        bool
 }
 
 type Counts struct {
@@ -66,6 +68,7 @@ type Counts struct {
 	ConfirmedHigh, ConfirmedLow       int
 	Critical, High, Medium, Low, Info int
 	Dismissed, Suppressed, Baseline   int
+	Dev                               int // open/confirmed rows in dev dependency chains
 }
 
 type Result struct {
@@ -77,6 +80,7 @@ type Result struct {
 	Counts        Counts
 	DismissedIDs  []string // display ids of dismissed findings, for next hints
 	Items         int      // open items after this scan's fold
+	DevIncluded   bool     // scanners.dev-deps was on for this scan
 }
 
 // LastScan is the coverage header the posture view shows: the scanners,
@@ -190,7 +194,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	raw := map[string][]byte{}
 	if target != "" {
 		var err error
-		raw, err = runScanners(ctx, r, fsScanners, target)
+		raw, err = runScanners(ctx, r, fsScanners, target, o.DevDeps)
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +262,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 }
 
 // invocation builds each scanner's command per cli-spec §7.
-func invocation(scanner, target string) []string {
+func invocation(scanner, target string, devDeps bool) []string {
 	switch scanner {
 	case "gitleaks":
 		if target == "/workspace" {
@@ -268,9 +272,18 @@ func invocation(scanner, target string) []string {
 		return []string{"gitleaks", "dir", target,
 			"--report-format", "sarif", "--report-path", "/reports/gitleaks.sarif", "--exit-code", "0"}
 	case "trivy":
-		return []string{"trivy", "fs", "--scanners", "vuln,misconfig,secret",
+		// JSON, not SARIF (route A): the per-package Dev flag is reachable
+		// only there, and the merged report's trivy run is projected from the
+		// parsed findings (writeMergedReport). --include-dev-deps slots in
+		// right after "trivy fs".
+		args := []string{"trivy", "fs",
+			"--scanners", "vuln,misconfig,secret",
 			"--skip-db-update", "--skip-check-update", "--offline-scan",
-			"--format", "sarif", "--output", "/reports/trivy.sarif", target}
+			"--format", "json", "--output", "/reports/trivy.json", target}
+		if devDeps {
+			args = append(args[:2:2], append([]string{"--include-dev-deps"}, args[2:]...)...)
+		}
+		return args
 	case "trivy-image":
 		// target is the container-side tar the image phase copied in; the
 		// per-image ordinal rides it, so every image writes its own report
@@ -304,11 +317,15 @@ func invocation(scanner, target string) []string {
 // across scans, and a shared name would let a failed exec copy out the
 // previous image's or previous scan's report. checkov names its own report
 // under its output dir (results_sarif.sarif); the path is fixed per scan but
-// the strict exit contract below covers the same staleness hazard.
+// the strict exit contract below covers the same staleness hazard. trivy's fs
+// report is JSON since the route-A format switch.
 func reportPath(scanner, target string) string {
 	if scanner == "trivy-image" {
 		return "/reports/trivy-image-" +
 			strings.TrimSuffix(strings.TrimPrefix(target, "/scan/image-"), ".tar") + ".sarif"
+	}
+	if scanner == "trivy" {
+		return "/reports/trivy.json"
 	}
 	if scanner == "checkov" {
 		return "/reports/checkov/results_sarif.sarif"
@@ -316,10 +333,10 @@ func reportPath(scanner, target string) string {
 	return "/reports/" + scanner + ".sarif"
 }
 
-func runScanners(ctx context.Context, r Runner, scanners []string, target string) (map[string][]byte, error) {
+func runScanners(ctx context.Context, r Runner, scanners []string, target string, devDeps bool) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	for _, sc := range scanners {
-		res, err := r.Exec(ctx, invocation(sc, target))
+		res, err := r.Exec(ctx, invocation(sc, target, devDeps))
 		if err != nil {
 			return nil, err
 		}
@@ -345,6 +362,17 @@ func parseAndMerge(scanners []string, raw map[string][]byte, target string, imag
 			// path-derived identity; re-parsing here would lose both.
 			continue
 		}
+		if sc == "trivy" {
+			// The fs scan emits JSON (route A): parsed by the JSON parser so
+			// per-package Dev rides along; identity parity with the old SARIF
+			// parse is pinned by projection's fixture tests.
+			fs, err := projection.ParseTrivyJSON(raw[sc], target)
+			if err != nil {
+				return nil, err
+			}
+			findings = append(findings, fs...)
+			continue
+		}
 		fs, warns, err := projection.Parse(sc, raw[sc], target)
 		if err != nil {
 			return nil, err
@@ -359,11 +387,28 @@ func parseAndMerge(scanners []string, raw map[string][]byte, target string, imag
 }
 
 // writeMergedReport concatenates the scanners' runs into one SARIF document
-// for machines (artefacts §12); raw SARIF never reaches the model.
+// for machines (artefacts §12); raw reports never reach the model. Trivy's
+// contribution is not its raw engine bytes: the fs scan now emits JSON, so its
+// run is projected from the parsed findings (tosarif.go) and carries
+// properties.dev on dev-chain rows.
 func writeMergedReport(s *store.Store, raw map[string][]byte) error {
 	var docs [][]byte
-	for _, b := range raw {
+	for name, b := range raw {
+		if name == "trivy" {
+			continue // re-emitted as a projected SARIF run below
+		}
 		docs = append(docs, b)
+	}
+	if trivyRaw, ok := raw["trivy"]; ok {
+		fs, err := projection.ParseTrivyJSON(trivyRaw, "")
+		if err != nil {
+			return err
+		}
+		run, err := projection.TrivySARIFRun(fs)
+		if err != nil {
+			return err
+		}
+		docs = append(docs, run)
 	}
 	out, err := stitchRuns(docs)
 	if err != nil {
@@ -395,7 +440,7 @@ func stitchRuns(docs [][]byte) ([]byte, error) {
 func buildResult(merged []*projection.MergedFinding, state *store.State, label string, scanners []string, o Options) *Result {
 	res := &Result{ScopeLabel: label, Scanners: scanners, Phase: o.Phase,
 		Counts: Counts{Baseline: len(state.Baseline.Fingerprints)},
-		Items:  len(state.Items)}
+		Items:  len(state.Items), DevIncluded: o.DevDeps}
 	byFP := map[string]*store.Finding{}
 	for _, f := range state.Findings {
 		byFP[f.Fingerprint] = f
@@ -415,9 +460,12 @@ func buildResult(merged []*projection.MergedFinding, state *store.State, label s
 				FP: f.Fingerprint, DisplayID: f.DisplayID,
 				Sev: f.Severity, Rule: f.RuleID,
 				Path: m.Locations[0].Path, Line: m.Locations[0].Line,
-				Desc: f.Description, Confidence: conf, Secret: f.Secret,
+				Desc: f.Description, Confidence: conf, Secret: f.Secret, Dev: m.Dev,
 			})
 			res.Counts.Confirmed++
+			if m.Dev {
+				res.Counts.Dev++
+			}
 			switch conf {
 			case "high":
 				res.Counts.ConfirmedHigh++
