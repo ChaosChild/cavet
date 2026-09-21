@@ -194,7 +194,7 @@ func TestFullScanIncludesImagePhase(t *testing.T) {
 	r := &fakeRunner{
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":         fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 			"/reports/opengrep.sarif":      fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
@@ -225,7 +225,7 @@ func TestBaselineWriteIncludesImageFindings(t *testing.T) {
 	r := &fakeRunner{
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":         fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 			"/reports/opengrep.sarif":      fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
@@ -280,7 +280,7 @@ func TestStagedScanImageTrigger(t *testing.T) {
 	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
 	reports := map[string][]byte{
 		"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-		"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+		"/reports/trivy.json":         fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 		"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 	}
 	// A configured Dockerfile among the staged paths pulls the image phase in.
@@ -318,7 +318,7 @@ func TestDiffScanNeverRunsImagePhase(t *testing.T) {
 		stdout: map[string]string{"git diff --name-only": "Dockerfile\x00"},
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":    fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 		},
 	}
 	if _, err := Run(context.Background(), s, r, Options{
@@ -344,7 +344,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	fsReports := func() map[string][]byte {
 		return map[string][]byte{
 			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":         fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 			"/reports/trivy-image-0.sarif": imageReport,
 		}
 	}
@@ -386,7 +386,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 		stdout: map[string]string{"git diff --name-only": "Dockerfile\x00"},
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":    fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 		},
 	}, Options{
 		Scope: ScopeDiff, DiffRef: "HEAD~1", Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
@@ -398,7 +398,7 @@ func TestImageFindingDeltaCoverage(t *testing.T) {
 	if _, err := Run(context.Background(), s, &fakeRunner{
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":    fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":    fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 			"/reports/opengrep.sarif": fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
 		},
 	}, Options{Scope: ScopeFull, Engine: "ghcr.io/x@sha256:t"}); err != nil {
@@ -593,7 +593,7 @@ func TestStagedImageScanProceedsOnDivergence(t *testing.T) {
 		},
 		reports: map[string][]byte{
 			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
-			"/reports/trivy.sarif":         fixtureSARIF("trivy", "CVE-2024-1", "requirements.txt", 2),
+			"/reports/trivy.json":         fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
 			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
 		},
 	}

@@ -32,6 +32,7 @@ type Finding struct {
 	OriginatingScanner string     `json:"originating_scanner"`
 	AlsoDetectedBy     []string   `json:"also_detected_by,omitempty"`
 	Secret             bool       `json:"secret"`
+	Dev                bool       `json:"dev,omitempty"`
 	CollapsedWith      []string   `json:"collapsed_with,omitempty"`
 	Severity           string     `json:"severity"`
 	Description        string     `json:"description"`

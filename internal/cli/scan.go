@@ -107,6 +107,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Images:  images,
 		Deep:    deep || cfg.Scan.DeepDefault,
 		Checkov: cfg.Scanners.Checkov,
+		DevDeps: cfg.Scanners.DevDeps,
 		Actor:   events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 	})
@@ -118,6 +119,12 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		return nil
 	}
 
+	viewHints := hints(res)
+	if res.Counts.Dev > 0 {
+		// Legend, not a next step: it explains the + glyph the table above
+		// shows, so it rides outside hints()' three-slot cap.
+		viewHints = append(viewHints, "+ marks findings in dev dependency chains (scanners.dev-deps)")
+	}
 	view := output.ScanView{
 		Scope: res.ScopeLabel, Scanners: res.Scanners, Phase: string(res.Phase),
 		EngineShort: shortEngine(ref),
@@ -129,12 +136,14 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 			Info: res.Counts.Info, Dismissed: res.Counts.Dismissed,
 			Suppressed: res.Counts.Suppressed, Baseline: res.Counts.Baseline,
 		},
-		Hints: hints(res),
+		Hints:       viewHints,
+		DevIncluded: res.DevIncluded,
+		DevCount:    res.Counts.Dev,
 	}
 	for _, r := range res.Rows {
 		view.Findings = append(view.Findings, output.FindingView{
 			ID: r.DisplayID, Sev: r.Sev, Rule: r.Rule, Path: r.Path, Line: r.Line,
-			Desc: r.Desc, Conf: r.Confidence,
+			Desc: r.Desc, Conf: r.Confidence, Dev: r.Dev,
 		})
 	}
 	fmt.Print(output.RenderResult(view))

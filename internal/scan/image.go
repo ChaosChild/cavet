@@ -117,7 +117,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, img conf
 	if err := r.CopyToContainer(ctx, tarPath, in); err != nil {
 		return nil, nil, fmt.Errorf("copying %s into the engine: %w", filepath.ToSlash(tarPath), err)
 	}
-	raw, err := runScanners(ctx, r, []string{"trivy-image"}, in)
+	raw, err := runScanners(ctx, r, []string{"trivy-image"}, in, false)
 	if err != nil {
 		return nil, nil, err
 	}

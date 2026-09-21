@@ -20,6 +20,7 @@ type Finding struct {
 	Line     int
 	Desc     string // one line; renderer truncates further
 	Snippet  string // matched-span text; feeds fingerprinting and secret collapse
+	Dev      bool   // dev dependency chain (trivy fs --include-dev-deps)
 
 	// Image findings only (scanner trivy-image): package identity replaces
 	// line context, and ImageName is the configured Dockerfile's repo path,

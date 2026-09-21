@@ -180,12 +180,13 @@ type findingRow struct {
 	VerdictAt  *time.Time       `json:"verdict_at,omitempty"`
 	DetectedAt time.Time        `json:"detected_at"`
 	LastSeen   time.Time        `json:"last_seen"`
+	Dev        bool             `json:"dev,omitempty"`
 }
 
 func rowOf(f *store.Finding) findingRow {
 	row := findingRow{ID: f.DisplayID, Severity: f.Severity, Rule: f.RuleID,
 		Scanner: f.OriginatingScanner, Locations: f.Locations, Status: f.Status,
-		DetectedAt: f.DetectedAt, LastSeen: f.LastSeen}
+		DetectedAt: f.DetectedAt, LastSeen: f.LastSeen, Dev: f.Dev}
 	if f.Verdict != nil {
 		row.Verdict = f.Verdict.Reason
 		row.VerdictBy = f.Verdict.By

@@ -312,7 +312,9 @@ emits ~50KB and 222 rule descriptors for a single finding. A full-corpus run rea
 2.6MB for 10 findings.
 
 **Raw SARIF never reaches the model.** It is written to `reports/` for CI and code
-scanning. The agent sees a compact projection.
+scanning. The agent sees a compact projection. The merged report's trivy run is
+projected from the parsed findings: the filesystem scan reads trivy's JSON so the
+per-package dev-dependency flag is reachable, and `latest.sarif` stays SARIF for CI.
 
 The projection reads `results[]` and consults `tool.driver.rules` only to resolve the
 matched `ruleId`. Nothing else in the document is loaded, and the size of the
@@ -462,6 +464,17 @@ scanner joins every filesystem scope where it is enabled, fast tier included, so
 coverage claims stay honest — a clean result with checkov enabled means checkov ran.
 Its secret framework is skipped: secret collection stays with gitleaks and trivy,
 and checkov has nothing to add there but duplicate matched spans.
+
+Dev dependencies are included by default (`scanners.dev-deps`, on unless the operator
+turns it off): the trivy filesystem scan runs with `--include-dev-deps` and parses
+trivy's JSON output, which is where the per-package dev flag lives. Findings in a
+dev dependency chain keep their severity bucket (they count as high, medium, what
+have you) but carry a `+` glyph in the severity cell, a `dev` pill in the serve UI,
+and `properties.dev` in the merged report's trivy run, so a dev-chain CVE is never
+mistaken for a production one. Scans with the knob off declare it:
+`dev dependencies: excluded (scanners.dev-deps: false)`. Flipping the knob changes
+what a scan sees, so findings appear and remediate with coverage as usual; the
+marker travels with the finding in state and in the log, surviving replays.
 
 The fast tier is comfortably better than the 10 seconds originally budgeted, which
 makes the §9 pre-commit trigger genuinely unnoticeable. Deep scans belong to `--full`,

@@ -39,6 +39,34 @@ func TestDefaultsWhenFileMissing(t *testing.T) {
 	}
 }
 
+func TestDevDepsDefaultsOn(t *testing.T) {
+	if !Default().Scanners.DevDeps {
+		t.Error("dev-deps must default on")
+	}
+}
+
+func TestDevDepsInheritedByOldConfig(t *testing.T) {
+	path := writeConfig(t, "engine:\n  variant: core\nscanners:\n  checkov: false\n")
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Scanners.DevDeps {
+		t.Error("old config without dev-deps key must inherit default-on")
+	}
+}
+
+func TestDevDepsExplicitOff(t *testing.T) {
+	path := writeConfig(t, "scanners:\n  dev-deps: false\n")
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Scanners.DevDeps {
+		t.Error("explicit dev-deps: false must hold")
+	}
+}
+
 func TestUnknownKeyFailsLoud(t *testing.T) {
 	_, err := Load(writeConfig(t, "scan:\n  deep_default: true\n  nope: 1\n"))
 	if err == nil || !strings.Contains(err.Error(), "nope") {

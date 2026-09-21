@@ -19,6 +19,7 @@ type MergedFinding struct {
 	AlsoDetectedBy []string
 	CollapsedWith  []string // rule ids folded in via secret dedup
 	Secret         bool
+	Dev            bool // dev dependency chain (trivy fs --include-dev-deps)
 	Locations      []Location
 }
 
@@ -83,6 +84,9 @@ func Merge(fs []Finding) []*MergedFinding {
 			fp = fingerprint.Image(f.ImageName, f.RuleID, f.PkgName, f.PkgVersion)
 		}
 		if m, ok := byFP[fp]; ok {
+			if f.Dev {
+				m.Dev = true // a CVE hitting both prod and dev lockfiles keeps its marker
+			}
 			m.Locations = appendUniqueLoc(m.Locations, Location{Path: f.Path, Line: f.Line})
 			continue
 		}
@@ -105,6 +109,7 @@ func toMerged(f Finding, secret bool) *MergedFinding {
 		Description: f.Desc,
 		Scanner:     f.Scanner,
 		Secret:      secret,
+		Dev:         f.Dev,
 		Locations:   []Location{{Path: f.Path, Line: f.Line}},
 	}
 }

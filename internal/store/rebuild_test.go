@@ -160,6 +160,61 @@ func TestRebuildLifecycleFold(t *testing.T) {
 	}
 }
 
+// mustAppendDetectedWithDev appends one detected event carrying the Dev flag,
+// shared by the dev-replay tests.
+func mustAppendDetectedWithDev(t *testing.T, s *Store, fp string, dev bool) {
+	t.Helper()
+	ev, err := events.NewDetected(baseTS, events.ActorAgent, events.PhaseBuild,
+		testEngine, fp, events.DetectedData{
+			Rule: "CVE-2026-67213", Severity: events.SevHigh,
+			Path: "package-lock.json", Line: 6, Scanner: "trivy",
+			Description: "nanoid DoS", Dev: dev,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Append(ev); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The dev flag rides the detected payload (additive, json dev,omitempty), so
+// a replay of old-versus-new logs restores it exactly: true stays true, old
+// events without the key stay false.
+func TestRebuildRestoresDevFlag(t *testing.T) {
+	root := t.TempDir()
+	s, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fpDev := strings.Repeat("c3", 32)
+	fpProd := strings.Repeat("d4", 32)
+	mustAppendDetectedWithDev(t, s, fpDev, true)
+	mustAppendDetectedWithDev(t, s, fpProd, false)
+	st, err := s.Rebuild()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, f := range st.Findings {
+		switch f.Fingerprint {
+		case fpDev:
+			seen["dev"] = true
+			if !f.Dev {
+				t.Error("dev flag lost on replay")
+			}
+		case fpProd:
+			seen["prod"] = true
+			if f.Dev {
+				t.Error("prod finding must not carry Dev")
+			}
+		}
+	}
+	if !seen["dev"] || !seen["prod"] {
+		t.Fatalf("missing findings on replay: %v", seen)
+	}
+}
+
 func TestRebuildRemediatedRemovesFinding(t *testing.T) {
 	root := t.TempDir()
 	s, err := Init(root)

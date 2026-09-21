@@ -26,6 +26,7 @@ type Config struct {
 	} `yaml:"scan"`
 	Scanners struct {
 		Checkov bool `yaml:"checkov"`
+		DevDeps bool `yaml:"dev-deps"`
 	} `yaml:"scanners"`
 	Network struct {
 		Proxy       string `yaml:"proxy"`
@@ -37,9 +38,13 @@ type Config struct {
 }
 
 // Default returns the all-defaults config: core variant, every opt-in off.
+// DevDeps is the one scanner default-on: old configs inherit it because Load
+// decodes into Default() (dev dependencies are included unless the operator
+// excludes them; SPECIFICATION.md §5.2).
 func Default() Config {
 	var c Config
 	c.Engine.Variant = "core"
+	c.Scanners.DevDeps = true
 	return c
 }
 

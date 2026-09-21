@@ -66,6 +66,7 @@ scan:
   hook_exit_1: false
 scanners:
   checkov: false
+  dev-deps: true
 network:
   proxy: ""
   db_overrides:
