@@ -314,6 +314,68 @@ func TestRebuildPreservesBaseline(t *testing.T) {
 	}
 }
 
+func TestRebuildMarksInBaseline(t *testing.T) {
+	root := t.TempDir()
+	s, err := Init(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// detected + triaged events for fpConfirmed; detected only for fpOpen.
+	fpConfirmed, fpOpen := fpA(), fpB()
+	detectedConfirmed, err := events.NewDetected(baseTS, events.ActorAgent, events.PhaseBuild,
+		testEngine, fpConfirmed, events.DetectedData{
+			Rule: "generic.weak-hash", Severity: events.SevMedium,
+			Path: "auth/tokens.py", Line: 23, Scanner: "opengrep",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	triaged, err := events.NewTriaged(baseTS.Add(time.Minute), events.ActorAgent, events.PhaseBuild,
+		testEngine, fpConfirmed, events.TriagedData{
+			Verdict: events.VerdictDismissed, Confidence: events.ConfidenceHigh, Reason: "fixture",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detectedOpen, err := events.NewDetected(baseTS.Add(2*time.Minute), events.ActorAgent, events.PhaseBuild,
+		testEngine, fpOpen, events.DetectedData{
+			Rule: "py.sql-injection", Severity: events.SevHigh,
+			Path: "api/users.py", Line: 88, Scanner: "opengrep",
+			Description: "user input into query",
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range []events.Event{detectedConfirmed, triaged, detectedOpen} {
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out, err := json.Marshal(Baseline{EngineDigest: testEngine, CreatedAt: baseTS,
+		Fingerprints: []string{fpConfirmed, fpOpen}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := AtomicWrite(filepath.Join(root, ".cavet", "state", "baseline.json"), append(out, '\n')); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := s.Rebuild()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byFP := map[string]*Finding{}
+	for _, f := range st.Findings {
+		byFP[f.Fingerprint] = f
+	}
+	if !byFP[fpOpen].InBaseline {
+		t.Error("untriaged baseline finding: InBaseline should survive rebuild")
+	}
+	if byFP[fpConfirmed].InBaseline {
+		t.Error("triaged finding: InBaseline stays false, the verdict labels it")
+	}
+}
+
 func TestRebuildDisplayIDCollisionExtends(t *testing.T) {
 	root := t.TempDir()
 	s, err := Init(root)
