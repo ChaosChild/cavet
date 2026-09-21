@@ -11,60 +11,9 @@ Where an item touches cavet's determinism claim, it says so:
 engine-deliverable, boundary-ingested, or host-measured.
 
 When an item ships, move it below the line with the completion date and the
-version that carried it. Last updated: 2026-09-17.
+version that carried it. Last updated: 2026-09-21.
 
 ## Near-term
-
-### Include dev dependencies in workspace scans (critical path)
-
-Root cause of the 2026-09-17 nanoid miss (GHSA-2v37-7h3g-55p8 /
-CVE-2026-67213, reproduced against the shipped engine bytes): the shipped
-trivy DB knows the advisory, but cavet's trivy invocation never passes
---include-dev-deps, so every `dev: true` package in every lockfile is
-silently skipped, and the vulnerability sat in a dev chain (vite,
-postcss, nanoid). Fix shape: a `scanners.dev-deps` config knob, default
-on, passing --include-dev-deps, with dev-chain findings carrying a
-visible context marker in scan output and serve. Whatever the knob
-ends up being, scan output declares what was excluded. Expect a
-one-time baseline step-up on JS-heavy repos and fold the rollout note
-into the next instruction-layer pass. CLI-only: no engine rebuild
-needed.
-
-### `cavet doctor` (state-vs-log consistency check)
-
-Replay the log and diff the result against `state/` without writing:
-report drift, never repair. Evidence from the 2026-09-07 v0.1.1 session:
-five triage verdicts and open item it-e7b70a3f went missing from on-disk
-state while the log stayed intact; no code path on HEAD wipes verdicts,
-and the drift survived nine days until a triage pass tripped over it. A
-same-day check would have caught it. State is derived, the log is truth,
-but nothing verifies that today.
-
-### Rebuild should re-mark in_baseline
-
-Verified on HEAD: store Rebuild() (internal/store/rebuild.go) preserves
-baseline.json via loadBaseline but never sets f.InBaseline on replayed
-findings, so after the 2026-09-16 rebuild all 663 rows carry
-in_baseline: false. `cavet debt` is unaffected (it reads
-Baseline.Fingerprints directly), but any display reading the flag can
-mislabel until the next rebaseline. Fix shape: after loadBaseline, mark
-findings with Verdict == nil whose fingerprint is in
-Baseline.Fingerprints.
-
-### `cavet log` row cap
-
-The log view hard-caps at 50 rows (internal/cli/logdebt.go) with no flag
-to raise it; the 2026-09-16 forensics had to read
-.cavet/log/events-2026-09.jsonl directly (3,121 events). Fix shape: a
---limit flag, default 50.
-
-### `cavet debt` should reflect triage verdicts
-
-`cavet debt` lists every baseline fingerprint, including rows that
-already carry dismiss verdicts (66+ as of 2026-09-16), so working the
-queue means re-reading known-dismissed rows. Fix shape: hide triaged
-rows by default or add a verdict column, leaving only what is actually
-undecided.
 
 ## Open
 
@@ -230,6 +179,44 @@ stay out of cavet, and the parent coding agent manages trackers through
 its own MCPs and CLIs.
 
 ## Closed
+
+### Include dev dependencies in workspace scans (critical path) (2026-09-21, v0.2.2)
+
+Shipped as the `scanners.dev-deps` knob, default on, with the trivy fs scan
+switched from SARIF to JSON output so the per-package Dev flag is reachable.
+Dev-chain findings carry a `+` marker in scan output and a badge in serve,
+and scan output declares the exclusion state. `reports/latest.sarif` stays
+SARIF, with trivy's run projected from parsed findings (properties.dev on
+dev rows); identity parity with the old parse is pinned by a fixture-pair
+test. Spike-gated against engine trivy 0.74.0. Decision trail: PR #48.
+
+### `cavet doctor` (state-vs-log consistency check) (2026-09-21, v0.2.2)
+
+Shipped as `cavet doctor`: replays the log into a scratch copy, diffs
+findings and items against on-disk state, exits 1 (informational) on drift,
+and the report never repairs. Alongside it, `cavet doctor fix` (an operator
+addition, shaped on npm audit / audit-fix) repairs log-derivable drift under
+the store lock and refuses with the report when the disk holds rows the log
+cannot regenerate. Decision trail: PR #47.
+
+### Rebuild should re-mark in_baseline (2026-09-21, v0.2.2)
+
+Store Rebuild re-marks InBaseline from preserved baseline fingerprints for
+untriaged findings (Verdict == nil), mirroring the rebaseline rule. The
+2026-09-16 drift (663 rows) is repaired by running `cavet rebuild` after
+installing. Decision trail: PR #45.
+
+### `cavet log` row cap (2026-09-21, v0.2.2)
+
+Shipped as `cavet log --limit <n>`: the row cap is configurable with a
+default of 50, and values below 1 fail loud. Decision trail: PR #46.
+
+### `cavet debt` should reflect triage verdicts (2026-09-21, v0.2.2)
+
+Debt hides decided rows by default (verdict-carrying or suppressed; deferred
+stays visible until the deferred-rework item), reports shown and hidden
+counts, and `--all` shows everything with a verdict column. Decision trail:
+PR #46.
 
 ### `cavet serve` dashboard (2026-09-15, v0.2.1)
 
