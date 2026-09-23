@@ -175,6 +175,34 @@ vacuous. Cross-corpus distribution after archetype: 187 confirmed,
 852 not-security, 52 dismissed; sufficiency mean 0.27; 115 findings in
 the near-gate band route to the human queue by design.
 
+Three further S0b results close the round. First, the severity-blind
+counterfactual was adopted into the state builder (severity omitted from
+lockfile-finding records plus an explicit instruction that severity is not
+grounds for dismissal there): corpus-2 recall 77 to 83/87 (95.4 percent),
+corpus-5 31 to 33/34 (97.1 percent), at the cost of one non-ground-truth
+confirmation; verification also exposed that source excerpts had silently
+been absent from every cross-repo run (the excerpt helper resolved against
+the wrong root) - fixed, excerpts now flow, and the corpus-2 and fragmt
+results stand validated without them. Second, an independent second-rater
+precision check on the over-confirmation set (76 confirmed findings without
+ground-truth labels) found only 10 worth confirming: the mass is
+audit-class rules in local developer tooling, and the operator's revealed
+preference (4 of 475 confirmed on corpus-3, 34 of 270 on corpus-5)
+corroborates that Jev's confirmed pile sits above the operator's bar on
+that mass. Third, the sufficiency signal was audited for calibration: it
+honestly flags "insufficient data" on 97 percent of the starved records
+but the distribution is identical on correctly-recalled findings, so today
+it is a corpus-level state-quality indicator, not a per-finding router;
+recalibration is pending on excerpts actually flowing. Three clean
+repetition sweeps of the final configuration (1793 findings x 3 reps, zero
+errors) measured consistency: unanimous-status rates cavet 98.5 percent,
+fragmt 80.0, corpus-2 100, corpus-3 99.2, corpus-4 100, corpus-5 98.2;
+step-1 standard deviation 0.001 to 0.013. All disagreement decomposes into
+closure-label noise (dismissed vs not-security) on findings far below the
+gate and gate-straddling wobble in the known near-gate band; an A/A rerun
+put single-run flip noise at about 1.3 percent, so the operational posture
+is three-rep majority voting.
+
 ### S0b: expansion rounds
 
 Grow the corpus step by step: more cavet findings, then fragmt findings, then

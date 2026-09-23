@@ -12,6 +12,15 @@ r3 wording, current_status always open, sufficiency question included.
 Usage:
   python s0b.py --project-dir ../fragmt            # full run
   python s0b.py --project-dir ../fragmt --limit 6  # smoke
+  python s0b.py --project-dir ... --variant svcx   # SV+CX counterfactual
+
+Variants (mechanical counterfactuals, recorded in the output doc):
+  sv   severity-blind lockfile findings: drop the severity field from
+       lockfile-finding records and append the severity-blind instruction
+       to their is_confirmed question
+  cx   code-context: widen the source excerpt of non-lockfile findings
+       to before=25, after=25
+  svcx both at once
 """
 
 import argparse
@@ -37,6 +46,44 @@ LOCKFILE_BASENAMES = {
 }
 LOCKFILE_CLASS = ("dependency manifest (lockfile) pinning the exact "
                   "dependency versions installed in deployments of this project")
+SV_INSTRUCTION = (" Severity labels are not grounds for dismissal for manifest "
+                  "findings: the affected version is pinned in this project's "
+                  "dependency manifest, which the state establishes directly.")
+
+
+def is_lockfile_finding(location):
+    """True when the location basename (lowercase, before :line) is a lockfile."""
+    return Path(location.rsplit(":", 1)[0]).name.lower() in LOCKFILE_BASENAMES
+
+
+def apply_variant(variant):
+    """Wrap the batch hooks so the SV/CX counterfactuals reach the requests."""
+    if variant == "none":
+        return
+    orig_record, orig_q, orig_excerpt = (
+        batch.finding_record, batch.q_confirmed, batch.source_excerpt)
+
+    def finding_record(find):
+        rec = orig_record(find)
+        if "sv" in variant and is_lockfile_finding(find["location"]):
+            rec.pop("severity", None)
+        return rec
+
+    def q_confirmed(find):
+        questions = orig_q(find)
+        if "sv" in variant and is_lockfile_finding(find["location"]):
+            key = f"{find['id']}_confirmed"
+            questions[key]["instructions"] += SV_INSTRUCTION
+        return questions
+
+    def source_excerpt(location, before=6, after=6):
+        if "cx" in variant and not is_lockfile_finding(location):
+            before = after = 25
+        return orig_excerpt(location, before, after)
+
+    batch.finding_record = finding_record
+    batch.q_confirmed = q_confirmed
+    batch.source_excerpt = source_excerpt
 
 
 def detect_archetype(project_dir):
@@ -113,6 +160,11 @@ def main():
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--variant", choices=["none", "svcx"], default="svcx",
+                    help="severity-blind lockfile handling (adopted default: "
+                         "svcx); none restores pre-adoption behavior")
+    ap.add_argument("--tag", default="",
+                    help="extra output-file suffix, e.g. run repetitions")
     args = ap.parse_args()
 
     proj = Path(args.project_dir).resolve()
@@ -136,6 +188,8 @@ def main():
             name = proj.name
             desc = "De-identified benchmark repository used for triage research."
     os.chdir(proj)  # cavet CLI calls resolve against the project repo
+    batch.REPO = proj  # source excerpts resolve against this project, not
+    # the cavet root (the s0b excerpt gap found 2026-09-21)
 
     batch.PROJECT = {
         "name": name,
@@ -147,8 +201,11 @@ def main():
         # stay under the gitignored s0b/ area, never in committed files
         batch.OUT = HERE / "s0b" / "runs"
         batch.DETAILS_CACHE = HERE / "s0b" / f"details-cache-{name}.json"
+    elif name == "fragmt":
+        batch.DETAILS_CACHE = HERE / "details-cache-fragmt.json"
+    else:
+        batch.DETAILS_CACHE = HERE / f"details-cache-{name}.json"
     batch.path_class = js_path_class
-    batch.DETAILS_CACHE = HERE / f"details-cache-{name}.json"
 
     findings = load_project_universe(proj)
     cache = (json.loads(batch.DETAILS_CACHE.read_text(encoding="utf-8"))
@@ -166,9 +223,18 @@ def main():
         findings = findings[: args.limit]
 
     print(f"S0b run: project={name}, findings={len(findings)}, "
-          f"size={args.size}, workers={args.workers}")
-    run_plan(findings, "similarity", args.size, force=args.force,
-             workers=args.workers, tag=f"-{name}")
+          f"size={args.size}, workers={args.workers}, variant={args.variant}")
+    apply_variant(args.variant)
+    tag = f"-{name}" if args.variant == "none" else f"-{name}-{args.variant}"
+    tag += args.tag
+    doc = run_plan(findings, "similarity", args.size, force=args.force,
+                   workers=args.workers, tag=tag)
+    if args.variant != "none":
+        # run_plan already wrote the doc; re-record it with the variant stamp
+        # (calls and per-finding records are carried in the doc unchanged).
+        doc["variant"] = args.variant
+        out_path = batch.OUT / f"similarity-{args.size:02d}{tag}.json"
+        out_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
