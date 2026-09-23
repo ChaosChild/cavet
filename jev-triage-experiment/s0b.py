@@ -30,11 +30,42 @@ from batch import run_plan
 OUT_NAME = "s0b-{project}.json"
 
 
+LOCKFILE_BASENAMES = {
+    "bun.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+    "go.sum", "requirements.txt", "poetry.lock", "uv.lock",
+    "pipfile.lock", "cargo.lock", "composer.lock", "gemfile.lock",
+}
+LOCKFILE_CLASS = ("dependency manifest (lockfile) pinning the exact "
+                  "dependency versions installed in deployments of this project")
+
+
+def detect_archetype(project_dir):
+    """Mechanical, identity-free project context from tree markers only."""
+    entries = {p.name.lower() for p in project_dir.iterdir() if p.is_file()}
+    if "go.mod" in entries:
+        return ("A Go software project: its go.sum pins the exact checksums of "
+                "the dependency versions compiled into this project's builds, "
+                "and dependency findings against the manifest describe versions "
+                "present in those builds.")
+    if "package.json" in entries and entries & {
+            "bun.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"}:
+        return ("A Node.js software project that ships a dependency lockfile: "
+                "its declared dependencies are installed verbatim in "
+                "production deployments of this project.")
+    if entries & {"pyproject.toml", "requirements.txt", "uv.lock"}:
+        return ("A Python software project whose dependency manifests pin the "
+                "exact dependency versions installed in deployments of this "
+                "project.")
+    return None
+
+
 def js_path_class(path):
     """Generic JS-project path classification: prefix rules only."""
     p = path.replace("\\", "/")
     parts = p.split("/")
     low = p.lower()
+    if parts and parts[-1].lower() in LOCKFILE_BASENAMES:
+        return LOCKFILE_CLASS
     if "test" in low or "spec." in low or "fixture" in low:
         return "test code or fixture (non-shipped)"
     if parts and parts[0] == "docs":
@@ -92,7 +123,9 @@ def main():
         # benchmark subjects: never read package.json identity — the
         # subject's own name must not reach the model or any record
         name = proj.name
-        desc = "De-identified benchmark repository used for triage research."
+        archetype = detect_archetype(proj)
+        desc = archetype or ("De-identified benchmark repository used for "
+                             "triage research.")
     else:
         pkg_path = proj / "package.json"
         if pkg_path.exists():

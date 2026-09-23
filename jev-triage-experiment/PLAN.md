@@ -155,7 +155,25 @@ corpus-2 recall from 0/87 to 77/87 (88.5 percent), with 78 total
 confirmations of which 77 are ground-truth-confirmed. Remaining S0b
 work: apply archetype derivation across all corpora, autopsy the
 residual misses (10 in corpus-2, 3 near-zero in corpus-4), and fold
-archetype detection into the mechanical state builder.
+archetype detection into the mechanical state builder. All three done
+the same day: archetype detection (Go via go.mod, Node via
+package.json plus lockfile, Python via pyproject or requirements) and
+lockfile path-class rules are now part of the mechanical state builder,
+and corpora 3, 4, 5 were rerun with it. Aggregate recall on the 128
+ground-truth-confirmed findings: 111/127 = 87.4 percent (from 19.7
+percent). Residue, characterised: corpus-2 retains 10 misses (4
+info-severity bash findings that are bug-class material, 5 near-gate
+SCA at p1 0.35 to 0.47, 1 prototype-pollution at 0.45); corpus-3
+retains 1 miss (defused-xml at 0.48, whose confirmation hinged on an
+untrusted-feed fact absent from state - the designed escalation band);
+corpus-4 retains 2 high-severity misses at p1 0.05 (supply-chain
+advisories with no public record, no fixed version, not KEV, no EPSS -
+the genuinely hard residue), while its third confirmed finding, which
+the operator reconciled as "a bug, not a security issue", was correctly
+routed to not-security by the two-step flow. corpus-1 stays clean and
+vacuous. Cross-corpus distribution after archetype: 187 confirmed,
+852 not-security, 52 dismissed; sufficiency mean 0.27; 115 findings in
+the near-gate band route to the human queue by design.
 
 ### S0b: expansion rounds
 
