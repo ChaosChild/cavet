@@ -203,6 +203,35 @@ gate and gate-straddling wobble in the known near-gate band; an A/A rerun
 put single-run flip noise at about 1.3 percent, so the operational posture
 is three-rep majority voting.
 
+Closing S0b (2026-09-21): two bugs were found and fixed in the excerpt
+path - a wrong-root bug (cross-repo runs resolved excerpts against the
+cavet tree, silently embedding cavet content or nothing) and an unbounded
+excerpt size (lockfile lines pushed whole batches past the API request
+limit: bodies of 177 to 242KB against an observed ~123KB pass ceiling,
+deterministically failing the same batches in every rep). The fix caps
+excerpts at 200 chars per line and 800 total. With capped excerpts every
+corpus runs clean end to end. Final corpora recall on the 128
+ground-truth-confirmed findings: 105/128 = 82.0 percent. corpus-2 84/87
+(96.6 percent; the three misses are info-severity bash findings),
+trivy SCA 10/10 on corpus-5, corpus-4's two zero-record advisories
+confirmed as the hard residue, and the remaining misses concentrate in
+audit-class blocks where added code context moves Jev toward dismiss
+while the operator confirmed - operator-arbitration zones, queued for
+the sampling layer by design. The confirmed pile got sharply more
+precise: corpus-5's 19 confirmations are all ground-truth-confirmed
+(previously 52 over-confirmations), corpus-2's 84 likewise. The
+sufficiency signal was audited and is honest but non-discriminative in
+this domain (uniformly low on recalled and missed alike); it stands as
+a state-quality indicator, not a per-finding router. Consistency was
+measured at three levels: cavet over all 10 runs (identical
+configuration), and fragmt plus corpus-4 over 7 runs of the final
+configuration; corpora 2, 3, 5 carry one complete run each under the
+capped configuration with the pre-fix reps invalidated by the size
+failures - extending their consistency series is the first task for
+renewed credits. Discovered constraint for the record: excerpt width
+and batch size trade off against a ~126KB request ceiling (wide
+excerpts require smaller batches).
+
 ### S0b: expansion rounds
 
 Grow the corpus step by step: more cavet findings, then fragmt findings, then

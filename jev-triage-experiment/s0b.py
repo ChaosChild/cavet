@@ -34,6 +34,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import batch
+import harness
 from batch import run_plan
 
 OUT_NAME = "s0b-{project}.json"
@@ -41,7 +42,7 @@ OUT_NAME = "s0b-{project}.json"
 
 LOCKFILE_BASENAMES = {
     "bun.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-    "go.sum", "requirements.txt", "poetry.lock", "uv.lock",
+    "go.sum", "go.mod", "requirements.txt", "poetry.lock", "uv.lock",
     "pipfile.lock", "cargo.lock", "composer.lock", "gemfile.lock",
 }
 LOCKFILE_CLASS = ("dependency manifest (lockfile) pinning the exact "
@@ -56,8 +57,13 @@ def is_lockfile_finding(location):
     return Path(location.rsplit(":", 1)[0]).name.lower() in LOCKFILE_BASENAMES
 
 
-def apply_variant(variant):
-    """Wrap the batch hooks so the SV/CX counterfactuals reach the requests."""
+def apply_variant(variant, context_lines=6):
+    """Wrap the batch hooks so the SV/CX counterfactuals reach the requests.
+
+    context_lines is the excerpt width (lines before/after the finding
+    line) applied to every finding; the cx variant still widens
+    non-lockfile findings to 25 on top of it.
+    """
     if variant == "none":
         return
     orig_record, orig_q, orig_excerpt = (
@@ -76,7 +82,11 @@ def apply_variant(variant):
             questions[key]["instructions"] += SV_INSTRUCTION
         return questions
 
-    def source_excerpt(location, before=6, after=6):
+    def source_excerpt(location, before=None, after=None):
+        if before is None:
+            before = context_lines
+        if after is None:
+            after = context_lines
         if "cx" in variant and not is_lockfile_finding(location):
             before = after = 25
         return orig_excerpt(location, before, after)
@@ -163,6 +173,9 @@ def main():
     ap.add_argument("--variant", choices=["none", "svcx"], default="svcx",
                     help="severity-blind lockfile handling (adopted default: "
                          "svcx); none restores pre-adoption behavior")
+    ap.add_argument("--context-lines", type=int, default=6,
+                    help="source excerpt width in lines before/after the "
+                         "finding location, for all findings")
     ap.add_argument("--tag", default="",
                     help="extra output-file suffix, e.g. run repetitions")
     args = ap.parse_args()
@@ -188,8 +201,14 @@ def main():
             name = proj.name
             desc = "De-identified benchmark repository used for triage research."
     os.chdir(proj)  # cavet CLI calls resolve against the project repo
-    batch.REPO = proj  # source excerpts resolve against this project, not
-    # the cavet root (the s0b excerpt gap found 2026-09-21)
+    # Source excerpts must resolve against this project, not the cavet root
+    # (the s0b excerpt gap found 2026-09-21). harness.source_excerpt reads
+    # REPO from harness's own module globals, so harness.REPO is the binding
+    # that matters; batch.REPO is kept in sync for any batch-side reader.
+    # Without the harness-side binding every excerpt silently came back None
+    # (or, for go.mod:1, excerpted the cavet repo itself).
+    batch.REPO = proj
+    harness.REPO = proj
 
     batch.PROJECT = {
         "name": name,
@@ -224,7 +243,7 @@ def main():
 
     print(f"S0b run: project={name}, findings={len(findings)}, "
           f"size={args.size}, workers={args.workers}, variant={args.variant}")
-    apply_variant(args.variant)
+    apply_variant(args.variant, context_lines=args.context_lines)
     tag = f"-{name}" if args.variant == "none" else f"-{name}-{args.variant}"
     tag += args.tag
     doc = run_plan(findings, "similarity", args.size, force=args.force,
@@ -233,6 +252,8 @@ def main():
         # run_plan already wrote the doc; re-record it with the variant stamp
         # (calls and per-finding records are carried in the doc unchanged).
         doc["variant"] = args.variant
+        if args.context_lines != 6:
+            doc["context_lines"] = args.context_lines
         out_path = batch.OUT / f"similarity-{args.size:02d}{tag}.json"
         out_path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
 

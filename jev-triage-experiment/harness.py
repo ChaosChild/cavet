@@ -165,8 +165,13 @@ def path_class(path):
     return "repository file"
 
 
-def source_excerpt(location, before=6, after=6):
-    """Fixed-width source excerpt around the finding location."""
+def source_excerpt(location, before=6, after=6, line_cap=200, total_cap=800):
+    """Fixed-width source excerpt around the finding location.
+
+    Lockfile and minified lines can be tens of KB long, so both per-line
+    and total length are capped: an unbounded excerpt at batch size 40
+    deterministically exceeds the API's request-size limit.
+    """
     try:
         path, line = location.rsplit(":", 1)
         line = int(line)
@@ -179,7 +184,10 @@ def source_excerpt(location, before=6, after=6):
         return None
     lo = max(1, line - before)
     hi = min(len(lines), line + after)
-    return "\n".join(f"{n:5d} | {lines[n - 1]}" for n in range(lo, hi + 1))
+    out = "\n".join(f"{n:5d} | {lines[n - 1][:line_cap]}" for n in range(lo, hi + 1))
+    if len(out) > total_cap:
+        out = out[:total_cap] + " …[truncated]"
+    return out
 
 
 def lookup_output(rule):
