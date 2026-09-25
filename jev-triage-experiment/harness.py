@@ -132,20 +132,26 @@ KEY = load_key()
 
 
 def finding_details(fingerprint):
-    """Fetch one finding's details through the cavet CLI."""
+    """Fetch one finding's details through the cavet CLI.
+
+    The CLI appends the recorded verdict (if any) as a trailing
+    "verdict: ..." line; triage must never see it, so it is stripped here.
+    """
     out = subprocess.run(
         ["cavet", "finding", fingerprint],
         capture_output=True, text=True, check=True,
     ).stdout
     lines = out.strip().splitlines()
     head = [p.strip() for p in lines[0].split("·")]
+    body = [ln.strip() for ln in lines[2:]
+            if not ln.strip().startswith("verdict:")]
     return {
         "id": head[0],
         "severity": head[1],
         "rule": head[2],
         "status": head[3],
         "location": lines[1].strip(),
-        "description": "\n".join(ln.strip() for ln in lines[2:]).strip(),
+        "description": "\n".join(body).strip(),
     }
 
 
