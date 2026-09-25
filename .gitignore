@@ -6,3 +6,8 @@ coverage.out
 .env
 .lavish/
 engine/scan-reports/
+
+# Jev experiment write-ups and paper audit tooling (kept out of the public repo)
+jev-triage-experiment/PAPER.md
+jev-triage-experiment/REPORT.md
+jev-triage-experiment/paper-sweep.py

@@ -44,6 +44,56 @@ themselves around these tools.
 harnesses, the serve dashboard, and CI are all here and working;
 [SPECIFICATION.md](docs/SPECIFICATION.md) remains the design of record.
 
+## This branch: Jev first-pass triage experiment (concluded)
+
+This branch, `experiment/typesafe-jev`, holds a concluded experiment. It
+evaluated TypeSafe's Jev, a System One model that returns typed answers with
+calibrated probabilities instead of prose, as a single-pass filter between
+cavet's scanners and the triage agent. The aim was to shrink the queue the
+agent or a human has to work through, without letting dismissals go unseen.
+The experiment ran observation-only: nothing was suppressed, and every finding
+was still reviewed, so each of Jev's judgments could be checked against ground
+truth.
+
+**High-level results** (1,793 findings across cavet, fragmt and five
+de-identified benchmark repositories):
+
+- **Queue reduction.** Jev confirmed 134 findings (134 to 137 in individual
+  runs) against 131 confirmed by the operator. If only confirmed findings were
+  forwarded, the queue would shrink about 13-fold.
+- **Accuracy.** Jev agreed with the operator's actionable or non-actionable
+  verdict on 92 of 98 cavet findings and 40 of 40 fragmt findings. On the
+  dependency-advisory benchmark it recalled 96.6 percent of confirmed findings
+  with a precision of 1.00. Recall was lower on audit-class code findings
+  (57.6 percent on one benchmark), where the operator's decision depended on
+  dataflow context the model never saw.
+- **Consistency.** Five repeated runs produced the same status for at least
+  96.7 percent of findings in every universe except fragmt, whose repeats
+  differed only between two closure labels that are routed the same way. The
+  per-finding standard deviation of the confirmation probability was at most
+  0.013.
+- **Cost.** The whole experiment used 16,965 requests and 63.2 million tokens
+  for $2.52. One pass over the full set costs $0.11 to $0.14. A modeled
+  comparison puts the strongest general-purpose LLMs at 8 to 21 times Jev's
+  per-finding cost.
+- **Failures.** Every miss fell into a characterized class: missing project
+  context (fixed mechanically), source-excerpt width, a scoring-vocabulary
+  artifact, and two policy disagreements left to human arbitration. No fix
+  relied on prompt tuning.
+
+**Conclusion.** Typed, low-cost judgment works as a first-pass triage layer
+here: in a single pass it cuts the queue by an order of magnitude and keeps
+every decision recorded and auditable. The results support an observation-first
+route to production, in which only confirmed findings reach the agent and the
+rest are closed in the audit log with Jev's judgment as the recorded reason.
+Auditing a sample of the dismissed findings on a schedule is proposed but has
+not yet been evaluated.
+
+The full report will be published later and linked here. The harness, analysis
+scripts and working notes are in [`jev-triage-experiment/`](jev-triage-experiment/).
+The work stays on this branch and will not be merged for now. It may return as
+an optional triage flow once Jev is publicly available.
+
 <p><img src="docs/scan-demo.gif" alt="cavet staged scan finds a planted key, the finding is dismissed with a recorded reason, and the audit trail shows every event" width="840"></p>
 <p>
   <img src="docs/harness-claude.png" alt="Claude Code loads the cavet-triage skill, dispatches the cavet-security subagent, and reconciles the verdict for the operator" width="840">
