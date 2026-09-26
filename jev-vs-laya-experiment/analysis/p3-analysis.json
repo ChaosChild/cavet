@@ -1,0 +1,2130 @@
+{
+ "arms": {
+  "jev-b1": {
+   "files": [
+    "jev-b1-rep1.json",
+    "jev-b1-rep2.json",
+    "jev-b1-rep3.json"
+   ],
+   "n_findings": 1793,
+   "actionability": {
+    "cavet": {
+     "agree": 88,
+     "n": 98,
+     "pct": 89.8,
+     "disagreements": [
+      {
+       "id": "1754a4",
+       "verdict": "confirmed",
+       "majority": "below-gate",
+       "step1": 0.423
+      },
+      {
+       "id": "3b1a85",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.6
+      },
+      {
+       "id": "43eb91",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.523
+      },
+      {
+       "id": "4a97d6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.58
+      },
+      {
+       "id": "72a7ba",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.723
+      },
+      {
+       "id": "7d1ff0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.52
+      },
+      {
+       "id": "9a6461",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.67
+      },
+      {
+       "id": "a8c81f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.513
+      },
+      {
+       "id": "deb303",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.707
+      },
+      {
+       "id": "e26506",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.71
+      }
+     ]
+    },
+    "fragmt": {
+     "agree": 40,
+     "n": 40,
+     "pct": 100.0,
+     "disagreements": []
+    }
+   },
+   "corpora": {
+    "corpus-2": {
+     "confirmed": 87,
+     "recalled": 84,
+     "recall": 96.6,
+     "wilson95": [
+      90.3,
+      98.8
+     ],
+     "confirmed_pile": 84,
+     "pile_true": 84,
+     "precision": 1.0
+    },
+    "corpus-3": {
+     "confirmed": 4,
+     "recalled": 2,
+     "recall": 50.0,
+     "wilson95": [
+      15.0,
+      85.0
+     ],
+     "confirmed_pile": 3,
+     "pile_true": 2,
+     "precision": 0.67
+    },
+    "corpus-4": {
+     "confirmed": 3,
+     "recalled": 0,
+     "recall": 0.0,
+     "wilson95": [
+      0.0,
+      56.1
+     ],
+     "confirmed_pile": 0,
+     "pile_true": 0,
+     "precision": null
+    },
+    "corpus-5": {
+     "confirmed": 33,
+     "recalled": 18,
+     "recall": 54.5,
+     "wilson95": [
+      38.0,
+      70.2
+     ],
+     "confirmed_pile": 41,
+     "pile_true": 18,
+     "precision": 0.44
+    }
+   },
+   "consistency": {
+    "unanimous_pct": 98.72,
+    "mean_step1_sd": 0.0059,
+    "max_step1_sd": 0.0748
+   },
+   "calibration": {
+    "cavet_dev": {
+     "n": 98,
+     "brier": 0.0816,
+     "ece": 0.198,
+     "nll": 0.2888,
+     "auroc": 0.928
+    },
+    "fragmt_eval": {
+     "n": 40,
+     "brier": 0.0018,
+     "ece": 0.0413,
+     "nll": 0.0423,
+     "auroc": null
+    },
+    "corpus-2": {
+     "n": 337,
+     "as_served": {
+      "brier": 0.0349,
+      "ece": 0.1211,
+      "nll": 0.1631,
+      "auroc": 0.997
+     }
+    },
+    "corpus-3": {
+     "n": 475,
+     "as_served": {
+      "brier": 0.0144,
+      "ece": 0.0782,
+      "nll": 0.0938,
+      "auroc": 0.984
+     }
+    },
+    "corpus-4": {
+     "n": 8,
+     "as_served": {
+      "brier": 0.313,
+      "ece": 0.3175,
+      "nll": 0.9383,
+      "auroc": 0.5
+     }
+    },
+    "corpus-5": {
+     "n": 270,
+     "as_served": {
+      "brier": 0.1029,
+      "ece": 0.1172,
+      "nll": 0.333,
+      "auroc": 0.859
+     }
+    }
+   }
+  },
+  "laya-typed-decisions": {
+   "files": [
+    "laya-typed-decisions-rep1.json",
+    "laya-typed-decisions-rep2.json"
+   ],
+   "n_findings": 1793,
+   "actionability": {
+    "cavet": {
+     "agree": 4,
+     "n": 98,
+     "pct": 4.1,
+     "disagreements": [
+      {
+       "id": "025732",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.622
+      },
+      {
+       "id": "037cee",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.576
+      },
+      {
+       "id": "099c0b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.59
+      },
+      {
+       "id": "0a96fd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.595
+      },
+      {
+       "id": "0c44f7",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.57
+      },
+      {
+       "id": "1567dd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.595
+      },
+      {
+       "id": "16be4b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.583
+      },
+      {
+       "id": "186c50",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.58
+      },
+      {
+       "id": "1b0ae2",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.593
+      },
+      {
+       "id": "1d3780",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.603
+      },
+      {
+       "id": "215a27",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.594
+      },
+      {
+       "id": "221fa6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.583
+      },
+      {
+       "id": "22ef97",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.578
+      },
+      {
+       "id": "250e82",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.605
+      },
+      {
+       "id": "259d83",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.616
+      },
+      {
+       "id": "259f79",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.56
+      },
+      {
+       "id": "28ee47",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.527
+      },
+      {
+       "id": "2c6ca3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.625
+      },
+      {
+       "id": "30d986",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.569
+      },
+      {
+       "id": "31a94d",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.541
+      },
+      {
+       "id": "344bad",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.586
+      },
+      {
+       "id": "34d1e3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.58
+      },
+      {
+       "id": "356a70",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.551
+      },
+      {
+       "id": "362511",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.617
+      },
+      {
+       "id": "3b1a85",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.619
+      },
+      {
+       "id": "3ba9ab",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.652
+      },
+      {
+       "id": "3cc7d4",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.605
+      },
+      {
+       "id": "4093e0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.604
+      },
+      {
+       "id": "43eb91",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.59
+      },
+      {
+       "id": "451e68",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.568
+      },
+      {
+       "id": "4537fb",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.574
+      },
+      {
+       "id": "483745",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.628
+      },
+      {
+       "id": "493ca0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.588
+      },
+      {
+       "id": "4a97d6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.6
+      },
+      {
+       "id": "4ed8e2",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.59
+      },
+      {
+       "id": "53a15e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.547
+      },
+      {
+       "id": "5722f7",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.629
+      },
+      {
+       "id": "5801b4",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.58
+      },
+      {
+       "id": "58e1aa",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.593
+      },
+      {
+       "id": "5c6d8c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.62
+      },
+      {
+       "id": "5d3559",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.584
+      },
+      {
+       "id": "622dfe",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.559
+      },
+      {
+       "id": "6646b6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.611
+      },
+      {
+       "id": "6b198b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.604
+      },
+      {
+       "id": "6d646e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.594
+      },
+      {
+       "id": "6e606e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.606
+      },
+      {
+       "id": "6f500b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.592
+      },
+      {
+       "id": "72a7ba",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.623
+      },
+      {
+       "id": "737a62",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.599
+      },
+      {
+       "id": "748b72",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.597
+      },
+      {
+       "id": "794a4a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.599
+      },
+      {
+       "id": "7a4716",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.595
+      },
+      {
+       "id": "7aadde",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.608
+      },
+      {
+       "id": "7bab3f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.6
+      },
+      {
+       "id": "7c8dce",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.628
+      },
+      {
+       "id": "7d1ff0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.596
+      },
+      {
+       "id": "80dea5",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.556
+      },
+      {
+       "id": "8b2b70",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.604
+      },
+      {
+       "id": "8cfd72",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.62
+      },
+      {
+       "id": "8d20db",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.568
+      },
+      {
+       "id": "9527d9",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.56
+      },
+      {
+       "id": "982827",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.633
+      },
+      {
+       "id": "990460",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.603
+      },
+      {
+       "id": "9a6461",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.593
+      },
+      {
+       "id": "9a7212",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.602
+      },
+      {
+       "id": "a8c81f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.607
+      },
+      {
+       "id": "a9ac76",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.574
+      },
+      {
+       "id": "ab4c0e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.575
+      },
+      {
+       "id": "ac5b3b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.654
+      },
+      {
+       "id": "adb679",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.598
+      },
+      {
+       "id": "b1a841",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.618
+      },
+      {
+       "id": "b4b598",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.52
+      },
+      {
+       "id": "b6e21c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.666
+      },
+      {
+       "id": "bc30cd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.582
+      },
+      {
+       "id": "bde2d5",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.612
+      },
+      {
+       "id": "c98019",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.607
+      },
+      {
+       "id": "ca631f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.616
+      },
+      {
+       "id": "cdac29",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.618
+      },
+      {
+       "id": "cfea3c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.631
+      },
+      {
+       "id": "d04bc1",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.609
+      },
+      {
+       "id": "d1d27d",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.562
+      },
+      {
+       "id": "de76f1",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.606
+      },
+      {
+       "id": "deb303",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.622
+      },
+      {
+       "id": "dfa693",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.525
+      },
+      {
+       "id": "e0a069",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.62
+      },
+      {
+       "id": "e26506",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.623
+      },
+      {
+       "id": "e3ad41",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.584
+      },
+      {
+       "id": "eb10af",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.595
+      },
+      {
+       "id": "ee7f26",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.603
+      },
+      {
+       "id": "f6384d",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.555
+      },
+      {
+       "id": "fae623",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.563
+      },
+      {
+       "id": "fcf20a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.591
+      },
+      {
+       "id": "fef69b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.577
+      },
+      {
+       "id": "ffe08a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.574
+      }
+     ]
+    },
+    "fragmt": {
+     "agree": 0,
+     "n": 40,
+     "pct": 0.0,
+     "disagreements": [
+      {
+       "id": "19445c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.578
+      },
+      {
+       "id": "2018df",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.586
+      },
+      {
+       "id": "280bf5",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.585
+      },
+      {
+       "id": "2894aa",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.591
+      },
+      {
+       "id": "28fe84",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.585
+      },
+      {
+       "id": "2d1819",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.588
+      },
+      {
+       "id": "2f1da4",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.574
+      },
+      {
+       "id": "32955e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.599
+      },
+      {
+       "id": "392d11",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.599
+      },
+      {
+       "id": "3c6940",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.591
+      },
+      {
+       "id": "3d3db3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.591
+      },
+      {
+       "id": "4c3cda",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.574
+      },
+      {
+       "id": "4e9e39",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.681
+      },
+      {
+       "id": "4ed8ff",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.623
+      },
+      {
+       "id": "5edcca",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.593
+      },
+      {
+       "id": "64722e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.587
+      },
+      {
+       "id": "68a4ab",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.613
+      },
+      {
+       "id": "68f870",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.594
+      },
+      {
+       "id": "7558de",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.595
+      },
+      {
+       "id": "79fa12",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.553
+      },
+      {
+       "id": "7bf451",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.579
+      },
+      {
+       "id": "84c7b1",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.575
+      },
+      {
+       "id": "870a2b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.589
+      },
+      {
+       "id": "8bd70c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.591
+      },
+      {
+       "id": "9432dd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.571
+      },
+      {
+       "id": "976ec3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.639
+      },
+      {
+       "id": "9d5148",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.589
+      },
+      {
+       "id": "9f0a76",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.592
+      },
+      {
+       "id": "a3533a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.577
+      },
+      {
+       "id": "a60c30",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.605
+      },
+      {
+       "id": "aa8d68",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.588
+      },
+      {
+       "id": "b09762",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.578
+      },
+      {
+       "id": "bab3ea",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.586
+      },
+      {
+       "id": "cd8176",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.585
+      },
+      {
+       "id": "cfce4c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.555
+      },
+      {
+       "id": "d6feeb",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.58
+      },
+      {
+       "id": "da8e87",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.589
+      },
+      {
+       "id": "e583f2",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.588
+      },
+      {
+       "id": "e67574",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.575
+      },
+      {
+       "id": "fd9524",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.583
+      }
+     ]
+    }
+   },
+   "corpora": {
+    "corpus-2": {
+     "confirmed": 87,
+     "recalled": 87,
+     "recall": 100.0,
+     "wilson95": [
+      95.8,
+      100.0
+     ],
+     "confirmed_pile": 337,
+     "pile_true": 87,
+     "precision": 0.26
+    },
+    "corpus-3": {
+     "confirmed": 4,
+     "recalled": 4,
+     "recall": 100.0,
+     "wilson95": [
+      51.0,
+      100.0
+     ],
+     "confirmed_pile": 475,
+     "pile_true": 4,
+     "precision": 0.01
+    },
+    "corpus-4": {
+     "confirmed": 3,
+     "recalled": 3,
+     "recall": 100.0,
+     "wilson95": [
+      43.9,
+      100.0
+     ],
+     "confirmed_pile": 8,
+     "pile_true": 3,
+     "precision": 0.38
+    },
+    "corpus-5": {
+     "confirmed": 33,
+     "recalled": 33,
+     "recall": 100.0,
+     "wilson95": [
+      89.6,
+      100.0
+     ],
+     "confirmed_pile": 270,
+     "pile_true": 33,
+     "precision": 0.12
+    }
+   },
+   "consistency": {
+    "bit_identical_reps": "1793/1793",
+    "max_abs_diff": 0.0
+   },
+   "calibration": {
+    "cavet_dev": {
+     "n": 98,
+     "brier": 0.3464,
+     "ece": 0.5631,
+     "nll": 0.8889,
+     "auroc": 0.674
+    },
+    "fitted_temperature": 10.0,
+    "fragmt_eval": {
+     "n": 40,
+     "brier": 0.3484,
+     "ece": 0.5899,
+     "nll": 0.8927,
+     "auroc": null
+    },
+    "cavet_dev_fitted": {
+     "n": 98,
+     "brier": 0.2589,
+     "ece": 0.4789,
+     "nll": 0.7109,
+     "auroc": 0.674
+    },
+    "corpus-2": {
+     "n": 337,
+     "raw": {
+      "brier": 0.3134,
+      "ece": 0.3993,
+      "nll": 0.8218,
+      "auroc": 0.936
+     },
+     "fitted": {
+      "brier": 0.2546,
+      "ece": 0.2557,
+      "nll": 0.7024,
+      "auroc": 0.936
+     }
+    },
+    "corpus-3": {
+     "n": 475,
+     "raw": {
+      "brier": 0.3711,
+      "ece": 0.6028,
+      "nll": 0.9401,
+      "auroc": 0.95
+     },
+     "fitted": {
+      "brier": 0.2612,
+      "ece": 0.5029,
+      "nll": 0.7155,
+      "auroc": 0.95
+     }
+    },
+    "corpus-4": {
+     "n": 8,
+     "raw": {
+      "brier": 0.3116,
+      "ece": 0.3526,
+      "nll": 0.8208,
+      "auroc": 0.133
+     },
+     "fitted": {
+      "brier": 0.2548,
+      "ece": 0.138,
+      "nll": 0.7028,
+      "auroc": 0.133
+     }
+    },
+    "corpus-5": {
+     "n": 270,
+     "raw": {
+      "brier": 0.3457,
+      "ece": 0.4931,
+      "nll": 0.8892,
+      "auroc": 0.749
+     },
+     "fitted": {
+      "brier": 0.2584,
+      "ece": 0.3896,
+      "nll": 0.71,
+      "auroc": 0.749
+     }
+    }
+   }
+  },
+  "laya-multilingual": {
+   "files": [
+    "laya-multilingual-rep1.json",
+    "laya-multilingual-rep2.json"
+   ],
+   "n_findings": 1793,
+   "actionability": {
+    "cavet": {
+     "agree": 3,
+     "n": 98,
+     "pct": 3.1,
+     "disagreements": [
+      {
+       "id": "025732",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.877
+      },
+      {
+       "id": "037cee",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.863
+      },
+      {
+       "id": "099c0b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.949
+      },
+      {
+       "id": "0a96fd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.826
+      },
+      {
+       "id": "0c44f7",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.873
+      },
+      {
+       "id": "1567dd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.867
+      },
+      {
+       "id": "16be4b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.794
+      },
+      {
+       "id": "186c50",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.826
+      },
+      {
+       "id": "1b0ae2",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.845
+      },
+      {
+       "id": "1d3780",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.914
+      },
+      {
+       "id": "215a27",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.845
+      },
+      {
+       "id": "221fa6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.91
+      },
+      {
+       "id": "22ef97",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.904
+      },
+      {
+       "id": "250e82",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.87
+      },
+      {
+       "id": "259d83",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.902
+      },
+      {
+       "id": "259f79",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.823
+      },
+      {
+       "id": "28ee47",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.838
+      },
+      {
+       "id": "2c6ca3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.818
+      },
+      {
+       "id": "30d986",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.933
+      },
+      {
+       "id": "31a94d",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.698
+      },
+      {
+       "id": "344bad",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.854
+      },
+      {
+       "id": "34d1e3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.906
+      },
+      {
+       "id": "356a70",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.802
+      },
+      {
+       "id": "362511",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.915
+      },
+      {
+       "id": "3b1a85",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.933
+      },
+      {
+       "id": "3ba9ab",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.825
+      },
+      {
+       "id": "3cc7d4",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.853
+      },
+      {
+       "id": "4093e0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.903
+      },
+      {
+       "id": "43eb91",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.845
+      },
+      {
+       "id": "451e68",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.919
+      },
+      {
+       "id": "4537fb",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.769
+      },
+      {
+       "id": "483745",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.856
+      },
+      {
+       "id": "493ca0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.66
+      },
+      {
+       "id": "4a97d6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.92
+      },
+      {
+       "id": "4ed8e2",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.715
+      },
+      {
+       "id": "53a15e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.821
+      },
+      {
+       "id": "5722f7",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.871
+      },
+      {
+       "id": "5801b4",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.828
+      },
+      {
+       "id": "58e1aa",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.813
+      },
+      {
+       "id": "5c6d8c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.792
+      },
+      {
+       "id": "5d3559",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.932
+      },
+      {
+       "id": "622dfe",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.837
+      },
+      {
+       "id": "6646b6",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.734
+      },
+      {
+       "id": "6b198b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.827
+      },
+      {
+       "id": "6d646e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.799
+      },
+      {
+       "id": "6e606e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.913
+      },
+      {
+       "id": "6f500b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.843
+      },
+      {
+       "id": "72a7ba",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.935
+      },
+      {
+       "id": "737a62",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.881
+      },
+      {
+       "id": "748b72",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.899
+      },
+      {
+       "id": "794a4a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.921
+      },
+      {
+       "id": "7a4716",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.853
+      },
+      {
+       "id": "7aadde",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.842
+      },
+      {
+       "id": "7bab3f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.91
+      },
+      {
+       "id": "7c8dce",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.589
+      },
+      {
+       "id": "7d1ff0",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.811
+      },
+      {
+       "id": "80dea5",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.751
+      },
+      {
+       "id": "8b2b70",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.79
+      },
+      {
+       "id": "8cfd72",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.72
+      },
+      {
+       "id": "8d20db",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.924
+      },
+      {
+       "id": "9527d9",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.642
+      },
+      {
+       "id": "982827",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.874
+      },
+      {
+       "id": "990460",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.67
+      },
+      {
+       "id": "9a6461",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.846
+      },
+      {
+       "id": "9a7212",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.869
+      },
+      {
+       "id": "a0658e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.802
+      },
+      {
+       "id": "a8c81f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.78
+      },
+      {
+       "id": "a9ac76",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.882
+      },
+      {
+       "id": "ab4c0e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.834
+      },
+      {
+       "id": "ac5b3b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.915
+      },
+      {
+       "id": "adb679",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.807
+      },
+      {
+       "id": "b1a841",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.915
+      },
+      {
+       "id": "b4b598",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.731
+      },
+      {
+       "id": "b6e21c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.866
+      },
+      {
+       "id": "bc30cd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.792
+      },
+      {
+       "id": "bde2d5",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.888
+      },
+      {
+       "id": "c98019",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.944
+      },
+      {
+       "id": "ca631f",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.905
+      },
+      {
+       "id": "cdac29",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.783
+      },
+      {
+       "id": "cfea3c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.815
+      },
+      {
+       "id": "d04bc1",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.849
+      },
+      {
+       "id": "d1d27d",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.869
+      },
+      {
+       "id": "de76f1",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.844
+      },
+      {
+       "id": "deb303",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.901
+      },
+      {
+       "id": "dfa693",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.655
+      },
+      {
+       "id": "e0a069",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.924
+      },
+      {
+       "id": "e26506",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.845
+      },
+      {
+       "id": "e3ad41",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.851
+      },
+      {
+       "id": "eb10af",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.912
+      },
+      {
+       "id": "ee7f26",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.815
+      },
+      {
+       "id": "f6384d",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.841
+      },
+      {
+       "id": "fae623",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.893
+      },
+      {
+       "id": "fcf20a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.95
+      },
+      {
+       "id": "fef69b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.657
+      },
+      {
+       "id": "ffe08a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.838
+      }
+     ]
+    },
+    "fragmt": {
+     "agree": 0,
+     "n": 40,
+     "pct": 0.0,
+     "disagreements": [
+      {
+       "id": "19445c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.901
+      },
+      {
+       "id": "2018df",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.882
+      },
+      {
+       "id": "280bf5",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.888
+      },
+      {
+       "id": "2894aa",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.889
+      },
+      {
+       "id": "28fe84",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.94
+      },
+      {
+       "id": "2d1819",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.916
+      },
+      {
+       "id": "2f1da4",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.807
+      },
+      {
+       "id": "32955e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.934
+      },
+      {
+       "id": "392d11",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.88
+      },
+      {
+       "id": "3c6940",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.968
+      },
+      {
+       "id": "3d3db3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.965
+      },
+      {
+       "id": "4c3cda",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.902
+      },
+      {
+       "id": "4e9e39",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.864
+      },
+      {
+       "id": "4ed8ff",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.805
+      },
+      {
+       "id": "5edcca",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.947
+      },
+      {
+       "id": "64722e",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.938
+      },
+      {
+       "id": "68a4ab",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.946
+      },
+      {
+       "id": "68f870",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.925
+      },
+      {
+       "id": "7558de",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.907
+      },
+      {
+       "id": "79fa12",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.882
+      },
+      {
+       "id": "7bf451",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.911
+      },
+      {
+       "id": "84c7b1",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.848
+      },
+      {
+       "id": "870a2b",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.971
+      },
+      {
+       "id": "8bd70c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.87
+      },
+      {
+       "id": "9432dd",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.939
+      },
+      {
+       "id": "976ec3",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.831
+      },
+      {
+       "id": "9d5148",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.914
+      },
+      {
+       "id": "9f0a76",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.836
+      },
+      {
+       "id": "a3533a",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.946
+      },
+      {
+       "id": "a60c30",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.867
+      },
+      {
+       "id": "aa8d68",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.963
+      },
+      {
+       "id": "b09762",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.966
+      },
+      {
+       "id": "bab3ea",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.915
+      },
+      {
+       "id": "cd8176",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.898
+      },
+      {
+       "id": "cfce4c",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.879
+      },
+      {
+       "id": "d6feeb",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.973
+      },
+      {
+       "id": "da8e87",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.965
+      },
+      {
+       "id": "e583f2",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.922
+      },
+      {
+       "id": "e67574",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.923
+      },
+      {
+       "id": "fd9524",
+       "verdict": "dismissed",
+       "majority": "confirmed",
+       "step1": 0.878
+      }
+     ]
+    }
+   },
+   "corpora": {
+    "corpus-2": {
+     "confirmed": 87,
+     "recalled": 87,
+     "recall": 100.0,
+     "wilson95": [
+      95.8,
+      100.0
+     ],
+     "confirmed_pile": 337,
+     "pile_true": 87,
+     "precision": 0.26
+    },
+    "corpus-3": {
+     "confirmed": 4,
+     "recalled": 4,
+     "recall": 100.0,
+     "wilson95": [
+      51.0,
+      100.0
+     ],
+     "confirmed_pile": 474,
+     "pile_true": 4,
+     "precision": 0.01
+    },
+    "corpus-4": {
+     "confirmed": 3,
+     "recalled": 3,
+     "recall": 100.0,
+     "wilson95": [
+      43.9,
+      100.0
+     ],
+     "confirmed_pile": 8,
+     "pile_true": 3,
+     "precision": 0.38
+    },
+    "corpus-5": {
+     "confirmed": 33,
+     "recalled": 33,
+     "recall": 100.0,
+     "wilson95": [
+      89.6,
+      100.0
+     ],
+     "confirmed_pile": 266,
+     "pile_true": 33,
+     "precision": 0.12
+    }
+   },
+   "consistency": {
+    "bit_identical_reps": "1793/1793",
+    "max_abs_diff": 0.0
+   },
+   "calibration": {
+    "cavet_dev": {
+     "n": 98,
+     "brier": 0.692,
+     "ece": 0.8096,
+     "nll": 1.891,
+     "auroc": 0.298
+    },
+    "fitted_temperature": 10.0,
+    "fragmt_eval": {
+     "n": 40,
+     "brier": 0.8256,
+     "ece": 0.9075,
+     "nll": 2.5121,
+     "auroc": null
+    },
+    "cavet_dev_fitted": {
+     "n": 98,
+     "brier": 0.2936,
+     "ece": 0.5132,
+     "nll": 0.7807,
+     "auroc": 0.298
+    },
+    "corpus-2": {
+     "n": 337,
+     "raw": {
+      "brier": 0.6488,
+      "ece": 0.6857,
+      "nll": 2.1389,
+      "auroc": 0.896
+     },
+     "fitted": {
+      "brier": 0.2833,
+      "ece": 0.3983,
+      "nll": 0.7601,
+      "auroc": 0.896
+     }
+    },
+    "corpus-3": {
+     "n": 475,
+     "raw": {
+      "brier": 0.7957,
+      "ece": 0.8847,
+      "nll": 2.3629,
+      "auroc": 0.349
+     },
+     "fitted": {
+      "brier": 0.3089,
+      "ece": 0.5479,
+      "nll": 0.8115,
+      "auroc": 0.349
+     }
+    },
+    "corpus-4": {
+     "n": 8,
+     "raw": {
+      "brier": 0.5449,
+      "ece": 0.5563,
+      "nll": 1.9163,
+      "auroc": 0.333
+     },
+     "fitted": {
+      "brier": 0.276,
+      "ece": 0.1956,
+      "nll": 0.7459,
+      "auroc": 0.333
+     }
+    },
+    "corpus-5": {
+     "n": 270,
+     "raw": {
+      "brier": 0.6869,
+      "ece": 0.7576,
+      "nll": 2.094,
+      "auroc": 0.53
+     },
+     "fitted": {
+      "brier": 0.2951,
+      "ece": 0.4334,
+      "nll": 0.7838,
+      "auroc": 0.53
+     }
+    }
+   }
+  }
+ }
+}
