@@ -1,0 +1,46 @@
+{
+ "states": 1793,
+ "missing": [],
+ "per_checkpoint": {
+  "typed-decisions": {
+   "median": 374,
+   "p90": 466,
+   "p95": 489,
+   "p99": 654,
+   "max": 3153,
+   "mean": 396.3,
+   "over_320": 94.31,
+   "over_768": 0.06,
+   "over_1024": 0.06,
+   "over_7680": 0.0,
+   "per_corpus_median": {
+    "cavet": 420,
+    "fragmt": 360,
+    "corpus-2": 366,
+    "corpus-3": 365,
+    "corpus-4": 359,
+    "corpus-5": 358
+   }
+  },
+  "multilingual": {
+   "median": 536,
+   "p90": 632,
+   "p95": 695,
+   "p99": 913,
+   "max": 3396,
+   "mean": 553.9,
+   "over_320": 99.61,
+   "over_768": 3.01,
+   "over_1024": 0.06,
+   "over_7680": 0.0,
+   "per_corpus_median": {
+    "cavet": 564,
+    "fragmt": 532,
+    "corpus-2": 538,
+    "corpus-3": 535,
+    "corpus-4": 483,
+    "corpus-5": 518
+   }
+  }
+ }
+}

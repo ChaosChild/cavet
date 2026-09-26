@@ -1,0 +1,8 @@
+# local environments and model weights
+.venv-*/
+models/
+runs/
+__pycache__/
+*.pyc
+# frozen states stay local: embedded source excerpts trip secret scanners
+states.jsonl
