@@ -1,8 +1,11 @@
 # PLAN: Jev vs Laya, same-payload comparison for security-finding triage
 
-*Draft v2, updated in review round 1 (Lavish: `.lavish/jev-vs-laya-design.html`). Branch:
-`experiment/jev-vs-laya`, cut from `experiment/typesafe-jev` at cf88ca2. Harness is
-imported from `../jev-triage-experiment/` unchanged; everything new lives here.*
+*Draft v3, final after Lavish review (rounds 1 and 2; artifact
+`.lavish/jev-vs-laya-design.html`, session ended by the operator with all decisions
+made). Branch: `experiment/jev-vs-laya`, cut from `experiment/typesafe-jev` at
+cf88ca2. This folder is the working folder for the study; the Jev experiment folder
+`../jev-triage-experiment/` is a reference only, and whatever it needs is copied
+here and modified to suit.*
 
 ## 1. Premise
 
@@ -187,3 +190,26 @@ paper says exactly that.
   repository); re-check provider pricing before P1 and record it.
 - AMD ROCm Windows wheels are a preview stack: the CPU venv stays pinned as the
   same-day fallback, and the determinism check runs on whichever path is active.
+
+## 11. Decision record (Lavish review, final)
+
+All decisions below were made by the operator in the Lavish review and are binding
+for the study.
+
+1. Arms: Jev + laya-typed-decisions + laya-multilingual; the 512-token English root
+   is dropped entirely as unusable for this task.
+2. Repetitions: Jev 3 reps with majority voting (an experiment measurement, never a
+   daily-activity posture); Laya 2 reps as a bit-identity determinism check only.
+3. Calibration: temperature fitted on the cavet label set (98), frozen before
+   evaluation; calibration is measured in this study only.
+4. RLCD fine-tune exercise is in scope as P4 (Jev as labeler, Section 8 recipe);
+   the comparative paper is P5. Hand-crafted dataset expansion remains a possible
+   v2, only if P4 shows the model responds.
+5. Logging: full request/response pairs and timings per run, plus a 1 Hz system
+   telemetry stream (CPU, RAM, GPU, VRAM) on local runs.
+6. Universe scope: all seven universes.
+7. Deliverable: a standalone comparative paper in this folder. The calibration
+   section is not backported into the Jev paper: the pipeline here is batch-1
+   while the original experiment's shipped configuration is batch-40, so a
+   backport would not be apples-to-apples and would explain a different pipeline
+   inside the old paper to no benefit.
