@@ -27,6 +27,11 @@ s1q = harness.q_confirm("mv")
 s1q.update(harness.q_missing("mv"))
 s2q = harness.q_closure("mv", harness.WORDINGS["r3"])
 
+
+def key_of(rec):
+    """Findings are keyed by corpus:id: 6-char id prefixes collide across corpora."""
+    return f'{rec["corpus"]}:{rec["id"]}'
+
 meta = {
     "arm": "A", "model": harness.MODEL, "config": "batch-1, 6 workers, 3 reps",
     "gate": harness.CONFIRM_GATE, "wording": "r3", "verbosity": "mv",
@@ -45,7 +50,7 @@ def run_finding(rec):
            "calls": [c1], "wall_ms": round((time.perf_counter() - t0) * 1000, 1)}
     if p_yes is None:
         out["error"] = (c1.get("error") or "no answer")[:200]
-        return rec["id"], out
+        return key_of(rec), out
     out["step1_noul"] = p_yes
     out["state_sufficient"] = (a1.get("state_sufficient") or {}).get("noul")
     if p_yes >= harness.CONFIRM_GATE:
@@ -62,7 +67,7 @@ def run_finding(rec):
         out["wall_ms"] = round((time.perf_counter() - t0) * 1000, 1)
         if cl.get("choice") is None:
             out["error"] = (c2.get("error") or "no closure answer")[:200]
-    return rec["id"], out
+    return key_of(rec), out
 
 
 def run_rep(rep):
@@ -70,7 +75,7 @@ def run_rep(rep):
     done = {}
     if path.exists():
         done = json.loads(path.read_text(encoding="utf-8")).get("findings", {})
-    todo = [r for r in states if r["id"] not in done]
+    todo = [r for r in states if key_of(r) not in done]
     print(f"[rep {rep}] {len(done)} done, {len(todo)} to run", flush=True)
     if not todo:
         return
