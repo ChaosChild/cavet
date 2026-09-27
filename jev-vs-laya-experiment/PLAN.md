@@ -144,6 +144,12 @@ For every arm, score P(confirmed) = the step-1 probability against operator labe
 
 ## 8. P4: the Jev-labeled RLCD exercise
 
+*Operator amendment (2026-09-27, binding, recorded at execution time): the
+fine-tune target is the MULTILINGUAL checkpoint, superseding the arm-B choice
+written below. Reason: the larger 8192-token context truncates none of our
+states, the checkpoint ships neutral temperatures, and it showed the weakest
+P3 ranking, so it has the most to prove.*
+
 Purpose: demonstrate that Laya responds to cybersec fine-tuning; not to produce a
 near-perfect model. If the response is weak, that is the evidence not to sink time
 into hand-crafting a factually correct dataset.
@@ -204,7 +210,8 @@ for the study.
    evaluation; calibration is measured in this study only.
 4. RLCD fine-tune exercise is in scope as P4 (Jev as labeler, Section 8 recipe);
    the comparative paper is P5. Hand-crafted dataset expansion remains a possible
-   v2, only if P4 shows the model responds.
+   v2, only if P4 shows the model responds. Amended 2026-09-27 by the operator:
+   the P4 fine-tune target is laya-multilingual (322M, 8192 ctx), not arm B.
 5. Logging: full request/response pairs and timings per run, plus a 1 Hz system
    telemetry stream (CPU, RAM, GPU, VRAM) on local runs.
 6. Universe scope: all seven universes.

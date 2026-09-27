@@ -6,3 +6,14 @@ __pycache__/
 *.pyc
 # frozen states stay local: embedded source excerpts trip secret scanners
 states.jsonl
+states-v2.jsonl
+states-v2-report.json
+# P4 fine-tune artifacts: states, teacher labels, model weights, data
+p4/states-p4*.jsonl
+p4/states-p4-report.json
+p4/runs/
+p4/data/
+p4/models/
+p4/recipe-reference/
+# the paper stays local-only, same rule as the Jev paper
+PAPER.md

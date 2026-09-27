@@ -1,0 +1,391 @@
+{
+ "p4_val_split": {
+  "n_findings": 76,
+  "teacher_status_mix": {
+   "not-security": 61,
+   "dismissed": 15
+  },
+  "arms": {
+   "teacher-jev": {
+    "gate_vs_teacher_binarized": {
+     "n": 76,
+     "brier": 0.0067,
+     "ece": 0.0588,
+     "nll": 0.0627,
+     "auroc": null
+    },
+    "gate_vs_teacher_soft_brier": 0.0,
+    "closure_mean_total_variation": 0.0,
+    "closure_n": 76,
+    "step1_mean": 0.0588,
+    "gate_decision_agreement": {
+     "agree": 76,
+     "n": 76,
+     "pct": 100.0
+    }
+   },
+   "base-multilingual": {
+    "gate_vs_teacher_binarized": {
+     "n": 76,
+     "brier": 0.7998,
+     "ece": 0.8923,
+     "nll": 2.3518,
+     "auroc": null
+    },
+    "gate_vs_teacher_soft_brier": 0.7051,
+    "closure_mean_total_variation": null,
+    "closure_n": 0,
+    "step1_mean": 0.8923,
+    "bit_identical_reps": "76/76",
+    "gate_decision_agreement": {
+     "agree": 0,
+     "n": 76,
+     "pct": 0.0
+    }
+   },
+   "fine-tuned": {
+    "gate_vs_teacher_binarized": {
+     "n": 76,
+     "brier": 0.0043,
+     "ece": 0.0534,
+     "nll": 0.0557,
+     "auroc": null
+    },
+    "gate_vs_teacher_soft_brier": 0.0011,
+    "closure_mean_total_variation": 0.0436,
+    "closure_n": 76,
+    "step1_mean": 0.0534,
+    "bit_identical_reps": "76/76",
+    "gate_decision_agreement": {
+     "agree": 76,
+     "n": 76,
+     "pct": 100.0
+    }
+   }
+  }
+ },
+ "states_v2_before_after": {
+  "arms": {
+   "base-multilingual": {
+    "files": [
+     "statesv2-base-rep1.json",
+     "statesv2-base-rep2.json"
+    ],
+    "n_findings": 1793,
+    "actionability": {
+     "cavet": {
+      "agree": 3,
+      "n": 98,
+      "pct": 3.1
+     },
+     "fragmt": {
+      "agree": 0,
+      "n": 40,
+      "pct": 0.0
+     }
+    },
+    "corpora": {
+     "corpus-2": {
+      "confirmed": 87,
+      "recalled": 87,
+      "recall": 100.0,
+      "wilson95": [
+       95.8,
+       100.0
+      ],
+      "confirmed_pile": 337,
+      "pile_true": 87,
+      "precision": 0.26
+     },
+     "corpus-3": {
+      "confirmed": 4,
+      "recalled": 4,
+      "recall": 100.0,
+      "wilson95": [
+       51.0,
+       100.0
+      ],
+      "confirmed_pile": 474,
+      "pile_true": 4,
+      "precision": 0.01
+     },
+     "corpus-4": {
+      "confirmed": 3,
+      "recalled": 3,
+      "recall": 100.0,
+      "wilson95": [
+       43.9,
+       100.0
+      ],
+      "confirmed_pile": 8,
+      "pile_true": 3,
+      "precision": 0.38
+     },
+     "corpus-5": {
+      "confirmed": 33,
+      "recalled": 33,
+      "recall": 100.0,
+      "wilson95": [
+       89.6,
+       100.0
+      ],
+      "confirmed_pile": 266,
+      "pile_true": 33,
+      "precision": 0.12
+     }
+    },
+    "consistency": {
+     "bit_identical_reps": "1793/1793",
+     "max_abs_diff": 0.0
+    },
+    "calibration": {
+     "fitted_temperature": 10.0,
+     "cavet_dev": {
+      "n": 98,
+      "brier": 0.692,
+      "ece": 0.8096,
+      "nll": 1.891,
+      "auroc": 0.2982,
+      "fitted": {
+       "t": 10.0,
+       "brier": 0.2936,
+       "ece": 0.5132,
+       "nll": 0.7807,
+       "auroc": 0.2982
+      }
+     },
+     "fragmt_eval": {
+      "n": 40,
+      "brier": 0.8256,
+      "ece": 0.9075,
+      "nll": 2.5121,
+      "auroc": null,
+      "fitted": {
+       "t": 10.0,
+       "brier": 0.3138,
+       "ece": 0.56,
+       "nll": 0.8215,
+       "auroc": null
+      }
+     },
+     "corpus-2": {
+      "n": 337,
+      "brier": 0.6488,
+      "ece": 0.6857,
+      "nll": 2.1389,
+      "auroc": 0.8963,
+      "fitted": {
+       "t": 10.0,
+       "brier": 0.2833,
+       "ece": 0.3983,
+       "nll": 0.7601,
+       "auroc": 0.8963
+      }
+     },
+     "corpus-3": {
+      "n": 475,
+      "brier": 0.7957,
+      "ece": 0.8847,
+      "nll": 2.3629,
+      "auroc": 0.3493,
+      "fitted": {
+       "t": 10.0,
+       "brier": 0.3089,
+       "ece": 0.5479,
+       "nll": 0.8115,
+       "auroc": 0.3493
+      }
+     },
+     "corpus-4": {
+      "n": 8,
+      "brier": 0.5449,
+      "ece": 0.5563,
+      "nll": 1.9163,
+      "auroc": 0.3333,
+      "fitted": {
+       "t": 10.0,
+       "brier": 0.276,
+       "ece": 0.1956,
+       "nll": 0.7459,
+       "auroc": 0.3333
+      }
+     },
+     "corpus-5": {
+      "n": 270,
+      "brier": 0.6869,
+      "ece": 0.7576,
+      "nll": 2.094,
+      "auroc": 0.5301,
+      "fitted": {
+       "t": 10.0,
+       "brier": 0.2951,
+       "ece": 0.4334,
+       "nll": 0.7838,
+       "auroc": 0.5301
+      }
+     }
+    }
+   },
+   "fine-tuned": {
+    "files": [
+     "statesv2-ft-rep1.json",
+     "statesv2-ft-rep2.json"
+    ],
+    "n_findings": 1793,
+    "actionability": {
+     "cavet": {
+      "agree": 95,
+      "n": 98,
+      "pct": 96.9
+     },
+     "fragmt": {
+      "agree": 40,
+      "n": 40,
+      "pct": 100.0
+     }
+    },
+    "corpora": {
+     "corpus-2": {
+      "confirmed": 87,
+      "recalled": 0,
+      "recall": 0.0,
+      "wilson95": [
+       0.0,
+       4.2
+      ],
+      "confirmed_pile": 0,
+      "pile_true": 0,
+      "precision": null
+     },
+     "corpus-3": {
+      "confirmed": 4,
+      "recalled": 0,
+      "recall": 0.0,
+      "wilson95": [
+       0.0,
+       49.0
+      ],
+      "confirmed_pile": 0,
+      "pile_true": 0,
+      "precision": null
+     },
+     "corpus-4": {
+      "confirmed": 3,
+      "recalled": 0,
+      "recall": 0.0,
+      "wilson95": [
+       0.0,
+       56.1
+      ],
+      "confirmed_pile": 0,
+      "pile_true": 0,
+      "precision": null
+     },
+     "corpus-5": {
+      "confirmed": 33,
+      "recalled": 0,
+      "recall": 0.0,
+      "wilson95": [
+       0.0,
+       10.4
+      ],
+      "confirmed_pile": 0,
+      "pile_true": 0,
+      "precision": null
+     }
+    },
+    "consistency": {
+     "bit_identical_reps": "1793/1793",
+     "max_abs_diff": 0.0
+    },
+    "calibration": {
+     "fitted_temperature": 0.7465,
+     "cavet_dev": {
+      "n": 98,
+      "brier": 0.0323,
+      "ece": 0.0427,
+      "nll": 0.158,
+      "auroc": 0.4175,
+      "fitted": {
+       "t": 0.7465,
+       "brier": 0.0301,
+       "ece": 0.0025,
+       "nll": 0.1431,
+       "auroc": 0.4175
+      }
+     },
+     "fragmt_eval": {
+      "n": 40,
+      "brier": 0.0037,
+      "ece": 0.0586,
+      "nll": 0.0606,
+      "auroc": null,
+      "fitted": {
+       "t": 0.7465,
+       "brier": 0.0007,
+       "ece": 0.0241,
+       "nll": 0.0244,
+       "auroc": null
+      }
+     },
+     "corpus-2": {
+      "n": 337,
+      "brier": 0.2079,
+      "ece": 0.1887,
+      "nll": 0.6196,
+      "auroc": 0.9382,
+      "fitted": {
+       "t": 0.7465,
+       "brier": 0.2303,
+       "ece": 0.2264,
+       "nll": 0.7653,
+       "auroc": 0.9382
+      }
+     },
+     "corpus-3": {
+      "n": 475,
+      "brier": 0.0101,
+      "ece": 0.0452,
+      "nll": 0.0753,
+      "auroc": 0.9432,
+      "fitted": {
+       "t": 0.7465,
+       "brier": 0.0083,
+       "ece": 0.013,
+       "nll": 0.0485,
+       "auroc": 0.9432
+      }
+     },
+     "corpus-4": {
+      "n": 8,
+      "brier": 0.329,
+      "ece": 0.3088,
+      "nll": 1.0553,
+      "auroc": 0.5333,
+      "fitted": {
+       "t": 0.7465,
+       "brier": 0.3543,
+       "ece": 0.3467,
+       "nll": 1.3506,
+       "auroc": 0.5333
+      }
+     },
+     "corpus-5": {
+      "n": 270,
+      "brier": 0.1019,
+      "ece": 0.0571,
+      "nll": 0.3342,
+      "auroc": 0.8756,
+      "fitted": {
+       "t": 0.7465,
+       "brier": 0.11,
+       "ece": 0.0897,
+       "nll": 0.3817,
+       "auroc": 0.8756
+      }
+     }
+    }
+   }
+  }
+ }
+}
