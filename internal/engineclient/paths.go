@@ -66,17 +66,26 @@ func resolveGitMeta(root string) (gitMeta, bool) {
 	}, true
 }
 
-// mountsStale reports whether an existing container's binds disagree with the
-// mounts this client requires: /gitmeta must be bound for worktrees and absent
-// otherwise. The bind list is per-container-create, so a mismatch means the
-// container must be recreated.
-func mountsStale(wantGitMeta bool, binds []string) bool {
-	for _, b := range binds {
-		if bindDest(b) == gitMetaMount {
-			return !wantGitMeta
+// mountsStale reports whether an existing container's binds disagree with
+// the mounts want requires: every wanted destination must be bound, and
+// /gitmeta must not be bound unless wanted (a fix-up mount left over from
+// another layout). Binds are fixed per-container-create, so a mismatch means
+// the container must be recreated.
+func mountsStale(want, have []string) bool {
+	missing := map[string]bool{}
+	for _, b := range want {
+		if d := bindDest(b); d != "" {
+			missing[d] = true
 		}
 	}
-	return wantGitMeta
+	for _, b := range have {
+		d := bindDest(b)
+		if d == gitMetaMount && !missing[d] {
+			return true
+		}
+		delete(missing, d)
+	}
+	return len(missing) > 0
 }
 
 // bindDest extracts a bind's container-side destination from src:dest[:opts].

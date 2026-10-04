@@ -29,12 +29,13 @@ const (
 )
 
 type Client struct {
-	docker *client.Client
-	image  string   // image ref to run
-	digest string   // pinned digest ("" = dev mode, no drift gate)
-	root   string   // absolute host repository root
-	name   string   // cavet-<12 hex of sha256(root)> (cli-spec §10.1)
-	meta   *gitMeta // non-nil when root is a linked git worktree (see paths.go)
+	docker  *client.Client
+	image   string   // image ref to run
+	digest  string   // pinned digest ("" = dev mode, no drift gate)
+	root    string   // absolute host repository root
+	name    string   // cavet-<12 hex of sha256(root)> (cli-spec §10.1)
+	variant string   // core | full: decides the advisory volume binds (db.go)
+	meta    *gitMeta // non-nil when root is a linked git worktree (see paths.go)
 
 	scans int // scan-dir tiebreaker (see NextScanDir)
 }
@@ -50,13 +51,15 @@ func ContainerName(root string) string {
 }
 
 // New builds a client. pinnedDigest may be empty in development (local image
-// tag, no drift enforcement); production always pins (spec §3.4).
-func New(image, pinnedDigest, root string) *Client {
+// tag, no drift enforcement); production always pins (spec §3.4). variant
+// ("core"|"full") selects the advisory volume binds (Artifacts).
+func New(image, pinnedDigest, root, variant string) *Client {
 	c := &Client{
-		image:  image,
-		digest: pinnedDigest,
-		root:   root,
-		name:   ContainerName(root),
+		image:   image,
+		digest:  pinnedDigest,
+		root:    root,
+		name:    ContainerName(root),
+		variant: variant,
 	}
 	if m, ok := resolveGitMeta(root); ok {
 		c.meta = &m
@@ -113,10 +116,11 @@ func (c *Client) EnsureRunning(ctx context.Context) error {
 	if err := c.checkDigest(ctx, res.Container.Image); err != nil {
 		return err
 	}
-	if res.Container.HostConfig != nil && mountsStale(c.meta != nil, res.Container.HostConfig.Binds) {
-		// The container predates the /gitmeta mount (or carries a stale one):
-		// binds are fixed at create time, so replace the container rather
-		// than silently running without it. The name is unchanged (§10.1).
+	if res.Container.HostConfig != nil && mountsStale(c.binds(), res.Container.HostConfig.Binds) {
+		// The container predates the /gitmeta mount or the advisory volumes
+		// (or carries a stale one): binds are fixed at create time, so
+		// replace the container rather than silently running without them.
+		// The name is unchanged (§10.1).
 		if _, err := c.docker.ContainerRemove(ctx, c.name, client.ContainerRemoveOptions{Force: true}); err != nil {
 			return err
 		}
@@ -132,6 +136,9 @@ func (c *Client) EnsureRunning(ctx context.Context) error {
 }
 
 func (c *Client) createAndProbe(ctx context.Context) error {
+	if err := c.ensureVolumes(ctx); err != nil {
+		return err
+	}
 	cfg := &container.Config{
 		Image: c.image,
 		Cmd:   []string{"sleep", "infinity"}, // entrypoint prepares git + dirs, then parks
@@ -154,13 +161,36 @@ func (c *Client) createAndProbe(ctx context.Context) error {
 	return c.probe(ctx)
 }
 
-// binds builds the container's bind list: /workspace always, plus the main
-// checkout's .git at /gitmeta read-only for linked worktrees — the worktree's
-// .git is a gitfile to a host-absolute path outside /workspace.
+// ensureVolumes creates any missing advisory volumes for the variant before
+// the container create binds them. An empty volume self-seeds from the
+// image's baked cache on first mount (W0 spike: copy-on-first-mount).
+func (c *Client) ensureVolumes(ctx context.Context) error {
+	for _, a := range Artifacts(c.variant) {
+		_, err := c.docker.VolumeInspect(ctx, a.Volume, client.VolumeInspectOptions{})
+		if err == nil {
+			continue
+		}
+		if !errdefs.IsNotFound(err) {
+			return err
+		}
+		if _, err := c.docker.VolumeCreate(ctx, client.VolumeCreateOptions{Name: a.Volume}); err != nil {
+			return fmt.Errorf("create volume %s: %w", a.Volume, err)
+		}
+	}
+	return nil
+}
+
+// binds builds the container's bind list: /workspace always, the main
+// checkout's .git at /gitmeta read-only for linked worktrees (the worktree's
+// .git is a gitfile to a host-absolute path outside /workspace), and one
+// named volume per advisory artifact (db.go).
 func (c *Client) binds() []string {
 	b := []string{strings.ReplaceAll(c.root, "\\", "/") + ":/workspace"}
 	if c.meta != nil {
 		b = append(b, strings.ReplaceAll(c.meta.hostDir, "\\", "/")+":"+gitMetaMount+":ro")
+	}
+	for _, a := range Artifacts(c.variant) {
+		b = append(b, a.Volume+":"+a.CachePath)
 	}
 	return b
 }

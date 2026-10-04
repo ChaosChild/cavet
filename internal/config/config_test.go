@@ -45,6 +45,58 @@ func TestDevDepsDefaultsOn(t *testing.T) {
 	}
 }
 
+// Advisory DB pins and age thresholds: absent keys inherit the Default()
+// values because Load decodes into Default() (operator decision D4).
+func TestDBDefaultsInheritedByOldConfig(t *testing.T) {
+	c, err := Load(writeConfig(t, "engine:\n  variant: core\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Engine.DB.Digest != "" || c.Engine.JavaDB.Digest != "" {
+		t.Errorf("pins must default empty: %+v", c.Engine)
+	}
+	if th := c.Engine.DB.AgeThresholds; th.Note != 5 || th.Suggest != 10 || th.Alert != 14 {
+		t.Errorf("thresholds must inherit 5/10/14, got %+v", th)
+	}
+}
+
+func TestDBValuesLoad(t *testing.T) {
+	c, err := Load(writeConfig(t, `engine:
+  db:
+    digest: sha256:db
+    age-thresholds:
+      note: 3
+      suggest: 9
+      alert: 21
+  java-db:
+    digest: sha256:java
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Engine.DB.Digest != "sha256:db" || c.Engine.JavaDB.Digest != "sha256:java" {
+		t.Fatalf("pins not loaded: %+v", c.Engine)
+	}
+	if th := c.Engine.DB.AgeThresholds; th.Note != 3 || th.Suggest != 9 || th.Alert != 21 {
+		t.Fatalf("thresholds not loaded: %+v", th)
+	}
+}
+
+func TestDBThresholdValidation(t *testing.T) {
+	cases := []struct{ name, body string }{
+		{"zero", "engine:\n  db:\n    age-thresholds:\n      note: 0\n      suggest: 10\n      alert: 14\n"},
+		{"negative", "engine:\n  db:\n    age-thresholds:\n      note: -1\n      suggest: 10\n      alert: 14\n"},
+		{"unordered", "engine:\n  db:\n    age-thresholds:\n      note: 10\n      suggest: 5\n      alert: 14\n"},
+		{"equal", "engine:\n  db:\n    age-thresholds:\n      note: 5\n      suggest: 5\n      alert: 14\n"},
+		{"alert not greatest", "engine:\n  db:\n    age-thresholds:\n      note: 1\n      suggest: 2\n      alert: 2\n"},
+	}
+	for _, c := range cases {
+		if _, err := Load(writeConfig(t, c.body)); err == nil || !strings.Contains(err.Error(), "age-thresholds") {
+			t.Errorf("%s: want error naming age-thresholds, got %v", c.name, err)
+		}
+	}
+}
+
 func TestDevDepsInheritedByOldConfig(t *testing.T) {
 	path := writeConfig(t, "engine:\n  variant: core\nscanners:\n  checkov: false\n")
 	c, err := Load(path)

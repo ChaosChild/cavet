@@ -25,7 +25,7 @@ func TestRealEngineStagedScan(t *testing.T) {
 	root := t.TempDir()
 	seedRepoWithStagedSecret(t, root)
 
-	c := engineclient.New("cavet-engine:dev", "", root)
+	c := engineclient.New("cavet-engine:dev", "", root, "core")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	// Fresh context: the test's ctx is cancelled before cleanups run, which
@@ -78,7 +78,7 @@ func TestRealEngineStagedScan(t *testing.T) {
 func TestRealEngineWorktreeStagedScan(t *testing.T) {
 	wt := seedWorktreeWithStagedSecret(t)
 
-	c := engineclient.New("cavet-engine:dev", "", wt)
+	c := engineclient.New("cavet-engine:dev", "", wt, "core")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	t.Cleanup(func() {
@@ -133,7 +133,7 @@ func TestRealEngineImageScan(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "Dockerfile"), []byte("FROM cavet-engine:dev\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c := engineclient.New("cavet-engine:dev", "", root)
+	c := engineclient.New("cavet-engine:dev", "", root, "core")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	t.Cleanup(func() {
@@ -222,7 +222,7 @@ func TestRealEngineCheckovStagedScan(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	c := engineclient.New("cavet-engine:dev", "", root)
+	c := engineclient.New("cavet-engine:dev", "", root, "core")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	t.Cleanup(func() {

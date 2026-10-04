@@ -23,7 +23,20 @@ type ExecResult struct {
 // /workspace. Exit codes are data (gitleaks exits 1 on leaks — cli-spec §7);
 // transport errors are the only error returns.
 func (c *Client) Exec(ctx context.Context, cmd []string) (ExecResult, error) {
+	return c.execAs(ctx, "", cmd)
+}
+
+// ExecRoot runs cmd as root (uid/gid 0) regardless of the container's own
+// user: Windows-host containers already run as root, Linux-host containers
+// run uid:gid and need the per-exec override for the advisory swap to rename
+// files in the volumes (db.go). Workdir and exit-code semantics match Exec.
+func (c *Client) ExecRoot(ctx context.Context, cmd []string) (ExecResult, error) {
+	return c.execAs(ctx, "0:0", cmd)
+}
+
+func (c *Client) execAs(ctx context.Context, user string, cmd []string) (ExecResult, error) {
 	id, err := c.docker.ExecCreate(ctx, c.name, client.ExecCreateOptions{
+		User:         user,
 		Cmd:          cmd,
 		AttachStdout: true,
 		AttachStderr: true,

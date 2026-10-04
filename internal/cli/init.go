@@ -47,7 +47,7 @@ func runInit(hooks bool) error {
 	ref := engineRef(cfg)
 
 	progress("checking docker…")
-	c := engineclient.New(ref, "", root)
+	c := engineclient.New(ref, "", root, cfg.Engine.Variant)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	if err := c.Ping(ctx); err != nil {
@@ -76,7 +76,7 @@ func runInit(hooks bool) error {
 	}
 
 	progress("starting engine container")
-	c = engineclient.New(ref, cfg.Engine.Digest, root)
+	c = engineclient.New(ref, cfg.Engine.Digest, root, cfg.Engine.Variant)
 	if err := c.EnsureRunning(ctx); err != nil {
 		return fail(err.Error())
 	}
