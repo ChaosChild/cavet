@@ -18,6 +18,20 @@ type Config struct {
 	Engine struct {
 		Variant string `yaml:"variant"`
 		Digest  string `yaml:"digest"`
+		DB      struct {
+			Digest string `yaml:"digest"`
+			// AgeThresholds bound advisory staleness rendering in days
+			// (operator decision D4); scans and surfaces only annotate,
+			// never gate (PR B).
+			AgeThresholds struct {
+				Note    int `yaml:"note"`
+				Suggest int `yaml:"suggest"`
+				Alert   int `yaml:"alert"`
+			} `yaml:"age-thresholds"`
+		} `yaml:"db"`
+		JavaDB struct {
+			Digest string `yaml:"digest"`
+		} `yaml:"java-db"`
 	} `yaml:"engine"`
 	Scan struct {
 		DeepDefault     bool            `yaml:"deep_default"`
@@ -44,6 +58,9 @@ type Config struct {
 func Default() Config {
 	var c Config
 	c.Engine.Variant = "core"
+	c.Engine.DB.AgeThresholds.Note = 5
+	c.Engine.DB.AgeThresholds.Suggest = 10
+	c.Engine.DB.AgeThresholds.Alert = 14
 	c.Scanners.DevDeps = true
 	return c
 }
@@ -231,6 +248,11 @@ func Load(path string) (Config, error) {
 	case "core", "full":
 	default:
 		return Default(), fmt.Errorf("config.yaml: engine.variant %q (core|full)", c.Engine.Variant)
+	}
+	t := c.Engine.DB.AgeThresholds
+	if t.Note <= 0 || t.Suggest <= 0 || t.Alert <= 0 || t.Note >= t.Suggest || t.Suggest >= t.Alert {
+		return Default(), fmt.Errorf("config.yaml: engine.db.age-thresholds must be positive with note < suggest < alert (got %d/%d/%d)",
+			t.Note, t.Suggest, t.Alert)
 	}
 	return c, nil
 }

@@ -60,6 +60,14 @@ func Open(root string) (*Store, error) {
 const defaultConfigYAML = `engine:
   variant: core
   digest: ""
+  db:
+    digest: ""
+    age-thresholds:
+      note: 5
+      suggest: 10
+      alert: 14
+  java-db:
+    digest: ""
 scan:
   deep_default: false
   container_images: false
