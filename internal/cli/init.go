@@ -81,14 +81,21 @@ func runInit(hooks bool) error {
 		return fail(err.Error())
 	}
 
+	images := cfg.Scan.ContainerImages.Dockerfiles(root)
+	td, err := checkTimeout("scan.timeout", cfg.Scan.Timeout)
+	if err != nil {
+		return err
+	}
+	// The scan phase gets its own cap, derived from the trivy budget so the
+	// budget is actually reachable; the pull above keeps its fixed cap, and a
+	// large configured budget never stretches the pull phase either.
+	scanCtx, scanCancel := context.WithTimeout(context.Background(),
+		scanTimeout(len(images) > 0, td))
+	defer scanCancel()
+
 	// The baseline scan is always full-tier, however long it takes (spec §5.1).
 	progress("running full baseline scan (this can take a minute)")
-	if _, err := scan.Run(ctx, s, c, scan.Options{
-		Scope: scan.ScopeFull, Images: cfg.Scan.ContainerImages.Dockerfiles(root),
-		Checkov: cfg.Scanners.Checkov,
-		Actor:   events.ActorOperator, Phase: events.PhaseBuild,
-		Context: events.ContextPosture, Engine: ref,
-	}); err != nil {
+	if _, err := scan.Run(scanCtx, s, c, baselineOptions(cfg, images, ref)); err != nil {
 		return fail(err.Error())
 	}
 
@@ -132,6 +139,19 @@ func runInit(hooks bool) error {
 		fmt.Println("pre-commit hook installed (advisory; exits 0 unless scan.hook_exit_1).")
 	}
 	return nil
+}
+
+// baselineOptions is the shared full-scan shape of init and rebaseline: full
+// tier, the configured images, and the config's trivy budget (scan.timeout;
+// init runs on pure defaults since it scaffolds the config itself).
+func baselineOptions(cfg config.Config, images []config.ImageEntry, ref string) scan.Options {
+	return scan.Options{
+		Scope: scan.ScopeFull, Images: images,
+		Checkov: cfg.Scanners.Checkov,
+		Timeout: cfg.Scan.Timeout,
+		Actor:   events.ActorOperator, Phase: events.PhaseBuild,
+		Context: events.ContextPosture, Engine: ref,
+	}
 }
 
 // pullOrUseLocal pulls the image; a registry-less dev image that already

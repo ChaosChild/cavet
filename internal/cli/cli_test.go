@@ -261,6 +261,27 @@ func TestCheckTimeout(t *testing.T) {
 	}
 }
 
+// init and rebaseline share baselineOptions, and the config's trivy budget
+// rides it: init runs on pure defaults (it scaffolds the config itself, so
+// the 60m default is its budget), rebaseline reads the operator's config.
+func TestBaselineOptionsCarryConfigTimeout(t *testing.T) {
+	if o := baselineOptions(config.Default(), nil, "ghcr.io/x@sha256:t"); o.Timeout != "60m" {
+		t.Fatalf("init's default-config baseline scan must carry the 60m budget, got %q", o.Timeout)
+	}
+	cfg := config.Default()
+	cfg.Scan.Timeout = "90m"
+	cfg.Scanners.Checkov = true
+	images := []config.ImageEntry{{Dockerfile: "engine/Dockerfile", Target: "final-core"}}
+	o := baselineOptions(cfg, images, "ghcr.io/x@sha256:t")
+	if o.Timeout != "90m" || o.Scope != scan.ScopeFull || !o.Checkov {
+		t.Fatalf("rebaseline options wrong: %+v", o)
+	}
+	if len(o.Images) != 1 || o.Images[0] != images[0] || o.Engine != "ghcr.io/x@sha256:t" ||
+		o.Actor != events.ActorOperator || o.Context != events.ContextPosture {
+		t.Fatalf("shared baseline shape wrong: %+v", o)
+	}
+}
+
 func TestAdvisoryHook(t *testing.T) {
 	cases := []struct {
 		ctx   string
