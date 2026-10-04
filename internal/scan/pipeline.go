@@ -45,6 +45,10 @@ type Options struct {
 	Phase   events.Phase
 	Context events.SurfaceContext
 	Engine  string // engine ref recorded on every event (artefacts §2.1)
+	// VulnDB is the live vuln DB identity this scan runs against, read once
+	// after EnsureRunning (engineclient.ReadDBInfo). Zero value (failed or
+	// skipped read) records nothing: findings keep their old shape.
+	VulnDB engineclient.DBInfo
 }
 
 // Row is one confirmed-or-open finding for the result table. Confidence is
@@ -83,16 +87,29 @@ type Result struct {
 	DevIncluded   bool     // scanners.dev-deps was on for this scan
 }
 
+// DB records one advisory artifact's live identity at scan time (PR B):
+// what the scanners actually matched against. Digest is empty and Source
+// "baked" before the first update-db swap (engineclient.ReadDBInfo is the
+// source of this).
+type DB struct {
+	Digest    string `json:"digest,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"` // RFC3339 advisories date
+	Source    string `json:"source"`              // managed | baked
+}
+
 // LastScan is the coverage header the posture view shows: the scanners,
 // phase, and engine of the most recent scan (cli-spec §5 bare). Derived,
 // scan-written, not log-reconstructable — the last_seen family (artefacts
-// §6.4, deviation cli-spec §16.18).
+// §6.4, deviation cli-spec §16.18). DB joins the per-scan advisory identity
+// keyed by artifact name ("vuln"; the java DB stays state-level, nothing in
+// the scan path consumes it).
 type LastScan struct {
-	Scope    string   `json:"scope"`
-	Scanners []string `json:"scanners"`
-	Phase    string   `json:"phase"`
-	Engine   string   `json:"engine"`
-	At       string   `json:"at"`
+	Scope    string        `json:"scope"`
+	Scanners []string      `json:"scanners"`
+	Phase    string        `json:"phase"`
+	Engine   string        `json:"engine"`
+	At       string        `json:"at"`
+	DB       map[string]DB `json:"db,omitempty"`
 }
 
 // ResolveDefaultScope picks the default scope: staged when the index is
@@ -248,9 +265,17 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 		_ = lookup.WriteRuleCatalog(lookup.CatalogPath(filepath.Join(s.Cavet, "cache", "advisories")),
 			lookup.ExtractRules(b))
 	}
-	if ls, err := json.Marshal(LastScan{Scope: label, Scanners: scanners,
-		Phase: string(o.Phase), Engine: o.Engine, At: now.UTC().Format(time.RFC3339)}); err == nil {
-		_ = store.AtomicWrite(filepath.Join(s.Cavet, "state", "last-scan.json"), append(ls, '\n'))
+	ls := LastScan{Scope: label, Scanners: scanners,
+		Phase: string(o.Phase), Engine: o.Engine, At: now.UTC().Format(time.RFC3339)}
+	if o.VulnDB.Source != "" {
+		db := DB{Digest: o.VulnDB.Digest, Source: o.VulnDB.Source}
+		if !o.VulnDB.UpdatedAt.IsZero() {
+			db.UpdatedAt = o.VulnDB.UpdatedAt.UTC().Format(time.RFC3339)
+		}
+		ls.DB = map[string]DB{"vuln": db}
+	}
+	if b, err := json.Marshal(ls); err == nil {
+		_ = store.AtomicWrite(filepath.Join(s.Cavet, "state", "last-scan.json"), append(b, '\n'))
 	}
 	// Metrics cache refresh, still inside the critical section: the log the
 	// aggregates replay was just appended to. Failure degrades the dashboard

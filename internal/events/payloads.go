@@ -21,6 +21,12 @@ type DetectedData struct {
 	// Additive and backward compatible: old events replay as false, which is
 	// semantically correct because those scans excluded dev deps.
 	Dev bool `json:"dev,omitempty"`
+	// DB is the vuln DB manifest digest that produced this finding (D3). Set
+	// only on vuln-DB-derived scanners (trivy vuln rows, image package rows);
+	// misconfig, secret, gitleaks, opengrep and checkov findings never carry
+	// it. Empty on the baked era and on pre-PR-B events. Payload metadata
+	// only: never a fingerprint input.
+	DB string `json:"db,omitempty"`
 }
 
 type TriagedData struct {
@@ -64,6 +70,19 @@ type RebaselinedData struct {
 	Reason     string `json:"reason"`
 }
 
+// DBUpdatedData records one advisory database swap (D3): which artifact moved
+// to which digest, when the advisories date from, and how it got there.
+// Artifact is "vuln" | "java-db" (engineclient artifact names). PreviousDigest
+// is empty on the first-ever update of an artifact (the baked era keeps no
+// digest record); Source is "managed" for update-db swaps.
+type DBUpdatedData struct {
+	Artifact       string `json:"artifact"`
+	Digest         string `json:"digest"`
+	PreviousDigest string `json:"previous_digest,omitempty"`
+	UpdatedAt      string `json:"updated_at"` // RFC3339 advisories date
+	Source         string `json:"source"`
+}
+
 func (DetectedData) dataKind() Kind    { return Detected }
 func (TriagedData) dataKind() Kind     { return Triaged }
 func (SurfacedData) dataKind() Kind    { return Surfaced }
@@ -73,3 +92,4 @@ func (DeferredData) dataKind() Kind    { return Deferred }
 func (RaisedData) dataKind() Kind      { return Raised }
 func (ResolvedData) dataKind() Kind    { return Resolved }
 func (RebaselinedData) dataKind() Kind { return Rebaselined }
+func (DBUpdatedData) dataKind() Kind   { return DBUpdated }

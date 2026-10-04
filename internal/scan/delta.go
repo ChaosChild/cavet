@@ -58,7 +58,7 @@ func Fold(state *store.State, merged []*projection.MergedFinding, cov Coverage, 
 			for _, loc := range m.Locations {
 				if !hasLocation(f.Locations, loc) {
 					f.Locations = append(f.Locations, store.Location{Path: loc.Path, Line: loc.Line})
-					ev, err := events.NewDetected(now, o.Actor, o.Phase, o.Engine, m.Fingerprint, detData(m, loc))
+					ev, err := events.NewDetected(now, o.Actor, o.Phase, o.Engine, m.Fingerprint, detData(m, loc, o))
 					if err != nil {
 						return nil, err
 					}
@@ -93,7 +93,7 @@ func Fold(state *store.State, merged []*projection.MergedFinding, cov Coverage, 
 		for _, loc := range m.Locations {
 			f.Locations = append(f.Locations, store.Location{Path: loc.Path, Line: loc.Line})
 			if !inBaseline {
-				ev, err := events.NewDetected(now, o.Actor, o.Phase, o.Engine, m.Fingerprint, detData(m, loc))
+				ev, err := events.NewDetected(now, o.Actor, o.Phase, o.Engine, m.Fingerprint, detData(m, loc, o))
 				if err != nil {
 					return nil, err
 				}
@@ -158,8 +158,8 @@ func hasLocation(locs []store.Location, loc projection.Location) bool {
 	return false
 }
 
-func detData(m *projection.MergedFinding, loc projection.Location) events.DetectedData {
-	return events.DetectedData{
+func detData(m *projection.MergedFinding, loc projection.Location, o Options) events.DetectedData {
+	d := events.DetectedData{
 		Rule:           m.RuleID,
 		Severity:       events.Severity(m.Severity),
 		Path:           loc.Path,
@@ -169,4 +169,13 @@ func detData(m *projection.MergedFinding, loc projection.Location) events.Detect
 		AlsoDetectedBy: m.CollapsedWith,
 		Dev:            m.Dev,
 	}
+	// Per-event provenance (D3): only vuln-DB-derived findings carry the
+	// digest; misconfig/secret/SAST rules are not DB-derived and old events
+	// keep their shape via omitempty. The field is payload metadata only:
+	// fingerprints are computed in projection from rule key and context, so
+	// identity never moves when the DB changes.
+	if m.DB {
+		d.DB = o.VulnDB.Digest
+	}
+	return d
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ChaosChild/cavet/internal/engineclient"
 	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/projection"
 	"github.com/ChaosChild/cavet/internal/store"
@@ -234,5 +235,60 @@ func TestBuildResultDismissedLeavesTableAndConfidenceShows(t *testing.T) {
 	}
 	if confByID["aaaaaa"] != "" || confByID["cccccc"] != "low" {
 		t.Fatalf("confidence must ride the rows (untriaged empty), got %+v", confByID)
+	}
+}
+
+// PR B D3: only vuln-DB-derived findings carry the advisory digest on their
+// detected events, and only when the scan actually read one.
+func TestDetectedCarriesVulnDBDigest(t *testing.T) {
+	opts := foldOpts
+	opts.VulnDB = engineclient.DBInfo{Digest: "sha256:db1", Source: "managed"}
+
+	vuln := mf(strings.Repeat("a1", 32), "trivy", "go.sum", 1)
+	vuln.DB = true
+	other := mf(strings.Repeat("b2", 32), "gitleaks", "a.py", 1)
+	res, err := Fold(stateWithFindings(), []*projection.MergedFinding{vuln, other},
+		fullCoverage(), opts, foldNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digests := map[string]int{}
+	for _, e := range res.Events {
+		if e.Kind != events.Detected {
+			continue
+		}
+		d, ok := e.Payload().(events.DetectedData)
+		if !ok {
+			t.Fatal("detected payload mismatch")
+		}
+		digests[e.Fingerprint] = len(d.DB)
+		switch e.Fingerprint {
+		case vuln.Fingerprint:
+			if d.DB != "sha256:db1" {
+				t.Fatalf("vuln finding must carry the digest, got %q", d.DB)
+			}
+		case other.Fingerprint:
+			if d.DB != "" {
+				t.Fatalf("non-DB finding must not carry a digest, got %q", d.DB)
+			}
+		}
+	}
+	if len(digests) != 2 {
+		t.Fatalf("want two detected fingerprints, got %v", digests)
+	}
+
+	// Baked era (no digest): even the vuln finding keeps the field absent.
+	opts.VulnDB = engineclient.DBInfo{Source: "baked"}
+	res, err = Fold(stateWithFindings(), []*projection.MergedFinding{vuln}, fullCoverage(), opts, foldNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range res.Events {
+		if e.Kind != events.Detected {
+			continue
+		}
+		if d := e.Payload().(events.DetectedData); d.DB != "" {
+			t.Fatalf("baked era must leave db absent, got %q", d.DB)
+		}
 	}
 }

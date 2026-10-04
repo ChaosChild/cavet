@@ -120,6 +120,22 @@ func TestConstructorRejections(t *testing.T) {
 			_, err := NewRebaselined(ts, a, p, e, RebaselinedData{FromDigest: "x", ToDigest: "y"})
 			return err
 		}},
+		{"db_updated bad artifact", func() error {
+			_, err := NewDBUpdated(ts, a, p, e, DBUpdatedData{Artifact: "npm", Digest: "sha256:d", UpdatedAt: ts.Format(time.RFC3339), Source: "managed"})
+			return err
+		}},
+		{"db_updated empty digest", func() error {
+			_, err := NewDBUpdated(ts, a, p, e, DBUpdatedData{Artifact: "vuln", UpdatedAt: ts.Format(time.RFC3339), Source: "managed"})
+			return err
+		}},
+		{"db_updated empty source", func() error {
+			_, err := NewDBUpdated(ts, a, p, e, DBUpdatedData{Artifact: "vuln", Digest: "sha256:d", UpdatedAt: ts.Format(time.RFC3339)})
+			return err
+		}},
+		{"db_updated bad updated_at", func() error {
+			_, err := NewDBUpdated(ts, a, p, e, DBUpdatedData{Artifact: "vuln", Digest: "sha256:d", UpdatedAt: "tuesday", Source: "managed"})
+			return err
+		}},
 		{"resolved empty item", func() error {
 			_, err := NewResolved(ts, a, p, e, ResolvedData{Answer: "a"})
 			return err
@@ -167,5 +183,11 @@ func TestValidConstructors(t *testing.T) {
 	if _, err := NewRebaselined(ts, ActorOperator, PhaseBuild, e,
 		RebaselinedData{FromDigest: "sha256:a", ToDigest: "sha256:b", Reason: "bump"}); err != nil {
 		t.Errorf("rebaselined: %v", err)
+	}
+	// db_updated carries no fingerprint (like rebaselined) and the baked-era
+	// first update legitimately omits previous_digest.
+	if _, err := NewDBUpdated(ts, ActorOperator, PhaseBuild, e,
+		DBUpdatedData{Artifact: "java-db", Digest: "sha256:j", UpdatedAt: ts.UTC().Format(time.RFC3339), Source: "managed"}); err != nil {
+		t.Errorf("db_updated: %v", err)
 	}
 }

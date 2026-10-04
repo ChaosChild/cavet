@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"testing"
 
+	"github.com/ChaosChild/cavet/internal/engineclient"
 	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/store"
 )
@@ -276,5 +278,83 @@ func TestCheckovOptsInPerRepository(t *testing.T) {
 	}
 	if strings.Join(res2.Scanners, ",") != "gitleaks,trivy" {
 		t.Fatalf("header must stay default: %+v", res2)
+	}
+}
+
+// PR B: the vuln DB identity read once before Run flows into last-scan.json
+// and onto the trivy vuln findings' detected events; a failed/absent read
+// keeps the old shapes byte-for-byte.
+func TestLastScanAndEventsRecordVulnDB(t *testing.T) {
+	trivyJSON := []byte(`{"Results":[{"Target":"requirements.txt","Class":"lang-pkgs",
+		"Vulnerabilities":[{"VulnerabilityID":"CVE-2024-1","PkgName":"flask","InstalledVersion":"1.0","Severity":"HIGH","Title":"bad"}],
+		"Misconfigurations":[{"ID":"AVD-DS-0002","Title":"root","Severity":"HIGH"}]}]}`)
+	mk := func() (*store.Store, *fakeRunner) {
+		return newTestStore(t), &fakeRunner{
+			stdout: map[string]string{"git diff --cached": "requirements.txt\x00"},
+			reports: map[string][]byte{
+				"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+				"/reports/trivy.json":     trivyJSON,
+			},
+		}
+	}
+	updated := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+
+	s, r := mk()
+	if _, err := Run(context.Background(), s, r, Options{Scope: ScopeStaged,
+		Engine: "ghcr.io/x@sha256:t",
+		VulnDB: engineclient.DBInfo{Digest: "sha256:db1", UpdatedAt: updated, Source: "managed"}}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(s.Cavet, "state", "last-scan.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ls LastScan
+	if err := json.Unmarshal(b, &ls); err != nil {
+		t.Fatal(err)
+	}
+	db, ok := ls.DB["vuln"]
+	if !ok || db.Digest != "sha256:db1" || db.Source != "managed" || db.UpdatedAt != updated.UTC().Format(time.RFC3339) {
+		t.Fatalf("last-scan db record wrong: %+v", ls.DB)
+	}
+	evs, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seenVuln, seenOther bool
+	for _, e := range evs {
+		if e.Kind != events.Detected {
+			continue
+		}
+		d := e.Payload().(events.DetectedData)
+		switch d.Rule {
+		case "CVE-2024-1":
+			seenVuln = true
+			if d.DB != "sha256:db1" {
+				t.Fatalf("vuln event must carry the digest, got %q", d.DB)
+			}
+		case "AVD-DS-0002":
+			seenOther = true
+			if d.DB != "" {
+				t.Fatalf("misconfig event must not carry a digest, got %q", d.DB)
+			}
+		}
+	}
+	if !seenVuln || !seenOther {
+		t.Fatalf("expected both detected events, got vuln=%v other=%v", seenVuln, seenOther)
+	}
+
+	// No DB read: no db key in last-scan.json, no db field on any event.
+	s2, r2 := mk()
+	if _, err := Run(context.Background(), s2, r2, Options{Scope: ScopeStaged,
+		Engine: "ghcr.io/x@sha256:t"}); err != nil {
+		t.Fatal(err)
+	}
+	b2, err := os.ReadFile(filepath.Join(s2.Cavet, "state", "last-scan.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b2), `"db"`) {
+		t.Fatalf("old shape must survive without a DB read: %s", b2)
 	}
 }

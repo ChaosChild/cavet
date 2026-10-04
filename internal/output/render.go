@@ -42,6 +42,15 @@ type ScanView struct {
 	Hints       []string
 	DevIncluded bool
 	DevCount    int
+	DB          *DBAge // advisory staleness header line (D4); nil prints nothing
+}
+
+// DBAge carries what the staleness line needs (D4): the vuln DB's advisory
+// age in whole days (negative when not recordable) and the configured
+// thresholds. Thresholds annotate, never gate.
+type DBAge struct {
+	Days                int
+	Note, Suggest, Alert int
 }
 
 const descLimit = 60
@@ -59,6 +68,9 @@ func RenderResult(v ScanView) string {
 		b.WriteString("\ndev dependencies: excluded (scanners.dev-deps: false)")
 	} else if v.DevCount > 0 {
 		fmt.Fprintf(&b, "\ndev dependency chains: %d finding(s) marked +", v.DevCount)
+	}
+	if v.DB != nil {
+		fmt.Fprintf(&b, "\nadvisory db: %s", DBStaleness(v.DB.Days, v.DB.Note, v.DB.Suggest, v.DB.Alert))
 	}
 	b.WriteString("\n\n")
 	if len(v.Findings) == 0 {
@@ -90,6 +102,26 @@ func aggregate(c Counts) string {
 		parts = append(parts, fmt.Sprintf("baseline %d", c.Baseline))
 	}
 	return strings.Join(parts, " · ")
+}
+
+// DBStaleness renders the advisory age with its tier wording (D4): neutral
+// under the note threshold, an aging note past it, the update-db hint past
+// suggest, explicit stale wording past alert. days < 0 means the age is not
+// recordable (no advisories date); callers phrase their own baked context.
+func DBStaleness(days, note, suggest, alert int) string {
+	if days < 0 {
+		return "age not recorded"
+	}
+	s := fmt.Sprintf("%d days old", days)
+	switch {
+	case days > alert:
+		s += ", stale: advisories may be outdated, run cavet engine update-db"
+	case days > suggest:
+		s += ", run cavet engine update-db"
+	case days > note:
+		s += ", advisories aging"
+	}
+	return s
 }
 
 func breakdown(c Counts) string {

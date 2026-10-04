@@ -110,6 +110,14 @@ func excerpt(e events.Event) string {
 		return d.Answer
 	case events.RebaselinedData:
 		return d.Reason
+	case events.DBUpdatedData:
+		// previous_digest absent on the first-ever swap (baked era): the
+		// current digest alone tells the story, full so it can be compared
+		// against the config pin.
+		if d.PreviousDigest != "" {
+			return d.Artifact + ": " + d.PreviousDigest + " → " + d.Digest
+		}
+		return d.Artifact + ": " + d.Digest
 	}
 	return ""
 }

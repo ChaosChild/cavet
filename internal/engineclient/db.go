@@ -232,6 +232,60 @@ func (c *Client) ReadDBStamp(ctx context.Context, a Artifact) (DBStamp, error) {
 	return st, nil
 }
 
+// DBInfo is the vuln DB's live identity for scan-time surfaces (PR B): what
+// the scan's findings were matched against. Digest is empty in the baked era
+// (the engine image's copy carries no manifest digest record); Source is
+// "managed" after update-db, "baked" before.
+type DBInfo struct {
+	Digest    string
+	UpdatedAt time.Time // advisories date (metadata.json)
+	Source    string    // "managed" | "baked"
+}
+
+// ReadDBInfo reads the live vuln DB identity: the volume stamp when
+// update-db has run there, else the baked metadata.json (CopyOut, like
+// ReadDBStamp). Successful reads are cached on the client, so the scan path
+// reads the container once per run whatever it feeds (findings join, header
+// line); a failed read is not cached and surfaces to the caller.
+func (c *Client) ReadDBInfo(ctx context.Context) (DBInfo, error) {
+	if c.dbInfo != nil {
+		return *c.dbInfo, nil
+	}
+	info, err := readDBInfo(ctx, vulnDB, c.CopyOut)
+	if err != nil {
+		return DBInfo{}, err
+	}
+	c.dbInfo = &info
+	return info, nil
+}
+
+// readDBInfo is the stamp-or-baked decision over any CopyOut seam (the client
+// in production, a fake in tests).
+func readDBInfo(ctx context.Context, a Artifact, copyOut func(context.Context, string) ([]byte, error)) (DBInfo, error) {
+	b, err := copyOut(ctx, a.CachePath+"/"+stampFile)
+	if err == nil {
+		var st DBStamp
+		if err := json.Unmarshal(b, &st); err != nil {
+			return DBInfo{}, fmt.Errorf("stamp %s: %w", a.Name, err)
+		}
+		return DBInfo{Digest: st.Digest, UpdatedAt: st.UpdatedAt, Source: "managed"}, nil
+	}
+	if !errdefs.IsNotFound(err) {
+		return DBInfo{}, err
+	}
+	// No stamp: the baked era. metadata.json is the only record the engine
+	// image's copy carries (no digest exists for it).
+	mb, err := copyOut(ctx, a.CachePath+"/metadata.json")
+	if err != nil {
+		return DBInfo{}, fmt.Errorf("baked %s metadata: %w", a.Name, err)
+	}
+	var md dbMetadata
+	if err := json.Unmarshal(mb, &md); err != nil {
+		return DBInfo{}, fmt.Errorf("baked %s metadata.json: %w", a.Name, err)
+	}
+	return DBInfo{UpdatedAt: md.UpdatedAt, Source: "baked"}, nil
+}
+
 // fetchDB fetches a's image at digest and unpacks it into dir, trying the
 // repos in fallback order (a digest names the same bytes everywhere, so the
 // fallback only buys transport resilience). Returns the metadata and the

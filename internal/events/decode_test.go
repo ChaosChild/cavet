@@ -64,3 +64,38 @@ func TestDecodePreservesUnknownKind(t *testing.T) {
 		t.Fatal("unknown kind lost in canonical form")
 	}
 }
+
+// PR B: the db_updated kind decodes with its typed payload and no fingerprint
+// requirement; a Detected payload written before the db field existed
+// decodes with the field empty.
+func TestDecodeDBUpdatedAndOldDetected(t *testing.T) {
+	ts := time.Date(2026, 10, 4, 8, 0, 0, 0, time.UTC)
+	ev, err := NewDBUpdated(ts, ActorOperator, PhaseBuild, testEngine, DBUpdatedData{
+		Artifact: "vuln", Digest: "sha256:new", UpdatedAt: ts.Format(time.RFC3339), Source: "managed",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Decode(Canonical(ev))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Kind != DBUpdated || got.Fingerprint != "" {
+		t.Fatalf("envelope mismatch: %+v", got)
+	}
+	d, ok := got.Payload().(DBUpdatedData)
+	if !ok || d.Artifact != "vuln" || d.Digest != "sha256:new" || d.PreviousDigest != "" {
+		t.Fatalf("payload mismatch: %+v", got.Payload())
+	}
+
+	// Old detected line: no db key at all.
+	old := `{"ts":"2026-08-17T09:14:22Z","v":1,"event":"detected","fingerprint":"` + fp64() +
+		`","actor":"agent","phase":"build","engine":"x","data":{"rule":"r","severity":"high","path":"a.py","line":1,"scanner":"trivy"}}`
+	ev, err = Decode([]byte(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := ev.Payload().(DetectedData); !ok || d.DB != "" {
+		t.Fatalf("old payload must decode with empty db: %+v %v", ev.Payload(), ok)
+	}
+}

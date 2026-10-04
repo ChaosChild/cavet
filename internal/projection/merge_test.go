@@ -185,3 +185,56 @@ func readLocal(t *testing.T, path string) []byte {
 	}
 	return b
 }
+
+// PR B D3: vuln-DB-derived findings are marked at parse time and the marker
+// rides Merge, while misconfig and secret rows stay unmarked. The marker is
+// metadata only: two findings differing in nothing but the DB flag must
+// fingerprint identically (the advisory digest can never re-roll identity).
+func TestDBDerivedMarkerIsNotAFingerprintInput(t *testing.T) {
+	vuln := Finding{Scanner: "trivy", RuleID: "CVE-2024-1234", Severity: "high",
+		Path: "go.sum", Line: 3, Desc: "bad pkg"}
+	misconfig := Finding{Scanner: "trivy", RuleID: "AVD-DS-0002", Severity: "high",
+		Path: "Dockerfile", Line: 1, Desc: "root user"}
+
+	vuln.DB = true
+	merged := Merge([]Finding{vuln})
+	if len(merged) != 1 || !merged[0].DB {
+		t.Fatalf("vuln row must carry the DB marker: %+v", merged)
+	}
+	fpWith := merged[0].Fingerprint
+
+	vuln.DB = false
+	merged = Merge([]Finding{vuln})
+	if len(merged) != 1 || merged[0].DB {
+		t.Fatalf("unmarked vuln row must merge unmarked: %+v", merged)
+	}
+	if merged[0].Fingerprint != fpWith {
+		t.Fatalf("DB flag changed the fingerprint: %s vs %s", fpWith, merged[0].Fingerprint)
+	}
+
+	merged = Merge([]Finding{misconfig})
+	if len(merged) != 1 || merged[0].DB {
+		t.Fatalf("misconfig row is not DB-derived: %+v", merged[0])
+	}
+
+	// The JSON parser marks exactly its vulnerability rows; the image parser
+	// (package rows only) marks everything it returns.
+	fs, err := ParseTrivyJSON([]byte(`{"Results":[{"Target":"requirements.txt","Class":"lang-pkgs",
+		"Vulnerabilities":[{"VulnerabilityID":"CVE-2024-1","PkgName":"flask","InstalledVersion":"1.0","Severity":"HIGH"}],
+		"Misconfigurations":[{"ID":"AVD-DS-0002","Title":"root","Severity":"HIGH"}]}]}`), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	marked := 0
+	for _, f := range fs {
+		if f.RuleID == "CVE-2024-1" && !f.DB {
+			t.Fatal("parsed vulnerability row must carry the DB marker")
+		}
+		if f.DB {
+			marked++
+		}
+	}
+	if marked != 1 {
+		t.Fatalf("exactly the vulnerability row is marked, got %d of %v", marked, fs)
+	}
+}

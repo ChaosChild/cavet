@@ -96,6 +96,7 @@ func newRebaselineCmd() *cobra.Command {
 				Checkov: cfg.Scanners.Checkov,
 				Actor:   events.ActorOperator, Phase: events.PhaseBuild,
 				Context: events.ContextPosture, Engine: ref,
+				VulnDB: readVulnDB(ctx, c),
 			}); err != nil {
 				return fail(err.Error())
 			}

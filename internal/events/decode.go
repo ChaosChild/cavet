@@ -117,6 +117,12 @@ func (e *Event) Payload() Data {
 			return nil
 		}
 		e.payload = d
+	case DBUpdated:
+		var d DBUpdatedData
+		if json.Unmarshal(e.raw, &d) != nil {
+			return nil
+		}
+		e.payload = d
 	}
 	return e.payload
 }
@@ -124,7 +130,7 @@ func (e *Event) Payload() Data {
 func isKnownKind(k Kind) bool {
 	switch k {
 	case Detected, Triaged, Surfaced, Remediated, Suppressed, Deferred,
-		Raised, Resolved, Rebaselined:
+		Raised, Resolved, Rebaselined, DBUpdated:
 		return true
 	}
 	return false

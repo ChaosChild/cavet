@@ -21,6 +21,12 @@ type Finding struct {
 	Desc     string // one line; renderer truncates further
 	Snippet  string // matched-span text; feeds fingerprinting and secret collapse
 	Dev      bool   // dev dependency chain (trivy fs --include-dev-deps)
+	// DB marks vuln-DB-derived findings (trivy vulnerability rows and image
+	// package rows): advisories matched them, so their detected events carry
+	// the advisory digest (PR B D3). Misconfigurations, secrets and SAST
+	// rules are code- or content-derived and stay unmarked. Pure metadata:
+	// never a fingerprint input.
+	DB bool
 
 	// Image findings only (scanner trivy-image): package identity replaces
 	// line context, and ImageName is the configured Dockerfile's repo path,
@@ -168,6 +174,7 @@ func parseImageResult(scanner, target string, rule sarifRule, res sarifResult) (
 		Desc:       oneLine(descriptionFor(scanner, res, rule)),
 		PkgName:    pkg,
 		PkgVersion: ver,
+		DB:         true, // every surviving image row is an advisory package match
 	}, ""
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/ChaosChild/cavet/internal/config"
 	"github.com/ChaosChild/cavet/internal/engineclient"
+	"github.com/ChaosChild/cavet/internal/events"
 	"github.com/ChaosChild/cavet/internal/store"
 )
 
@@ -105,8 +106,10 @@ func runEngineUpdateDB() error {
 }
 
 // recordDBUpdate writes the swap record into state/db.json and the new
-// digest into config.yaml, in that order, under the store lock. Order is
-// load-bearing: a failure between the two writes leaves the config pin
+// digest into config.yaml, in that order, then appends the db_updated event
+// (D3), all under the store lock (artefact §7.1): the rebaseline emission in
+// cli/rebuild.go is the precedent for appending inside the lock window. Order
+// is load-bearing: a failure between the two writes leaves the config pin
 // stale, so the next run re-fetches (digest != pin) and rewrites both; pin
 // first would short-circuit the next run and strand state/db.json in the
 // baked era forever. Our file, no operator comments to preserve (init.go's
@@ -114,6 +117,8 @@ func runEngineUpdateDB() error {
 // pre-scaffold configs without the db keys migrate on first update instead
 // of failing a placeholder match. Both writes are atomic (store/atomic.go):
 // a torn config.yaml would fail the strict loader for every later command.
+// The db_updated event is the log's answer to "when did the world change";
+// state/db.json alone could not replay it after a rebuild.
 func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact, sw engineclient.Swap) error {
 	rel, err := s.Lock()
 	if err != nil {
@@ -128,6 +133,7 @@ func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact,
 	if st.Artifacts == nil {
 		st.Artifacts = map[string]store.DBArtifact{}
 	}
+	prev := st.Artifacts[a.Name] // zero value on the first-ever swap (baked era)
 	st.Artifacts[a.Name] = store.DBArtifact{
 		Digest:    sw.Digest,
 		UpdatedAt: sw.UpdatedAt,
@@ -147,7 +153,23 @@ func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact,
 	if err != nil {
 		return err
 	}
-	return store.AtomicWrite(filepath.Join(s.Cavet, "config.yaml"), b)
+	if err := store.AtomicWrite(filepath.Join(s.Cavet, "config.yaml"), b); err != nil {
+		return err
+	}
+
+	d := events.DBUpdatedData{Artifact: a.Name, Digest: sw.Digest,
+		UpdatedAt: sw.UpdatedAt.UTC().Format(time.RFC3339), Source: "managed"}
+	// PreviousDigest stays empty on the baked era: no digest record exists to
+	// name, and every consumer phrases that as "(baked)" at display time.
+	if prev.Digest != "" {
+		d.PreviousDigest = prev.Digest
+	}
+	ev, err := events.NewDBUpdated(time.Now().UTC(), events.ActorOperator, events.PhaseBuild,
+		engineRef(*cfg), d)
+	if err != nil {
+		return err
+	}
+	return s.Append(ev)
 }
 
 // dbAge/humanSize moved: dbAge lives in version.go with the other advisory

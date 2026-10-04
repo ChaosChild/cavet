@@ -110,6 +110,7 @@ func ParseTrivyJSON(data []byte, target string) ([]Finding, error) {
 				Line:     line,
 				Desc:     oneLine(v.Title),
 				Dev:      lookupPkg(v.PkgID, v.PkgName, v.InstalledVersion).dev,
+				DB:       true, // a vulnerability row is an advisory match
 			})
 		}
 		for _, m := range res.Misconfigurations {

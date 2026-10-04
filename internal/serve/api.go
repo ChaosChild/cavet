@@ -52,16 +52,37 @@ func shortEngine(ref string) string {
 
 var sevRank = map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
+// sortedDBKeys orders the LastScan.DB artifact names so the JSON array does
+// not shuffle between reads (map iteration is random).
+func sortedDBKeys(m map[string]scan.DB) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func actionable(f *store.Finding) bool { return f.Status == "open" || f.Status == "confirmed" }
 
 // --- /api/overview ---
 
 type lastScanView struct {
-	Scope    string   `json:"scope"`
-	Phase    string   `json:"phase"`
-	Engine   string   `json:"engine"`
-	At       string   `json:"at"`
-	Scanners []string `json:"scanners"`
+	Scope    string           `json:"scope"`
+	Phase    string           `json:"phase"`
+	Engine   string           `json:"engine"`
+	At       string           `json:"at"`
+	Scanners []string         `json:"scanners"`
+	DB       []dbArtifactView `json:"db,omitempty"`
+}
+
+// dbArtifactView is one advisory artifact's identity at scan time (PR B D4):
+// the dashboard data for the staleness readout.
+type dbArtifactView struct {
+	Artifact string `json:"artifact"`
+	Digest   string `json:"digest,omitempty"`
+	AgeDays  *int   `json:"age_days,omitempty"` // pointer so 0 days renders
+	Source   string `json:"source"`
 }
 
 // triageTally counts every verdict the log has recorded, all-time: fixed from
@@ -144,6 +165,18 @@ func (s *Server) handleOverview(w http.ResponseWriter, _ *http.Request) {
 	if ls != nil {
 		resp.LastScan = &lastScanView{Scope: ls.Scope, Phase: ls.Phase, Engine: shortEngine(ls.Engine),
 			At: ls.At, Scanners: ls.Scanners}
+		for _, name := range sortedDBKeys(ls.DB) {
+			d := ls.DB[name]
+			v := dbArtifactView{Artifact: name, Digest: d.Digest, Source: d.Source}
+			if t, err := time.Parse(time.RFC3339, d.UpdatedAt); err == nil {
+				age := int(time.Since(t).Hours() / 24)
+				if age < 0 {
+					age = 0
+				}
+				v.AgeDays = &age
+			}
+			resp.LastScan.DB = append(resp.LastScan.DB, v)
+		}
 		resp.Scanners = ls.Scanners
 		resp.Engine = shortEngine(ls.Engine)
 		resp.AsOf = ls.At
