@@ -50,7 +50,7 @@ func newEngineCmd() *cobra.Command {
 	prune.Flags().BoolVar(&all, "all", false, "remove every cavet-* container except this repository's")
 
 	cmd := &cobra.Command{
-		Use:   "engine (status|start|stop|pull|prune|shell)",
+		Use:   "engine (status|start|stop|pull|prune|shell|update-db)",
 		Short: "Control the long-lived scanner container",
 	}
 	cmd.AddCommand(
@@ -83,6 +83,13 @@ func newEngineCmd() *cobra.Command {
 				fmt.Printf("image: %s\n", imageID)
 				if cfg.Engine.Digest != "" && !strings.Contains(imageID, strings.TrimPrefix(cfg.Engine.Digest, "sha256:")) {
 					fmt.Println("warning: running image does not match the configured pin; run 'cavet rebaseline'")
+				}
+				st, err := s.LoadDBState()
+				if err != nil {
+					return fail(err.Error())
+				}
+				for _, line := range dbLines(cfg, st) {
+					fmt.Println(line)
 				}
 				return nil
 			},
@@ -185,11 +192,12 @@ func newEngineCmd() *cobra.Command {
 				if err != nil {
 					return fail("docker binary not on PATH (needed only for engine shell)")
 				}
-				shell := exec.Command(docker, "exec", "-it", c.Name(), "sh")
-				shell.Stdin, shell.Stdout, shell.Stderr = os.Stdin, os.Stdout, os.Stderr
-				return shell.Run()
-			},
+			shell := exec.Command(docker, "exec", "-it", c.Name(), "sh")
+			shell.Stdin, shell.Stdout, shell.Stderr = os.Stdin, os.Stdout, os.Stderr
+			return shell.Run()
 		},
+	},
+	newEngineDBCmd(),
 	)
 	return cmd
 }

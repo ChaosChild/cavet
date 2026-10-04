@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -239,5 +240,118 @@ func TestAdvisoryHook(t *testing.T) {
 		if got := advisoryHook(c.ctx, c.exit1); got != c.want {
 			t.Errorf("advisoryHook(%q, %v) = %v, want %v", c.ctx, c.exit1, got, c.want)
 		}
+	}
+}
+
+// dbLines renders one line per artifact of the variant: recorded swaps show
+// digest and advisory age, the vuln DB falls back to the baked note, and the
+// java DB stays silent unless recorded (a core engine has none).
+func TestDBLines(t *testing.T) {
+	updated := time.Now().UTC().Add(-6 * 24 * time.Hour)
+	withState := store.DBState{Artifacts: map[string]store.DBArtifact{
+		"vuln":    {Digest: "sha256:aaa", UpdatedAt: updated},
+		"java-db": {Digest: "sha256:bbb", UpdatedAt: updated},
+	}}
+
+	full := config.Default()
+	full.Engine.Variant = "full"
+	got := dbLines(full, withState)
+	if len(got) != 2 ||
+		!strings.Contains(got[0], "db vuln: sha256:aaa") || !strings.Contains(got[0], "6d old") ||
+		!strings.Contains(got[1], "db java-db: sha256:bbb") {
+		t.Fatalf("full variant with state: %v", got)
+	}
+
+	core := config.Default()
+	got = dbLines(core, withState)
+	if len(got) != 1 || !strings.Contains(got[0], "db vuln: sha256:aaa") {
+		t.Fatalf("core variant must skip java-db: %v", got)
+	}
+
+	// Fresh host: vuln DB is the engine image's baked copy, java-db silent.
+	got = dbLines(core, store.DBState{})
+	if len(got) != 1 || got[0] != "db vuln: baked (engine image build), age not recorded" {
+		t.Fatalf("baked era: %v", got)
+	}
+	// Full variant, no java-db record yet: the baked note applies there too.
+	got = dbLines(full, store.DBState{})
+	if len(got) != 2 || got[1] != "db java-db: baked (engine image build), age not recorded" {
+		t.Fatalf("full variant baked era: %v", got)
+	}
+}
+
+func TestDBAgeAndHumanSize(t *testing.T) {
+	if got := dbAge(time.Now().UTC().Add(-2 * time.Hour)); got != "<1d" {
+		t.Errorf("fresh advisories: got %q", got)
+	}
+	if got := dbAge(time.Now().UTC().Add(-6 * 24 * time.Hour)); got != "6d" {
+		t.Errorf("stale advisories: got %q", got)
+	}
+	if got := humanSize(121 << 20); got != "121 MiB" {
+		t.Errorf("trivy-db layer: got %q", got)
+	}
+	if got := humanSize(int64(933.5 * float64(1<<20))); got != "934 MiB" {
+		t.Errorf("java-db layer: got %q", got)
+	}
+	if got := humanSize(3 << 30); got != "3.0 GiB" {
+		t.Errorf("gibibytes: got %q", got)
+	}
+}
+
+// update-db is wired into the engine command and gated on an initialised
+// repository: outside .cavet/ it exits 2 naming the init gate, and --help
+// never reaches Docker.
+func TestEngineUpdateDBWiring(t *testing.T) {
+	t.Chdir(t.TempDir())
+	root, err := newRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.SetArgs([]string{"engine", "update-db", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("help must not need a repository: %v", err)
+	}
+
+	root, err = newRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.SetArgs([]string{"engine", "update-db"})
+	err = root.Execute()
+	var ec *exitErr
+	if !errors.As(err, &ec) || ec.code != 2 || !strings.Contains(err.Error(), "init") {
+		t.Fatalf("uninitialised repo must exit 2 naming init, got %v", err)
+	}
+}
+
+// cavet version works everywhere: no container, no network, and inside an
+// initialised repository it reads config and state (corrupt state fails
+// loud like the other state surfaces).
+func TestVersionCommand(t *testing.T) {
+	t.Chdir(t.TempDir())
+	root, err := newRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.SetArgs([]string{"version"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("version outside a repository: %v", err)
+	}
+
+	dir := t.TempDir()
+	if _, err := store.Init(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".cavet", "state", "db.json"), []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	root, err = newRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.SetArgs([]string{"version"})
+	if err := root.Execute(); err == nil {
+		t.Fatal("corrupt state/db.json must fail loud")
 	}
 }
