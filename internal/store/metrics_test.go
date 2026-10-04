@@ -326,3 +326,104 @@ func TestMetricsStalenessAndRefresh(t *testing.T) {
 		t.Fatal("schema mismatch must mark the cache stale")
 	}
 }
+
+// PR B D5: a detection whose digest differs from the previous scan's is
+// db-caused; same digest, no digest (old events), and first-scan detections
+// stay plain code-caused.
+func TestFlowCauseLabels(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const eng = "ghcr.io/chaoschild/cavet-engine:0.2-core"
+	must := func(ev events.Event, err error) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	det := func(ts time.Time, fp string, db string) {
+		must(events.NewDetected(ts, events.ActorAgent, events.PhaseBuild, eng, fp,
+			events.DetectedData{Rule: "r", Severity: events.SevHigh, Path: "a.go", Line: 1,
+				Scanner: "trivy", DB: db}))
+	}
+	surf := func(ts time.Time, fp string) {
+		must(events.NewSurfaced(ts, events.ActorAgent, events.PhaseBuild, eng, fp,
+			events.SurfacedData{Context: events.ContextPosture}))
+	}
+	base := time.Now().UTC().Truncate(time.Hour)
+	t1, t2, t3, t4 := base.Add(-60*time.Hour), base.Add(-48*time.Hour), base.Add(-24*time.Hour), base.Add(-1*time.Hour)
+
+	// Scan 1: first detection carries a digest, but there is no previous
+	// scan to differ from: code.
+	det(t1, fpA(), "sha256:aaa")
+	surf(t1, fpA())
+	// Scan 2: DB bumped; the new finding rides the fresh digest: db.
+	det(t2, fpB(), "sha256:bbb")
+	surf(t2, fpB())
+	// Scan 3: same digest era again; a genuinely new finding: code.
+	det(t3, fpC(), "sha256:bbb")
+	surf(t3, fpC())
+	// Scan 4: old-shape detection (no db field ever): plain code.
+	det(t4, strings.Repeat("d4", 32), "")
+	surf(t4, strings.Repeat("d4", 32))
+
+	log, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ComputeMetrics(log, "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	causes := map[string]string{} // fingerprint prefix -> cause of its "new"
+	for _, fr := range doc.Flow {
+		if fr.Kind != "new" {
+			continue
+		}
+		switch fr.TS {
+		case t1:
+			causes["scan1"] = fr.Cause
+		case t2:
+			causes["scan2"] = fr.Cause
+		case t3:
+			causes["scan3"] = fr.Cause
+		case t4:
+			causes["scan4"] = fr.Cause
+		}
+	}
+	want := map[string]string{"scan1": "code", "scan2": "db", "scan3": "code", "scan4": "code"}
+	for k, v := range want {
+		if causes[k] != v {
+			t.Errorf("flow cause %s = %q, want %q (all: %v)", k, causes[k], v, causes)
+		}
+	}
+}
+
+// The pre-PR-B synthetic log carries no db fields: every new record must
+// stay plain code-caused, so stale caches rebuild to the old semantics.
+func TestFlowCauseOldEventsStayCode(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Now().UTC().Truncate(time.Hour)
+	if err := synthLog(s, base); err != nil {
+		t.Fatal(err)
+	}
+	log, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ComputeMetrics(log, "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fr := range doc.Flow {
+		if fr.Kind == "new" && fr.Cause != "code" {
+			t.Fatalf("old event labeled %q, want code: %+v", fr.Cause, fr)
+		}
+	}
+}

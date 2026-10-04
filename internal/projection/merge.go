@@ -20,6 +20,7 @@ type MergedFinding struct {
 	CollapsedWith  []string // rule ids folded in via secret dedup
 	Secret         bool
 	Dev            bool // dev dependency chain (trivy fs --include-dev-deps)
+	DB             bool // vuln-DB-derived: advisories matched this finding (PR B)
 	Locations      []Location
 }
 
@@ -110,6 +111,7 @@ func toMerged(f Finding, secret bool) *MergedFinding {
 		Scanner:     f.Scanner,
 		Secret:      secret,
 		Dev:         f.Dev,
+		DB:          f.DB,
 		Locations:   []Location{{Path: f.Path, Line: f.Line}},
 	}
 }

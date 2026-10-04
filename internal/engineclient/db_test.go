@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/errdefs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -360,5 +362,63 @@ func TestUpdateDBSwapLifecycle(t *testing.T) {
 	// A second swap over the live one must succeed (rm -rf clears db.next).
 	if _, err := c.UpdateDB(ctx, a, digest); err != nil {
 		t.Fatalf("re-swap: %v", err)
+	}
+}
+
+// fakeCopyOut serves canned files and errors by path, NotFound otherwise:
+// the CopyOut seam readDBInfo decides over.
+func fakeCopyOut(files map[string][]byte, errs map[string]error) func(context.Context, string) ([]byte, error) {
+	return func(_ context.Context, path string) ([]byte, error) {
+		if err, ok := errs[path]; ok {
+			return nil, err
+		}
+		if b, ok := files[path]; ok {
+			return b, nil
+		}
+		return nil, errdefs.ErrNotFound
+	}
+}
+
+// readDBInfo: a stamp means managed (digest recorded); its absence means the
+// baked era (metadata.json, no digest); anything else surfaces.
+func TestReadDBInfoStampAndBaked(t *testing.T) {
+	a := vulnDB
+	updated := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+	stampPath, metaPath := a.CachePath+"/"+stampFile, a.CachePath+"/metadata.json"
+
+	stampB, err := json.Marshal(DBStamp{Artifact: "vuln", Digest: "sha256:db", UpdatedAt: updated})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := readDBInfo(context.Background(), a, fakeCopyOut(map[string][]byte{stampPath: stampB}, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Source != "managed" || info.Digest != "sha256:db" || !info.UpdatedAt.Equal(updated) {
+		t.Fatalf("managed read: %+v", info)
+	}
+
+	// Baked era: no stamp at all (NotFound), metadata.json answers, no digest.
+	metaB, err := json.Marshal(dbMetadata{Version: 2, UpdatedAt: updated})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err = readDBInfo(context.Background(), a, fakeCopyOut(map[string][]byte{metaPath: metaB}, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Source != "baked" || info.Digest != "" || !info.UpdatedAt.Equal(updated) {
+		t.Fatalf("baked read: %+v", info)
+	}
+
+	// Baked without metadata cannot answer: loud failure, never a silent zero.
+	if _, err := readDBInfo(context.Background(), a, fakeCopyOut(nil, nil)); err == nil {
+		t.Fatal("missing metadata must error")
+	}
+
+	// A real (non-notfound) read failure is not the baked era.
+	if _, err := readDBInfo(context.Background(), a,
+		fakeCopyOut(nil, map[string]error{stampPath: errors.New("daemon down")})); err == nil || !strings.Contains(err.Error(), "daemon down") {
+		t.Fatalf("transport error must surface, got %v", err)
 	}
 }

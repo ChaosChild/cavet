@@ -68,6 +68,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	if err := c.EnsureRunning(ctx); err != nil {
 		return scanFail(surfaceCtx, cfg.Scan.HookExit1, err)
 	}
+	vdb := readVulnDB(ctx, c)
 
 	var scope scan.Scope
 	switch {
@@ -110,6 +111,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		DevDeps: cfg.Scanners.DevDeps,
 		Actor:   events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
+		VulnDB: vdb,
 	})
 	if err != nil {
 		return scanFail(surfaceCtx, cfg.Scan.HookExit1, err)
@@ -120,6 +122,11 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	}
 
 	viewHints := hints(res)
+	if days := dbDays(vdb.UpdatedAt); days >= 0 && days > cfg.Engine.DB.AgeThresholds.Suggest {
+		// Staleness hint (D4): state-of-the-world, not finding-specific, so
+		// like the dev legend below it rides outside hints()' three-slot cap.
+		viewHints = append(viewHints, "run cavet engine update-db")
+	}
 	if res.Counts.Dev > 0 {
 		// Legend, not a next step: it explains the + glyph the table above
 		// shows, so it rides outside hints()' three-slot cap.
@@ -139,6 +146,10 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Hints:       viewHints,
 		DevIncluded: res.DevIncluded,
 		DevCount:    res.Counts.Dev,
+	}
+	if vdb.Source != "" {
+		th := cfg.Engine.DB.AgeThresholds
+		view.DB = &output.DBAge{Days: dbDays(vdb.UpdatedAt), Note: th.Note, Suggest: th.Suggest, Alert: th.Alert}
 	}
 	for _, r := range res.Rows {
 		view.Findings = append(view.Findings, output.FindingView{
@@ -187,6 +198,17 @@ func scanTimeout(imagePhase bool) time.Duration {
 		return 2 * time.Hour
 	}
 	return 30 * time.Minute
+}
+
+// readVulnDB reads the live vuln DB identity once per scan (engineclient
+// caches the container read). A failed read warns and returns zero: the scan
+// proceeds and the surfaces print nothing rather than guessing.
+func readVulnDB(ctx context.Context, c *engineclient.Client) engineclient.DBInfo {
+	i, err := c.ReadDBInfo(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: advisory db read: %v\n", err)
+	}
+	return i
 }
 
 // hints picks next steps from the result's state, at most three, in fixed

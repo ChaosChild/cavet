@@ -93,6 +93,28 @@ func NewRebaselined(ts time.Time, actor Actor, phase Phase, engine string, d Reb
 	return build(ts, actor, phase, engine, "", d)
 }
 
+// NewDBUpdated records one advisory database swap (D3). Artifact is the
+// engineclient artifact name ("vuln" | "java-db"), the closed set the volume
+// names and state keys share; PreviousDigest is legitimately empty on the
+// first-ever update (the baked era keeps no digest record).
+func NewDBUpdated(ts time.Time, actor Actor, phase Phase, engine string, d DBUpdatedData) (Event, error) {
+	switch d.Artifact {
+	case "vuln", "java-db":
+	default:
+		return Event{}, fmt.Errorf("db_updated: artifact %q (vuln|java-db)", d.Artifact)
+	}
+	if d.Digest == "" {
+		return Event{}, fmt.Errorf("db_updated: digest required")
+	}
+	if d.Source == "" {
+		return Event{}, fmt.Errorf("db_updated: source required")
+	}
+	if _, err := time.Parse(time.RFC3339, d.UpdatedAt); err != nil {
+		return Event{}, fmt.Errorf("db_updated: updated_at %q: %w", d.UpdatedAt, err)
+	}
+	return build(ts, actor, phase, engine, "", d)
+}
+
 func newReasoned(k Kind, ts time.Time, actor Actor, phase Phase, engine, fp, reason string) (Event, error) {
 	if reason == "" {
 		return Event{}, fmt.Errorf("%s: reason required", k)
@@ -142,10 +164,10 @@ func build(ts time.Time, actor Actor, phase Phase, engine, fp string, d Data) (E
 }
 
 // fingerprintRequired reports whether the envelope carries a fingerprint for k
-// (artefacts §2.1: absent on raised, resolved, rebaselined).
+// (artefacts §2.1: absent on raised, resolved, rebaselined, db_updated).
 func fingerprintRequired(k Kind) bool {
 	switch k {
-	case Raised, Resolved, Rebaselined:
+	case Raised, Resolved, Rebaselined, DBUpdated:
 		return false
 	}
 	return true

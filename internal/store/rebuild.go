@@ -144,9 +144,12 @@ func (s *Store) Rebuild() (*State, error) {
 			}
 			removeItem(st, d.Item)
 
-		case events.Rebaselined, events.Surfaced:
+		case events.Rebaselined, events.Surfaced, events.DBUpdated:
 			// rebaselined: membership arrives via baseline.json (§6.3).
 			// surfaced: presentation is history, not state (§6.2).
+			// db_updated: the log is the record; advisory identity is
+			// per-host state (db.json) and rides detected payloads, never
+			// replay state.
 		default:
 			unknownKinds++ // preserved verbatim in the log, excluded from the fold (§10)
 		}

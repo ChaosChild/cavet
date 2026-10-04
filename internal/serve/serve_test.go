@@ -172,6 +172,57 @@ func TestOverviewUnknownSeverityNoStrayKeys(t *testing.T) {
 	}
 }
 
+// PR B: the overview's last_scan carries the per-artifact advisory identity
+// the scan recorded (digest, source, age); a pre-PR-B header without the db
+// key keeps the field absent, not null.
+func TestOverviewLastScanDBFields(t *testing.T) {
+	s := fixture(t)
+	old := time.Now().UTC().AddDate(0, 0, -8).Truncate(time.Hour)
+	lastScan := `{"scope":"full","scanners":["trivy"],"phase":"build","engine":"e","at":"` +
+		time.Now().UTC().Format(time.RFC3339) +
+		`","db":{"vuln":{"digest":"sha256:db1","updatedAt":"` + old.Format(time.RFC3339) +
+		`","source":"managed"}}}` + "\n"
+	if err := os.WriteFile(filepath.Join(s.Cavet, "state", "last-scan.json"), []byte(lastScan), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var o struct {
+		LastScan *struct {
+			DB []struct {
+				Artifact string `json:"artifact"`
+				Digest   string `json:"digest"`
+				AgeDays  *int   `json:"age_days"`
+				Source   string `json:"source"`
+			} `json:"db"`
+		} `json:"last_scan"`
+	}
+	if code := getJSON(t, New(s).Handler(), "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	if o.LastScan == nil || len(o.LastScan.DB) != 1 {
+		t.Fatalf("want one db artifact, got %+v", o.LastScan)
+	}
+	d := o.LastScan.DB[0]
+	if d.Artifact != "vuln" || d.Digest != "sha256:db1" || d.Source != "managed" {
+		t.Errorf("db artifact fields wrong: %+v", d)
+	}
+	if d.AgeDays == nil || *d.AgeDays < 7 {
+		t.Errorf("age_days must render (0 included), got %+v", d.AgeDays)
+	}
+
+	// Old header shape: no db key anywhere.
+	if err := os.WriteFile(filepath.Join(s.Cavet, "state", "last-scan.json"),
+		[]byte(`{"scope":"full","scanners":["trivy"],"phase":"build","engine":"e","at":"now"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o.LastScan = nil
+	if code := getJSON(t, New(s).Handler(), "/api/overview", &o); code != http.StatusOK {
+		t.Fatalf("overview status %d", code)
+	}
+	if o.LastScan == nil || o.LastScan.DB != nil {
+		t.Errorf("old header must decode with db absent, got %+v", o.LastScan)
+	}
+}
+
 func TestFindingsFilteringAndPagination(t *testing.T) {
 	h := New(fixture(t)).Handler()
 	var all struct {

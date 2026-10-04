@@ -16,14 +16,18 @@ import (
 // always correct, incremental is never attempted). Version 2 adds the
 // Remediated records (serve-task-2: resolved rows come from the cache);
 // version 3 adds their locations; version 4 adds the remediation reason and
-// actor (the verdict text the resolved rows and detail panel show).
-const MetricsCacheVersion = 4
+// actor (the verdict text the resolved rows and detail panel show); version 5
+// adds the flow record cause (PR B D5: DB-bump vs code-change new findings).
+const MetricsCacheVersion = 5
 
 // FlowRec is one verdict-flow event, bucketed serve-side by its timestamp.
-// Kind is new|fixed|dismissed|deferred.
+// Kind is new|fixed|dismissed|deferred. Cause, on new records, is "db" when
+// the detection rode a freshly swapped advisory DB and "code" otherwise
+// (PR B D5).
 type FlowRec struct {
-	TS   time.Time `json:"ts"`
-	Kind string    `json:"kind"`
+	TS    time.Time `json:"ts"`
+	Kind  string    `json:"kind"`
+	Cause string    `json:"cause"`
 }
 
 // ResolveRec is one remediation: when, by whom, and how long the finding had
@@ -154,6 +158,17 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 	}
 
 	dup := map[string]bool{}
+	// DB-era tracking (PR B D5): detected events carry the vuln DB digest
+	// they matched against. curDB is the current scan's digest, prevDB the
+	// previous scan's (shifted at each scan boundary, the same
+	// surfaced/remediated distinct-ts rule that builds scanTimes). A
+	// detection whose digest differs from prevDB is labeled db-caused.
+	// ponytail: attribution is per scan, not per finding, so a coincidental
+	// code-change finding in the post-bump scan also labels db; and a clean
+	// scan leaves no digest evidence, so a bump during it goes unlabeled.
+	// Per-finding attribution needs scan-level digests in the log envelope.
+	var prevDB, curDB string
+	var lastBoundary int64
 	for _, en := range log {
 		if dup[string(en.Raw)] {
 			continue
@@ -164,12 +179,23 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 		if hasPrev && en.TS.UTC().After(prevBoundary) {
 			snapshot()
 		}
+		if ts := en.TS.UTC().UnixNano(); (en.Kind == events.Surfaced || en.Kind == events.Remediated) && ts != lastBoundary {
+			lastBoundary = ts
+			prevDB, curDB = curDB, ""
+		}
 
 		switch en.Kind {
 		case events.Detected:
 			d, ok := en.Payload().(events.DetectedData)
 			if !ok {
 				return nil, &ParseError{File: en.File, Err: fmt.Errorf("detected payload mismatch")}
+			}
+			cause := "code"
+			if d.DB != "" && prevDB != "" && d.DB != prevDB {
+				cause = "db"
+			}
+			if d.DB != "" {
+				curDB = d.DB
 			}
 			if lr, ok := live[en.Fingerprint]; ok {
 				// re-detection of a live finding: a location add, not a new one
@@ -181,7 +207,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 				actionable: true}
 			openBySev[string(d.Severity)]++
 			openBySev["total"]++
-			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "new"})
+			doc.Flow = append(doc.Flow, FlowRec{TS: en.TS.UTC(), Kind: "new", Cause: cause})
 
 		case events.Triaged:
 			lr, ok := live[en.Fingerprint]
@@ -239,7 +265,7 @@ func ComputeMetrics(log []Enriched, cursor string) (*MetricsDoc, error) {
 				Reason: d.Reason, Actor: string(en.Actor),
 				DetectedAt: lr.first, RemediatedAt: en.TS.UTC()})
 
-		case events.Raised, events.Resolved, events.Rebaselined, events.Surfaced:
+		case events.Raised, events.Resolved, events.Rebaselined, events.Surfaced, events.DBUpdated:
 			// nothing aggregate-relevant; surfaced already marked a scan end
 		default:
 			// unknown kinds preserved in the log, excluded from the fold (§10)

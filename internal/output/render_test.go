@@ -163,3 +163,46 @@ func TestRenderResultDeclaresDevCount(t *testing.T) {
 		t.Errorf("dev count not declared:\n%s", out)
 	}
 }
+
+// PR B D4: the advisory-age header line is tiered from the configured
+// thresholds. Boundaries: the tier suffix appears strictly past each
+// threshold, and custom thresholds move the tiers.
+func TestDBStalenessTiers(t *testing.T) {
+	cases := []struct {
+		days int
+		want string
+	}{
+		{0, "0 days old"},
+		{5, "5 days old"},     // == note: neutral
+		{6, "6 days old, advisories aging"},
+		{10, "10 days old, advisories aging"}, // == suggest: still note tier
+		{11, "11 days old, run cavet engine update-db"},
+		{14, "14 days old, run cavet engine update-db"}, // == alert: still hint tier
+		{15, "15 days old, stale: advisories may be outdated, run cavet engine update-db"},
+	}
+	for _, c := range cases {
+		if got := DBStaleness(c.days, 5, 10, 14); got != c.want {
+			t.Errorf("DBStaleness(%d) = %q, want %q", c.days, got, c.want)
+		}
+	}
+	// Custom thresholds and the not-recordable age.
+	if got := DBStaleness(4, 3, 9, 21); got != "4 days old, advisories aging" {
+		t.Errorf("custom thresholds: %q", got)
+	}
+	if got := DBStaleness(-1, 5, 10, 14); got != "age not recorded" {
+		t.Errorf("unknown age: %q", got)
+	}
+}
+
+// The header line renders only when the scan read a DB, after the dev-deps
+// declaration.
+func TestRenderResultDeclaresDBAge(t *testing.T) {
+	out := RenderResult(ScanView{Scanners: []string{"trivy"}, DevIncluded: true,
+		DB: &DBAge{Days: 12, Note: 5, Suggest: 10, Alert: 14}})
+	if !strings.Contains(out, "\nadvisory db: 12 days old, run cavet engine update-db\n") {
+		t.Errorf("staleness line missing or misplaced:\n%s", out)
+	}
+	if got := RenderResult(ScanView{Scanners: []string{"trivy"}, DevIncluded: true}); strings.Contains(got, "advisory db") {
+		t.Errorf("no DB read, no line:\n%s", got)
+	}
+}

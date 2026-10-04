@@ -37,7 +37,8 @@ type Client struct {
 	variant string   // core | full: decides the advisory volume binds (db.go)
 	meta    *gitMeta // non-nil when root is a linked git worktree (see paths.go)
 
-	scans int // scan-dir tiebreaker (see NextScanDir)
+	scans  int     // scan-dir tiebreaker (see NextScanDir)
+	dbInfo *DBInfo // cached ReadDBInfo (one container read per client)
 }
 
 // ContainerName derives the stable per-repository container name.

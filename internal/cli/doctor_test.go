@@ -211,6 +211,34 @@ func TestDoctorFixRefusesDiskOnly(t *testing.T) {
 	}
 }
 
+// PR B: a log carrying db_updated events must replay through doctor without
+// drift and without corrupting state (the log-is-the-interrogation-surface
+// principle; db_updated folds as a known no-op kind).
+func TestDoctorReplayToleratesDBUpdated(t *testing.T) {
+	s := newCliTestStore(t)
+	base := time.Now().UTC().Truncate(time.Second)
+	mustAppend(t, s, testDetected(fp64("aaaa1111"), base))
+	sur, err := events.NewSurfaced(base, events.ActorOperator, events.PhaseBuild,
+		"cavet-engine:test", fp64("aaaa1111"), events.SurfacedData{Context: events.ContextPosture})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAppend(t, s, sur)
+	ev, err := events.NewDBUpdated(base.Add(time.Second), events.ActorOperator, events.PhaseBuild,
+		"cavet-engine:test", events.DBUpdatedData{Artifact: "vuln", Digest: "sha256:new",
+			UpdatedAt: base.Format(time.RFC3339), Source: "managed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAppend(t, s, ev)
+	if _, err := s.Rebuild(); err != nil {
+		t.Fatal(err)
+	}
+	if err := runDoctorReport(nil, nil); err != nil {
+		t.Fatalf("db_updated in the log must replay clean, got %v", err)
+	}
+}
+
 // The report path must never write into the real .cavet/: on a drifted store,
 // every state file is byte-identical before and after the run.
 func TestDoctorReportWritesNothing(t *testing.T) {

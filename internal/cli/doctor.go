@@ -5,9 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/ChaosChild/cavet/internal/config"
+	"github.com/ChaosChild/cavet/internal/engineclient"
+	"github.com/ChaosChild/cavet/internal/output"
 	"github.com/ChaosChild/cavet/internal/store"
 )
 
@@ -192,12 +196,48 @@ func runDoctorReport(_ *cobra.Command, _ []string) error {
 	}
 	d := diffState(disk, replayed)
 	printReport(disk, replayed, d)
+	printDBStaleness(s, loadConfig(s))
 	if d.found() {
 		// drift is the informational findings-present exit (spec §4, AXI 6):
 		// code 1 deliberately, never fail() which hardwires 2.
 		return &exitErr{code: 1, msg: "state/ disagrees with log/ (informational exit 1); 'cavet doctor fix' repairs log-derivable drift, 'cavet rebuild' rewrites unconditionally"}
 	}
 	return nil
+}
+
+// printDBStaleness renders the report-only advisory db section (D4): state
+// db.json only, no container contact, no bearing on the drift verdict or the
+// exit code. Doctor's drift logic stays untouched. Thresholds come from
+// config, matching the scan header's tiered wording.
+func printDBStaleness(s *store.Store, cfg config.Config) {
+	st, err := s.LoadDBState()
+	if err != nil {
+		fmt.Printf("advisory db: unreadable (%v)\n", err)
+		return
+	}
+	fmt.Println("advisory db:")
+	th := cfg.Engine.DB.AgeThresholds
+	for _, a := range engineclient.Artifacts(cfg.Engine.Variant) {
+		rec, ok := st.Artifacts[a.Name]
+		if !ok || rec.Digest == "" {
+			fmt.Printf("  %s: baked, age not recorded\n", a.Name)
+			continue
+		}
+		fmt.Printf("  %s: %s (advisories %s, %s)\n", a.Name, rec.Digest,
+			rec.UpdatedAt.Format("2006-01-02"),
+			output.DBStaleness(dbDays(rec.UpdatedAt), th.Note, th.Suggest, th.Alert))
+	}
+}
+
+// dbDays is the advisory age in whole days, -1 when no date is recorded.
+func dbDays(t time.Time) int {
+	if t.IsZero() {
+		return -1
+	}
+	if d := int(time.Since(t).Hours() / 24); d > 0 {
+		return d
+	}
+	return 0
 }
 
 func runDoctorFix(_ *cobra.Command, _ []string) error {

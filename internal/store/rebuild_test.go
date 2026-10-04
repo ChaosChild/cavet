@@ -464,3 +464,67 @@ func TestRebuildDisplayIDCollisionExtends(t *testing.T) {
 		t.Fatalf("colliding prefixes must extend: %q vs %q", a, b)
 	}
 }
+
+// PR B D3: db_updated events are known kinds, so replay folds them as
+// no-ops: no unknown-kind warning, no state corruption, detections before
+// and after the swap replay intact.
+func TestRebuildToleratesDBUpdated(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAppend := func(ev events.Event, err error) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Append(ev); err != nil {
+			t.Fatal(err)
+		}
+	}
+	det := func(ts time.Time, fp string, db string) events.Event {
+		ev, err := events.NewDetected(ts, events.ActorAgent, events.PhaseBuild, testEngine, fp,
+			events.DetectedData{Rule: "r", Severity: events.SevHigh, Path: "a.go", Line: 1,
+				Scanner: "trivy", DB: db})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ev
+	}
+	mustAppend(det(baseTS, fpA(), "sha256:old"), nil)
+	mustAppend(events.NewSurfaced(baseTS, events.ActorAgent, events.PhaseBuild, testEngine, fpA(),
+		events.SurfacedData{Context: events.ContextPosture}))
+	mustAppend(events.NewDBUpdated(baseTS.Add(time.Hour), events.ActorOperator, events.PhaseBuild, testEngine,
+		events.DBUpdatedData{Artifact: "vuln", Digest: "sha256:new", UpdatedAt: baseTS.Add(time.Hour).Format(time.RFC3339), Source: "managed"}))
+	mustAppend(det(baseTS.Add(2*time.Hour), fpB(), "sha256:new"), nil)
+	mustAppend(events.NewSurfaced(baseTS.Add(2*time.Hour), events.ActorAgent, events.PhaseBuild, testEngine, fpB(),
+		events.SurfacedData{Context: events.ContextPosture}))
+
+	st, err := s.Rebuild()
+	if err != nil {
+		t.Fatalf("replay must accept db_updated: %v", err)
+	}
+	if len(st.Findings) != 2 {
+		t.Fatalf("both findings replay: %d", len(st.Findings))
+	}
+
+	// Canonical round trip: the new kind survives decode byte-exact (old
+	// binaries would preserve it as an unknown kind, new ones decode it).
+	log, err := s.ReadLog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dbEvents int
+	for _, en := range log {
+		if en.Kind != events.DBUpdated {
+			continue
+		}
+		dbEvents++
+		d, ok := en.Payload().(events.DBUpdatedData)
+		if !ok || d.Digest != "sha256:new" || d.PreviousDigest != "" {
+			t.Fatalf("db_updated payload mismatch: %+v", en.Payload())
+		}
+	}
+	if dbEvents != 1 {
+		t.Fatalf("want one db_updated event, got %d", dbEvents)
+	}
+}

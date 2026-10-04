@@ -35,6 +35,7 @@ const (
 	Raised      Kind = "raised"
 	Resolved    Kind = "resolved"
 	Rebaselined Kind = "rebaselined"
+	DBUpdated   Kind = "db_updated"
 
 	VerdictConfirmed Verdict = "confirmed"
 	VerdictDismissed Verdict = "dismissed"
