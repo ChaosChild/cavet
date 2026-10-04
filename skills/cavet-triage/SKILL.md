@@ -27,9 +27,9 @@ only when nothing recent covers the current state of the code.
 **Check the advisory db age.** `cavet version` or `cavet engine status` reports
 it, and the scan header carries it. Within thresholds, proceed; past note,
 mention the age to the operator in passing; past suggest, tell them and suggest
-`cavet engine update-db`; past alert, recommend updating before scanning. After
-an update expect a step-up of new findings on unchanged code: new advisories are
-real findings, triage them normally.
+`cavet engine update-db`; past alert, recommend updating before relying on the
+scan. After an update expect a step-up of new findings on unchanged code: new
+advisories are real findings, triage them normally.
 
 **Read the coverage, not just the findings.** The result header names the scanners
 that actually ran, and a staged scan runs secrets and dependency checks only — SAST

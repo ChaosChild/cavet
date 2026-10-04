@@ -54,8 +54,8 @@ marker, and the operator can exclude them by setting `scanners.dev-deps: false`.
 Check the advisory db age before scanning (`cavet version` or `cavet engine
 status`): within thresholds, proceed; past note, mention it in passing; past
 suggest, tell the operator and suggest `cavet engine update-db`; past alert,
-recommend updating first. After an update, new findings on unchanged code are new
-advisories; triage them normally.
+recommend updating before relying on the scan. After an update, new findings on
+unchanged code are new advisories; triage them normally.
 
 **Container image scanning is opt-in.** It never mounts the Docker socket into the
 engine: each configured image is built host-side with `docker buildx`, saved to a

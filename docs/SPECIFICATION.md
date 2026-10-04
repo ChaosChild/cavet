@@ -298,7 +298,7 @@ any machine, on any architecture.
 
 Advisory databases are the other input, and they are **recorded** rather than
 pinned: they live in volumes refreshed only by the explicit `cavet engine update-db`
-(§7.5), and every scan records the advisory digests it ran with. Findings are a
+(§7.5), and every scan records the vuln DB digest it ran with. Findings are a
 function of (engine digest, DB digests, workspace), and a scan's inputs are
 reconstructible from what it recorded. Nothing drifts silently.
 
@@ -307,9 +307,11 @@ reconstructible from what it recorded. Nothing drifts silently.
 - Changing the engine digest is an explicit operation (`cavet rebaseline`) that
   emits a `rebaselined` event and regenerates the baseline. A DB bump never needs
   one: engine bytes are unchanged, and new advisories are new findings by design.
-- Fingerprints are advisory-scoped. An advisory range edit mints new fingerprints,
-  and the delta reports them as new findings, correct by design; the first update
-  on stale data therefore brings a one-time triage step-up.
+- Fingerprints key on the advisory id, not its ranges: a DB bump preserves
+  verdicts on still-matching advisories (a range edit on a known CVE only adds
+  locations), while advisory ids never seen in state mint new fingerprints and
+  arrive as new findings. That is the one-time step-up to expect on the first
+  update of stale data.
 - Offline and proxied environments are supported paths, not afterthoughts (§7.5).
 
 ---
@@ -880,29 +882,32 @@ java DB (when its volume exists) as OCI artifacts by digest, verifies each
 artifact's shape (manifest, single layer of the exact media type, metadata
 schema), stages and swaps it inside the advisory volume, and records the swap in
 state, the log and the `config.yaml` pin. The fetch is host-side and anonymous;
-the engine container stays offline, and each scan records the advisory digests it
-ran with (§3.4). A `db_updated` event lands in the log, so "when did the
+the engine container stays offline, and each scan records the vuln DB digest it
+ran with; the java DB digest is state-level, reconstructible from `db_updated`
+events (§3.4). A `db_updated` event lands in the log, so "when did the
 advisories change" is answerable from the log like every other question.
 
 Staleness is surfaced, not silent. `engine.db.age-thresholds` in `config.yaml`
 (note / suggest / alert, defaults 5 / 10 / 14 days, validated note < suggest <
 alert) sets the tiered wording: the scan header reports the advisory db age
 ("advisory db: N days old"), an aging note past the note threshold, an
-update-db hint past suggest, stale wording past alert. `cavet version` and `cavet engine status`
-report each artifact's digest and age from state; before the first update they
-read "baked, age not recorded". `cavet doctor` carries a report-only advisory-db
-section. The operator discipline the tiers encode: within the thresholds,
-proceed; past note, mention the age; past suggest, tell the operator and suggest
-`update-db`; past alert, recommend updating before relying on the scan. The
-first update on old data brings a one-time step-up of new findings on unchanged
-code: new advisories are new findings by design (§3.4).
+update-db hint past suggest, stale wording past alert. `cavet version` and
+`cavet engine status` report each artifact's digest and age from state; before
+the first update they read `db <artifact>: baked (engine image build), age not
+recorded`. `cavet doctor` carries a report-only advisory-db section. The
+operator discipline the tiers encode: within the thresholds, proceed; past
+note, mention the age; past suggest, tell the operator and suggest `update-db`;
+past alert, recommend updating before relying on the scan. The first update on
+old data brings a one-time step-up of new findings on unchanged code: new
+advisories are new findings by design (§3.4).
 
 - Vulnerability data is baked into the image where the tool supports it, so the
   default path needs no network at all.
 - Gitleaks and Opengrep were verified to run correctly with networking disabled and
   need no equivalent flags.
-- Proxy configuration and offline database paths are first-class `config.yaml`
-  options, passed through to the container.
+- Proxy configuration and database registry overrides are declared in
+  `config.yaml` (`network.*`) but not yet wired; `update-db` uses the host's
+  direct egress until they are.
 
 ### 7.6 Graceful degradation
 

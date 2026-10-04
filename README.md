@@ -168,7 +168,8 @@ derives from those rules is not – see the [licence table](#licence).
 **Advisory databases stay fresh without rebuilding the engine.** Trivy's
 databases ship baked into the image but live in volumes; `cavet engine update-db`
 swaps in the latest advisories as digest-verified OCI artifacts while the engine
-stays offline, and every scan records the advisory digests it ran with. `cavet
+stays offline, and every scan records the vulnerability-database digest it ran
+with. `cavet
 version` and `cavet engine status` report each database's digest and age, scan
 output shows "advisory db: N days old" with tiered wording past the configured
 thresholds (`engine.db.age-thresholds`, defaults 5/10/14 days), and `cavet
@@ -198,7 +199,7 @@ repository's.
 | `log/` | yes – the append-only audit trail (`.gitattributes` sets `merge=union` on it) |
 | `config.yaml` | yes – engine variant + digest pin |
 | `design/` | yes – design decisions |
-| `state/`, `cache/`, `reports/` | no – derived; `cavet rebuild` regenerates them |
+| `state/`, `cache/`, `reports/` | no – derived; `cavet rebuild` regenerates them (`state/db.json` aside: per-host advisory bookkeeping written by `cavet engine update-db`) |
 
 The scaffolded `.gitignore` already excludes the derived directories. Never
 edit `log/` by hand – the CLI is its only author.
