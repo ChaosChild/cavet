@@ -42,7 +42,7 @@ ignored: trivy v0.74.0 does not compile on Go 1.27 because the revised
 encoding/json/v2 experiment dropped json.SkipFunc, and the engine builds
 trivy with GOEXPERIMENT=jsonv2 to mirror the upstream release build.
 Revisit when trivy ships past 0.74.0; also check whether that release
-carries grpc 1.83.1 or newer, which would let the engine flip back to
+carries grpc 1.83.2 or newer, which would let the engine flip back to
 release tarballs instead of source builds.
 
 ### `cavet import`
