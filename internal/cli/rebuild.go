@@ -67,7 +67,7 @@ func newRebaselineCmd() *cobra.Command {
 			cfg := loadConfig(s)
 			root, _ := repoRoot()
 			ref := engineRef(cfg)
-			c := engineclient.New(ref, cfg.Engine.Digest, root)
+			c := engineclient.New(ref, cfg.Engine.Digest, root, cfg.Engine.Variant)
 
 			// A subagent cannot be asked; rebaseline changes debt accounting —
 			// operator-only in practice (cli-spec §5).

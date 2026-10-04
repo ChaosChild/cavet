@@ -59,9 +59,9 @@ func TestPruneRemovesOrphanKeepsLive(t *testing.T) {
 	}
 	aliveRoot := t.TempDir()
 
-	orphan := New(devImage, "", goneRoot)
-	alive := New(devImage, "", aliveRoot)
-	pruner := New(devImage, "", t.TempDir()) // self; container never created
+	orphan := New(devImage, "", goneRoot, "core")
+	alive := New(devImage, "", aliveRoot, "core")
+	pruner := New(devImage, "", t.TempDir(), "core") // self; container never created
 	for _, c := range []*Client{orphan, alive, pruner} {
 		t.Cleanup(func() {
 			cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -58,7 +58,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	cfg := loadConfig(s)
 	root, _ := repoRoot()
 	ref := engineRef(cfg)
-	c := engineclient.New(ref, cfg.Engine.Digest, root)
+	c := engineclient.New(ref, cfg.Engine.Digest, root, cfg.Engine.Variant)
 	images := cfg.Scan.ContainerImages.Dockerfiles(root)
 	// image or images configured is the conservative proxy for the pipeline's
 	// image-phase trigger; those runs build scanners from source and pull

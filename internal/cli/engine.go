@@ -26,7 +26,7 @@ func newEngineCmd() *cobra.Command {
 			}
 			cfg := loadConfig(s)
 			root, _ := repoRoot()
-			c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root)
+			c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root, cfg.Engine.Variant)
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 			entries, err := c.Prune(ctx, all)
@@ -64,7 +64,7 @@ func newEngineCmd() *cobra.Command {
 				}
 				cfg := loadConfig(s)
 				root, _ := repoRoot()
-				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root)
+				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root, cfg.Engine.Variant)
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 				defer cancel()
 				running, healthy, imageID, err := c.Status(ctx)
@@ -97,7 +97,7 @@ func newEngineCmd() *cobra.Command {
 				}
 				cfg := loadConfig(s)
 				root, _ := repoRoot()
-				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root)
+				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root, cfg.Engine.Variant)
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 				defer cancel()
 				if err := c.EnsureRunning(ctx); err != nil {
@@ -117,7 +117,7 @@ func newEngineCmd() *cobra.Command {
 				}
 				cfg := loadConfig(s)
 				root, _ := repoRoot()
-				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root)
+				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root, cfg.Engine.Variant)
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 				defer cancel()
 				if err := c.Remove(ctx); err != nil {
@@ -138,7 +138,7 @@ func newEngineCmd() *cobra.Command {
 				cfg := loadConfig(s)
 				root, _ := repoRoot()
 				ref := engineRef(cfg)
-				c := engineclient.New(ref, cfg.Engine.Digest, root)
+				c := engineclient.New(ref, cfg.Engine.Digest, root, cfg.Engine.Variant)
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 				defer cancel()
 				old, _ := c.ImageDigest(ctx, ref)
@@ -172,7 +172,7 @@ func newEngineCmd() *cobra.Command {
 				}
 				cfg := loadConfig(s)
 				root, _ := repoRoot()
-				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root)
+				c := engineclient.New(engineRef(cfg), cfg.Engine.Digest, root, cfg.Engine.Variant)
 				ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
 				defer cancel()
 				if err := c.EnsureRunning(ctx); err != nil {

@@ -129,19 +129,33 @@ func TestMountsStaleAndBindDest(t *testing.T) {
 		}
 	}
 	stale := []struct {
-		wantGitMeta bool
-		binds       []string
-		stale       bool
+		name  string
+		want  []string
+		have  []string
+		stale bool
 	}{
-		{true, nil, true}, // worktree, pre-fix container: no /gitmeta
-		{true, []string{"C:/r:/workspace"}, true},
-		{true, []string{"C:/r:/workspace", "C:/r/.git:/gitmeta:ro"}, false},
-		{false, []string{"C:/r:/workspace"}, false}, // normal repo, as created today
-		{false, []string{"/r:/workspace", "/r/.git:/gitmeta:ro"}, true},
+		{"worktree, pre-fix container: no /gitmeta",
+			[]string{"C:/r:/workspace", "C:/r/.git:/gitmeta:ro", "cavet-trivy-db:/opt/trivy-cache/db"},
+			[]string{"C:/r:/workspace"}, true},
+		{"worktree container as created today",
+			[]string{"C:/r:/workspace", "C:/r/.git:/gitmeta:ro", "cavet-trivy-db:/opt/trivy-cache/db"},
+			[]string{"C:/r:/workspace", "C:/r/.git:/gitmeta:ro", "cavet-trivy-db:/opt/trivy-cache/db"}, false},
+		{"normal repo, as created today",
+			[]string{"C:/r:/workspace", "cavet-trivy-db:/opt/trivy-cache/db"},
+			[]string{"C:/r:/workspace", "cavet-trivy-db:/opt/trivy-cache/db"}, false},
+		{"normal repo with a leftover /gitmeta fix-up",
+			[]string{"C:/r:/workspace", "cavet-trivy-db:/opt/trivy-cache/db"},
+			[]string{"/r:/workspace", "/r/.git:/gitmeta:ro", "cavet-trivy-db:/opt/trivy-cache/db"}, true},
+		{"pre-advisory container: no volume bind",
+			[]string{"C:/r:/workspace", "cavet-trivy-db:/opt/trivy-cache/db"},
+			[]string{"C:/r:/workspace"}, true},
+		{"full variant missing the java-db volume",
+			[]string{"C:/r:/workspace", "cavet-trivy-db:/opt/trivy-cache/db", "cavet-trivy-java-db:/opt/trivy-cache/java-db"},
+			[]string{"C:/r:/workspace", "cavet-trivy-db:/opt/trivy-cache/db"}, true},
 	}
 	for _, c := range stale {
-		if got := mountsStale(c.wantGitMeta, c.binds); got != c.stale {
-			t.Errorf("mountsStale(%v, %v) = %v want %v", c.wantGitMeta, c.binds, got, c.stale)
+		if got := mountsStale(c.want, c.have); got != c.stale {
+			t.Errorf("%s: mountsStale(%v, %v) = %v want %v", c.name, c.want, c.have, got, c.stale)
 		}
 	}
 }
@@ -178,7 +192,7 @@ const devImage = "cavet-engine:dev"
 
 func newClient(t *testing.T) *Client {
 	t.Helper()
-	c := New(devImage, "", t.TempDir())
+	c := New(devImage, "", t.TempDir(), "core")
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -283,7 +297,7 @@ func TestDigestDriftIsHardStop(t *testing.T) {
 		t.Fatalf("EnsureRunning: %v", err)
 	}
 
-	drifted := New(devImage, "sha256:0000000000000000000000000000000000000000000000000000000000000000", c.root)
+	drifted := New(devImage, "sha256:0000000000000000000000000000000000000000000000000000000000000000", c.root, "core")
 	err := drifted.EnsureRunning(ctx)
 	if err == nil {
 		t.Fatal("digest drift must hard-stop")
@@ -323,7 +337,7 @@ func TestWorktreeContainerMountAndRecreate(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	c := New(devImage, "", wt)
+	c := New(devImage, "", wt, "core")
 	requireDaemon(t, c)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -356,7 +370,7 @@ func TestWorktreeContainerMountAndRecreate(t *testing.T) {
 	if err := c.EnsureRunning(ctx); err != nil {
 		t.Fatalf("EnsureRunning: %v", err)
 	}
-	if mountsStale(true, binds()) {
+	if mountsStale(c.binds(), binds()) {
 		t.Fatalf("worktree container must mount /gitmeta: %v", binds())
 	}
 	if got := staged(); got != "staged.txt" {
@@ -381,7 +395,7 @@ func TestWorktreeContainerMountAndRecreate(t *testing.T) {
 	if err := c.EnsureRunning(ctx); err != nil {
 		t.Fatalf("EnsureRunning must recreate the stale container: %v", err)
 	}
-	if mountsStale(true, binds()) {
+	if mountsStale(c.binds(), binds()) {
 		t.Fatalf("recreated container must mount /gitmeta: %v", binds())
 	}
 	if got := staged(); got != "staged.txt" {
