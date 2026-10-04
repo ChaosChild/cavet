@@ -51,10 +51,19 @@ on staged and full scans alike. Dev dependencies are scanned by default
 (`scanners.dev-deps`, default on); findings in a dev dependency chain carry a `+`
 marker, and the operator can exclude them by setting `scanners.dev-deps: false`.
 
-**Container image scanning is opt-in** because it mounts the Docker socket into the
-engine — a real privilege escalation. Do not enable it on your own; tell the operator
-it exists, what it costs, and let them decide in `config.yaml`. Filesystem and
-config scanning need no such access and are always on.
+Check the advisory db age before scanning (`cavet version` or `cavet engine
+status`): within thresholds, proceed; past note, mention it in passing; past
+suggest, tell the operator and suggest `cavet engine update-db`; past alert,
+recommend updating before relying on the scan. After an update, new findings on
+unchanged code are new advisories; triage them normally.
+
+**Container image scanning is opt-in.** It never mounts the Docker socket into the
+engine: each configured image is built host-side with `docker buildx`, saved to a
+tar, and scanned inside the offline engine from that tar. It is opt-in because
+builds run on the host daemon and a first build of a changed image takes minutes.
+Do not enable it on your own; tell the operator it exists, what it costs, and let
+them decide in `config.yaml`. Filesystem and config scanning run entirely inside
+the engine and are always on.
 
 ## Leave a trace
 

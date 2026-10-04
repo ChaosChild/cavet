@@ -135,7 +135,9 @@ purpose (§7.2).
 ### 3.1 The log is the source of truth
 
 `log/` is **append-only** and authoritative. Everything in `state/` is a derived
-cache, regenerable with `cavet rebuild`.
+cache, regenerable with `cavet rebuild`, except `state/db.json`: advisory-database
+bookkeeping written by `cavet engine update-db` (§7.5), per-host and never replayed
+from the log.
 
 Three reasons this matters: append-only files produce clean, readable diffs; nothing
 can desync state from history; and "why was this dismissed three weeks ago" always has
@@ -169,6 +171,7 @@ an answer.
 | `raised` | An open item created — a design concern or a verification request (`kind` discriminates) |
 | `resolved` | An open item closed, with the decision or answer |
 | `rebaselined` | Engine image changed; baseline regenerated |
+| `db_updated` | An advisory database swapped by `cavet engine update-db`: which artifact moved to which digest, and the date of the advisories it now holds |
 
 `actor` is `agent` or `operator`. Both write to the same log.
 
@@ -186,6 +189,7 @@ the `events` package:
 | `raised` | `kind` (`design` \| `verification`), `question`, and for `verification` the `fingerprint` of the finding it concerns |
 | `resolved` | `answer`, `sources[]` |
 | `rebaselined` | `from_digest`, `to_digest`, `reason` |
+| `db_updated` | `artifact` (`vuln` \| `java-db`), `digest`, `previous_digest` (empty on the first swap off the baked bytes), `updated_at`, `source` |
 
 `sources[]` carries the identifiers and canonical URLs behind a decision (§5.3).
 
@@ -288,13 +292,26 @@ semantics: `.dockerignore` is the exclusion mechanism.
 If scanner rules or vulnerability databases drift between runs, the delta becomes
 noise and stops being trustworthy.
 
-The engine image digest solves this by construction. One pinned digest is one exact
-set of scanner binaries, rule sets, and bundled vulnerability data — reproducible on
+The engine image digest covers the scanner half by construction. One pinned digest
+is one exact set of scanner binaries, rule sets, and policy bundles, reproducible on
 any machine, on any architecture.
 
-- The digest is pinned in `config.yaml` and recorded on every event and report.
-- Changing it is an explicit operation (`cavet rebaseline`) that emits a
-  `rebaselined` event and regenerates the baseline.
+Advisory databases are the other input, and they are **recorded** rather than
+pinned: they live in volumes refreshed only by the explicit `cavet engine update-db`
+(§7.5), and every scan records the vuln DB digest it ran with. Findings are a
+function of (engine digest, DB digests, workspace), and a scan's inputs are
+reconstructible from what it recorded. Nothing drifts silently.
+
+- The engine digest is pinned in `config.yaml` and recorded on every event and
+  report; each `update-db` run pins the advisory digests the same way.
+- Changing the engine digest is an explicit operation (`cavet rebaseline`) that
+  emits a `rebaselined` event and regenerates the baseline. A DB bump never needs
+  one: engine bytes are unchanged, and new advisories are new findings by design.
+- Fingerprints key on the advisory id, not its ranges: a DB bump preserves
+  verdicts on still-matching advisories (a range edit on a known CVE only adds
+  locations), while advisory ids never seen in state mint new fingerprints and
+  arrive as new findings. That is the one-time step-up to expect on the first
+  update of stale data.
 - Offline and proxied environments are supported paths, not afterthoughts (§7.5).
 
 ---
@@ -380,12 +397,13 @@ cavet debt [--severity <level>] [--all]   # pre-existing baseline, undecided row
 cavet log [--since <date>] [--fingerprint <id>] [--limit <n>]
 cavet lookup <identifier>... [--refresh]   # advisory / rule lookup, allowlisted sources
 cavet items                         # open items: design concerns + verification requests
-cavet engine (status|start|stop|pull|prune|shell)   # prune: remove containers whose repo root is gone
+cavet engine (status|start|stop|pull|prune|shell|update-db)   # prune: remove containers whose repo root is gone
 cavet rebuild                       # regenerate state/ from log/
 cavet doctor                        # replay the log, diff state/ against it; exit 1 = drift present (informational)
 cavet doctor fix                    # repair log-derivable drift; refuses rows the log cannot regenerate
 cavet serve [--port <port>]         # loopback dashboard (default 8765)
 cavet rebaseline                    # after a deliberate engine image change
+cavet version                       # cavet, engine, advisory db digests + ages (no container, no network)
 cavet describe --json               # machine contract for third-party installers
 cavet update [--check]              # in-place self-update from GitHub releases
 ```
@@ -734,12 +752,23 @@ otherwise have supplied, so ASH is not adopted.
 
 ### 7.2.1 Image build
 
-**Everything is baked in at build time.** No runtime installation, no entrypoint that
-fetches scanners on first load, no cache volume. The digest determines the contents
-completely — that is the whole basis of §3.4, and any runtime fetch would demote
+**Scanners, rule sets and policy bundles are baked in at build time.** No runtime
+installation, no entrypoint that fetches scanners on first load. The digest
+determines those contents completely: that is the whole basis of §3.4, and any
+runtime fetch would demote
 repeatability from a property of the image to a property of a script holding its
 version pins, with per-artefact checksums needed to make it stick. That is a lockfile
 reimplementing what the image already provides.
+
+Advisory databases are the deliberate exception: baked into the image as seed
+bytes, but living in named volumes so they refresh without a rebuild. Two volumes:
+`cavet-trivy-db`, mounted at `/opt/trivy-cache/db` on both variants, and
+`cavet-trivy-java-db`, mounted at `/opt/trivy-cache/java-db` on `full` only. A
+fresh volume self-seeds from the baked bytes on first mount (copy-on-first-mount),
+so a new checkout scans with baked data and no download; a container created before
+the volumes existed is transparently recreated once to pick up the binds. Only
+`cavet engine update-db` (§7.5) changes volume contents after that. The image bytes
+never change.
 
 It also keeps the default path fully offline (§7.5), which a first-run download step
 would break — a proxied environment hanging on scanner downloads is precisely the
@@ -839,24 +868,46 @@ Trivy is invoked with **`--skip-db-update --skip-check-update --offline-scan`**,
 are mandatory. So invoked, the same scan completes offline in 1.8s and reports all 39
 findings from the measurement fixture.
 
-**The first reason for these flags is determinism, not offline support.** §3.4 rests
-on the engine digest pinning one exact set of scanner binaries, rule sets *and
-vulnerability data*. A Trivy that silently refreshes its database at runtime breaks
-that guarantee without any visible symptom: the digest is unchanged, the delta is not
-reproducible, and nothing in the output says so. The flags are what make the digest
-mean what §3.4 claims it means.
+**The first reason for these flags is determinism, not offline support.** §3.4
+rests on every scan input being pinned (scanner binaries, rule sets, policy
+bundles) or recorded (advisory digests). A Trivy that silently refreshes its
+database at runtime breaks that without any visible symptom: the recorded digest no
+longer describes the database the scan used, and nothing in the output says so.
+The flags are what make a recorded advisory digest mean what §3.4 claims it means.
 
-Consequently the vulnerability data is refreshed by **rebuilding and re-digesting the
-image**, which is a reviewable change to `engine/digest.txt`, and never by a scanner
-updating itself mid-scan. Data staleness is bounded by image release cadence and is
-visible; `cavet engine status` reports the baked database's build date.
+Consequently the vulnerability data is refreshed by **`cavet engine update-db`**,
+an explicit, digest-verified, operator-initiated command, and never by a scanner
+updating itself mid-scan. It pulls the trivy vulnerability DB (always) and the
+java DB (when its volume exists) as OCI artifacts by digest, verifies each
+artifact's shape (manifest, single layer of the exact media type, metadata
+schema), stages and swaps it inside the advisory volume, and records the swap in
+state, the log and the `config.yaml` pin. The fetch is host-side and anonymous;
+the engine container stays offline, and each scan records the vuln DB digest it
+ran with; the java DB digest is state-level, reconstructible from `db_updated`
+events (§3.4). A `db_updated` event lands in the log, so "when did the
+advisories change" is answerable from the log like every other question.
+
+Staleness is surfaced, not silent. `engine.db.age-thresholds` in `config.yaml`
+(note / suggest / alert, defaults 5 / 10 / 14 days, validated note < suggest <
+alert) sets the tiered wording: the scan header reports the advisory db age
+("advisory db: N days old"), an aging note past the note threshold, an
+update-db hint past suggest, stale wording past alert. `cavet version` and
+`cavet engine status` report each artifact's digest and age from state; before
+the first update they read `db <artifact>: baked (engine image build), age not
+recorded`. `cavet doctor` carries a report-only advisory-db section. The
+operator discipline the tiers encode: within the thresholds, proceed; past
+note, mention the age; past suggest, tell the operator and suggest `update-db`;
+past alert, recommend updating before relying on the scan. The first update on
+old data brings a one-time step-up of new findings on unchanged code: new
+advisories are new findings by design (§3.4).
 
 - Vulnerability data is baked into the image where the tool supports it, so the
   default path needs no network at all.
 - Gitleaks and Opengrep were verified to run correctly with networking disabled and
   need no equivalent flags.
-- Proxy configuration and offline database paths are first-class `config.yaml`
-  options, passed through to the container.
+- Proxy configuration and database registry overrides are declared in
+  `config.yaml` (`network.*`) but not yet wired; `update-db` uses the host's
+  direct egress until they are.
 
 ### 7.6 Graceful degradation
 
@@ -954,8 +1005,8 @@ from its own knowledge, look it up, ask the operator, or judge it not worth purs
 and the fingerprint of the finding it concerns, producing a `raised` event. The parent
 closes it with `cavet resolve`, producing a `resolved` event carrying the answer and
 any sources. This is the same lifecycle
-design-phase concerns use, which is why both appear in `cavet items` — and it is why
-no tenth event type is needed.
+design-phase concerns use, which is why both appear in `cavet items`; it is why
+verification items need no event type of their own.
 
 **Disposition.** A finding awaiting verification is triaged `confirmed` with
 `confidence: low` and surfaced normally. Uncertainty is visible to the operator rather
@@ -1022,7 +1073,7 @@ package managers are cheap to add later. No runtime for the operator to install.
 
 ### 10.2 Type discipline
 
-Go's weakness for this program is the data model — nine event types, a verdict enum,
+Go's weakness for this program is the data model: ten event types, a verdict enum,
 severity levels, and a scan-scope union, none of which the compiler will check
 exhaustively.
 
