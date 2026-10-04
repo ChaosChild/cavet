@@ -3,8 +3,8 @@ package engineclient
 import (
 	"archive/tar"
 	"bytes"
-	"context"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http/httptest"
@@ -305,11 +305,18 @@ func TestDBStampJSONShape(t *testing.T) {
 
 // TestUpdateDBSwapLifecycle drives the full fetch-stage-swap-verify pipeline
 // against a real container, with a fake artifact served from the loopback
-// registry and a scratch CachePath: the host's real advisory volumes are
-// never touched. Docker-gated like the other integration tests.
+// registry and a scratch CachePath: the swapped bytes are isolated from the
+// host's real advisory data, but the container still mounts the real
+// cavet-trivy-db named volume, which self-seeds from the dev image's baked
+// cache on first mount. Docker-gated like the other integration tests.
 func TestUpdateDBSwapLifecycle(t *testing.T) {
 	c := New(devImage, "", t.TempDir(), "core")
 	requireDaemon(t, c)
+	t.Cleanup(func() {
+		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccancel()
+		_ = c.Remove(cctx)
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -320,7 +327,7 @@ func TestUpdateDBSwapLifecycle(t *testing.T) {
 
 	a := vulnDB
 	a.Repos = []string{host + "/aquasec/trivy-db"}
-	a.CachePath = "/tmp/cavet-db-test" // scratch: no real volume behind it
+	a.CachePath = "/tmp/cavet-db-test" // scratch: swapped bytes stay out of the volume
 	digest := pushDBImage(t, host, "aquasec/trivy-db", dbFixtureTar(t, "trivy.db", meta),
 		types.MediaType(a.LayerMedia), types.OCIManifestSchema1, false)
 

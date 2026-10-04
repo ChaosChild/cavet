@@ -192,12 +192,12 @@ func newEngineCmd() *cobra.Command {
 				if err != nil {
 					return fail("docker binary not on PATH (needed only for engine shell)")
 				}
-			shell := exec.Command(docker, "exec", "-it", c.Name(), "sh")
-			shell.Stdin, shell.Stdout, shell.Stderr = os.Stdin, os.Stdout, os.Stderr
-			return shell.Run()
+				shell := exec.Command(docker, "exec", "-it", c.Name(), "sh")
+				shell.Stdin, shell.Stdout, shell.Stderr = os.Stdin, os.Stdout, os.Stderr
+				return shell.Run()
+			},
 		},
-	},
-	newEngineDBCmd(),
+		newEngineDBCmd(),
 	)
 	return cmd
 }

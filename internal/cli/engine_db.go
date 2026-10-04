@@ -104,30 +104,22 @@ func runEngineUpdateDB() error {
 	return nil
 }
 
-// recordDBUpdate writes the new digest into config.yaml and the swap record
-// into state/db.json under the store lock. Our file, no operator comments to
-// preserve (init.go's recordDigest convention), but marshaled from the
-// loaded config so pre-scaffold configs without the db keys migrate on
-// first update instead of failing a placeholder match.
+// recordDBUpdate writes the swap record into state/db.json and the new
+// digest into config.yaml, in that order, under the store lock. Order is
+// load-bearing: a failure between the two writes leaves the config pin
+// stale, so the next run re-fetches (digest != pin) and rewrites both; pin
+// first would short-circuit the next run and strand state/db.json in the
+// baked era forever. Our file, no operator comments to preserve (init.go's
+// recordDigest convention), but marshaled from the loaded config so
+// pre-scaffold configs without the db keys migrate on first update instead
+// of failing a placeholder match. Both writes are atomic (store/atomic.go):
+// a torn config.yaml would fail the strict loader for every later command.
 func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact, sw engineclient.Swap) error {
 	rel, err := s.Lock()
 	if err != nil {
 		return err
 	}
 	defer rel()
-
-	if a.Name == "java-db" {
-		cfg.Engine.JavaDB.Digest = sw.Digest
-	} else {
-		cfg.Engine.DB.Digest = sw.Digest
-	}
-	b, err := yaml.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(s.Cavet, "config.yaml"), b, 0o644); err != nil {
-		return err
-	}
 
 	st, err := s.LoadDBState()
 	if err != nil {
@@ -142,7 +134,20 @@ func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact,
 		SwappedAt: sw.SwappedAt,
 		Source:    "managed",
 	}
-	return s.WriteDBState(st)
+	if err := s.WriteDBState(st); err != nil {
+		return err
+	}
+
+	if a.Name == "java-db" {
+		cfg.Engine.JavaDB.Digest = sw.Digest
+	} else {
+		cfg.Engine.DB.Digest = sw.Digest
+	}
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return store.AtomicWrite(filepath.Join(s.Cavet, "config.yaml"), b)
 }
 
 // dbAge/humanSize moved: dbAge lives in version.go with the other advisory
