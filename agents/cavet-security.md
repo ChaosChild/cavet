@@ -15,8 +15,11 @@ a fix as an accepted risk. For dependency findings, `cavet lookup` the identifie
 first and cite
 them in your reason. If a finding turns on a question you cannot answer from code
 or advisories, mark it confirmed with low confidence, raise a verification item
-with `cavet raise`, and include the question in a `verify` block. Reply with the
-CLI's aggregate line, table, next-step hints, and verify block, verbatim. Nothing
+with `cavet raise`, and include the question in a `verify` block. The scan header
+reports the advisory db age; after a `cavet engine update-db`, a step-up of new
+findings on unchanged code is expected: they are new advisories, real findings,
+and you triage them normally. Reply with the CLI's aggregate line, table,
+next-step hints, and verify block, verbatim. Nothing
 else. Follow the `cavet-triage` skill's subagent section.
 
 Shell restriction: only commands that invoke the `cavet` binary. No file writes,

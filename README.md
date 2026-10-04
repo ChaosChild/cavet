@@ -58,7 +58,9 @@ Two properties, both structural rather than promised:
 
 - **Scanning runs with the network off.** The engine container is created with
   `NetworkMode: none`, enforced in `internal/engineclient/client.go` and pinned
-  by CI tests; no scanner tier needs egress.
+  by CI tests; no scanner tier needs egress. Advisory database updates (`cavet
+  engine update-db`) are fetched host-side and swapped into the engine's volumes;
+  the engine container never gets network.
 - **`cavet lookup` accepts identifiers only** – CVE, GHSA and OSV ids, package
   coordinates, rule ids, CWE references. A command whose only parameters are
   identifiers structurally cannot carry a code snippet, a file path, or a secret.
@@ -69,9 +71,9 @@ What your agent does with your code afterwards is outside cavet's mandate.
 
 `/security-review` is prose plus a model reading the diff. Aikido's plugin and
 Semgrep Guardian are commercial scanners wired into the agent loop. cavet is
-deterministic scanners plus advisory skills, with verdicts recorded in a log
-the repository owns. [docs/COMPARISON.md](docs/COMPARISON.md) carries the full
-comparison: what each tool is, which scanners run, where code goes, what
+deterministic scanners plus advisory skills, with advisory-database digests and
+verdicts recorded in a log the repository owns. [docs/COMPARISON.md](docs/COMPARISON.md)
+carries the full comparison: what each tool is, which scanners run, where code goes, what
 persists between sessions, what it costs.
 
 ## Installation
@@ -126,7 +128,8 @@ back at their own channel.
 
 Nothing to install by hand: `cavet init` pulls the engine image,
 `ghcr.io/chaoschild/cavet-engine` – public, multi-arch (`linux/amd64`,
-`linux/arm64`), and digest-pinned into `.cavet/config.yaml` on first run.
+`linux/arm64`), and digest-pinned into `.cavet/config.yaml` on first run;
+`cavet engine update-db` pins the advisory databases there the same way.
 
 - Two variants: **core** (default – secrets, dependencies, SAST) and **full**
   (adds Trivy's Java vulnerability database); set `engine.variant` in
@@ -161,6 +164,17 @@ remain gitleaks' and trivy's job, and its findings arrive at medium severity
 (checkov's SARIF carries no per-check severity). The Opengrep rule corpus is
 LGPL-2.1 + Commons Clause: using cavet is fine, selling a service whose value
 derives from those rules is not – see the [licence table](#licence).
+
+**Advisory databases stay fresh without rebuilding the engine.** Trivy's
+databases ship baked into the image but live in volumes; `cavet engine update-db`
+swaps in the latest advisories as digest-verified OCI artifacts while the engine
+stays offline, and every scan records the advisory digests it ran with. `cavet
+version` and `cavet engine status` report each database's digest and age, scan
+output shows "advisory db: N days old" with tiered wording past the configured
+thresholds (`engine.db.age-thresholds`, defaults 5/10/14 days), and `cavet
+doctor` carries a report-only advisory-db section. Expect a one-time step-up of
+new findings after the first update on stale data: new advisories against
+unchanged code are new findings by design.
 
 ### `cavet init`
 
@@ -355,6 +369,7 @@ scoop install cavet
 | `doctor` | replays the log and diffs state/ against it; doctor fix repairs log-derivable drift, refuses the rest |
 | `serve` | Dashboard on loopback: posture, findings, metrics (`--port`) |
 | `describe` | Machine contract for third-party installers |
+| `version` | cavet, engine, and advisory database versions: digests and ages, no container or network |
 | `update` | Update the cavet binary in place from GitHub releases, checksum and Sigstore verified |
 
 Judgement lives in the skills: `cavet-design`, `cavet-design-review`,
