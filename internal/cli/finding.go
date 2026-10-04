@@ -111,13 +111,23 @@ func excerpt(e events.Event) string {
 	case events.RebaselinedData:
 		return d.Reason
 	case events.DBUpdatedData:
-		// previous_digest absent on the first-ever swap (baked era): the
-		// current digest alone tells the story, full so it can be compared
-		// against the config pin.
+		// previous_digest absent on the first-ever swap (baked era): no
+		// previous digest exists to name. Digests render short: the log row
+		// truncates at 60 bytes, so a full 71-char digest would be cut
+		// mid-hex; the config pin keeps the full value for comparison.
 		if d.PreviousDigest != "" {
-			return d.Artifact + ": " + d.PreviousDigest + " → " + d.Digest
+			return d.Artifact + ": " + shortDigest(d.PreviousDigest) + " → " + shortDigest(d.Digest)
 		}
-		return d.Artifact + ": " + d.Digest
+		return d.Artifact + ": " + shortDigest(d.Digest)
 	}
 	return ""
+}
+
+// shortDigest renders an advisory digest short enough for a log row:
+// "sha256:" plus 12 hex, ellipsis when longer.
+func shortDigest(d string) string {
+	if len(d) > 19 {
+		return d[:19] + "…"
+	}
+	return d
 }

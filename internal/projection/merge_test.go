@@ -237,4 +237,17 @@ func TestDBDerivedMarkerIsNotAFingerprintInput(t *testing.T) {
 	if marked != 1 {
 		t.Fatalf("exactly the vulnerability row is marked, got %d of %v", marked, fs)
 	}
+
+	// Image rows are advisory package matches by construction: every parsed
+	// row must carry the marker, pinned so a parser refactor cannot silently
+	// un-mark image findings.
+	img := parseFixture(t, "../finding/testdata/trivy-image.sarif", "trivy-image", "Dockerfile")
+	if len(img) == 0 {
+		t.Fatal("image fixture parsed empty")
+	}
+	for _, f := range img {
+		if !f.DB {
+			t.Fatalf("image package row must carry the DB marker: %+v", f)
+		}
+	}
 }

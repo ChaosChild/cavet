@@ -105,20 +105,26 @@ func runEngineUpdateDB() error {
 	return nil
 }
 
-// recordDBUpdate writes the swap record into state/db.json and the new
-// digest into config.yaml, in that order, then appends the db_updated event
-// (D3), all under the store lock (artefact §7.1): the rebaseline emission in
-// cli/rebuild.go is the precedent for appending inside the lock window. Order
-// is load-bearing: a failure between the two writes leaves the config pin
-// stale, so the next run re-fetches (digest != pin) and rewrites both; pin
-// first would short-circuit the next run and strand state/db.json in the
-// baked era forever. Our file, no operator comments to preserve (init.go's
-// recordDigest convention), but marshaled from the loaded config so
-// pre-scaffold configs without the db keys migrate on first update instead
-// of failing a placeholder match. Both writes are atomic (store/atomic.go):
-// a torn config.yaml would fail the strict loader for every later command.
-// The db_updated event is the log's answer to "when did the world change";
-// state/db.json alone could not replay it after a rebuild.
+// recordDBUpdate writes the swap into three places, in order, all under the
+// store lock (artefact §7.1): state/db.json, then the db_updated event (D3),
+// then the config.yaml pin. The rebaseline emission in cli/rebuild.go is the
+// precedent for appending inside the lock window, and the order is
+// load-bearing in the same direction everywhere: the pin is last because it
+// short-circuits the next run ("already current"), so it may land only after
+// everything else has. A failure on the way there (event append, config
+// write) leaves the pin stale, so the next run re-fetches (digest != pin) and
+// redoes the whole sequence; a re-appended db_updated after such a retry is a
+// truthful, replay-safe duplicate (the log records what happened twice), and
+// an event-first order also matches the scan path's precedence (scan.Run
+// appends events before WriteState). Pin anywhere earlier would strand
+// state/db.json in the baked era and silence the event forever. Our file, no
+// operator comments to preserve (init.go's recordDigest convention), but
+// marshaled from the loaded config so pre-scaffold configs without the db
+// keys migrate on first update instead of failing a placeholder match. The
+// state and pin writes are atomic (store/atomic.go): a torn config.yaml
+// would fail the strict loader for every later command. The db_updated event
+// is the log's answer to "when did the world change"; state/db.json alone
+// could not replay it after a rebuild.
 func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact, sw engineclient.Swap) error {
 	rel, err := s.Lock()
 	if err != nil {
@@ -149,14 +155,6 @@ func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact,
 	} else {
 		cfg.Engine.DB.Digest = sw.Digest
 	}
-	b, err := yaml.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-	if err := store.AtomicWrite(filepath.Join(s.Cavet, "config.yaml"), b); err != nil {
-		return err
-	}
-
 	d := events.DBUpdatedData{Artifact: a.Name, Digest: sw.Digest,
 		UpdatedAt: sw.UpdatedAt.UTC().Format(time.RFC3339), Source: "managed"}
 	// PreviousDigest stays empty on the baked era: no digest record exists to
@@ -169,7 +167,15 @@ func recordDBUpdate(s *store.Store, cfg *config.Config, a engineclient.Artifact,
 	if err != nil {
 		return err
 	}
-	return s.Append(ev)
+	if err := s.Append(ev); err != nil {
+		return err
+	}
+
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return store.AtomicWrite(filepath.Join(s.Cavet, "config.yaml"), b)
 }
 
 // dbAge/humanSize moved: dbAge lives in version.go with the other advisory
