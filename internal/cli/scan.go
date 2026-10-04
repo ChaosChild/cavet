@@ -16,9 +16,9 @@ import (
 
 func newScanCmd() *cobra.Command {
 	var staged, full, deep, image bool
-	var diffRef, phase, surfaceCtx string
+	var diffRef, phase, surfaceCtx, timeout string
 	cmd := &cobra.Command{
-		Use:   "scan [--staged|--diff <ref>|--full|--image] [--deep] [--phase <phase>] [--context <ctx>]",
+		Use:   "scan [--staged|--diff <ref>|--full|--image] [--deep] [--phase <phase>] [--context <ctx>] [--timeout <duration>]",
 		Short: "Run scanners for a scope and fold the delta",
 		Long: "Run scanners for a scope and fold the delta against recorded state.\n" +
 			"\nExit codes: 0 clean (or nothing staged), 1 findings present, 2 error.\n" +
@@ -28,6 +28,11 @@ func newScanCmd() *cobra.Command {
 			"appends and shown in the posture header; it does not change scanner\n" +
 			"selection (scopes and --deep do). Default: build.",
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if timeout != "" {
+				if _, err := checkTimeout("--timeout", timeout); err != nil {
+					return err
+				}
+			}
 			scopes := 0
 			for _, b := range []bool{staged, diffRef != "", full, image} {
 				if b {
@@ -37,7 +42,7 @@ func newScanCmd() *cobra.Command {
 			if scopes > 1 {
 				return fail("exactly one scope flag (--staged, --diff, --full, --image)")
 			}
-			return runScan(staged, full, deep, image, diffRef, phase, surfaceCtx)
+			return runScan(staged, full, deep, image, diffRef, phase, surfaceCtx, timeout)
 		},
 	}
 	cmd.Flags().BoolVar(&staged, "staged", false, "scan staged index content (default when the index is non-empty)")
@@ -47,10 +52,11 @@ func newScanCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&deep, "deep", false, "add SAST (opengrep) to a staged/diff scan")
 	cmd.Flags().StringVar(&phase, "phase", "", "design|build|test|deploy (default build)")
 	cmd.Flags().StringVar(&surfaceCtx, "context", "", "where the result is shown: pre-commit|dispatch|posture (default dispatch)")
+	cmd.Flags().StringVar(&timeout, "timeout", "", "trivy scan budget, a Go duration like 30m (overrides scan.timeout)")
 	return cmd
 }
 
-func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) error {
+func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx, timeoutFlag string) error {
 	s, err := openStore()
 	if err != nil {
 		return err
@@ -60,10 +66,18 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 	ref := engineRef(cfg)
 	c := engineclient.New(ref, cfg.Engine.Digest, root, cfg.Engine.Variant)
 	images := cfg.Scan.ContainerImages.Dockerfiles(root)
+	// The trivy budget: flag over config (the config value arrives validated
+	// with its 60m default). The run cap derives from it so the budget is
+	// actually reachable.
+	timeout := resolveTimeout(timeoutFlag, cfg.Scan.Timeout)
+	td, err := checkTimeout("scan.timeout", timeout)
+	if err != nil {
+		return err
+	}
 	// image or images configured is the conservative proxy for the pipeline's
 	// image-phase trigger; those runs build scanners from source and pull
 	// databases, so they get the longer cap.
-	ctx, cancel := context.WithTimeout(context.Background(), scanTimeout(image || len(images) > 0))
+	ctx, cancel := context.WithTimeout(context.Background(), scanTimeout(image || len(images) > 0, td))
 	defer cancel()
 	if err := c.EnsureRunning(ctx); err != nil {
 		return scanFail(surfaceCtx, cfg.Scan.HookExit1, err)
@@ -109,6 +123,7 @@ func runScan(staged, full, deep, image bool, diffRef, phase, surfaceCtx string) 
 		Deep:    deep || cfg.Scan.DeepDefault,
 		Checkov: cfg.Scanners.Checkov,
 		DevDeps: cfg.Scanners.DevDeps,
+		Timeout: timeout,
 		Actor:   events.ActorAgent, Phase: events.Phase(phase),
 		Context: events.SurfaceContext(surfaceCtx), Engine: ref,
 		VulnDB: vdb,
@@ -190,14 +205,36 @@ func scanFail(surfaceCtx string, hookExit1 bool, err error) error {
 	return fail(err.Error())
 }
 
-// scanTimeout caps a scan run; filesystem scans stay at thirty minutes,
-// while a run with an image phase builds scanners from source and downloads
-// vulnerability databases, so it legitimately needs two hours.
-func scanTimeout(imagePhase bool) time.Duration {
-	if imagePhase {
+// resolveTimeout applies the flag-over-config rule for one run; the config
+// value already carries its Default() fallback, so the result is never empty.
+func resolveTimeout(flagVal, cfgVal string) string {
+	if flagVal != "" {
+		return flagVal
+	}
+	return cfgVal
+}
+
+// checkTimeout validates a scan-timeout knob: a positive, parseable Go
+// duration, else exit 2 showing the expected format.
+func checkTimeout(name, v string) (time.Duration, error) {
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return 0, fail(fmt.Sprintf("%s must be a positive duration like \"30m\" or \"1h\", got %q", name, v))
+	}
+	return d, nil
+}
+
+// scanTimeout caps a scan run. The trivy budget (scan.timeout, default 60m)
+// must fit inside the cap with room for engine startup, staging and the fold,
+// so the cap is that budget plus a margin; a run with an image phase builds
+// scanners from source and downloads vulnerability databases, so it keeps the
+// two-hour floor.
+func scanTimeout(imagePhase bool, trivy time.Duration) time.Duration {
+	t := trivy + 15*time.Minute
+	if imagePhase && t < 2*time.Hour {
 		return 2 * time.Hour
 	}
-	return 30 * time.Minute
+	return t
 }
 
 // readVulnDB reads the live vuln DB identity once per scan (engineclient

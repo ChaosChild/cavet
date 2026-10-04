@@ -83,7 +83,16 @@ func newRebaselineCmd() *cobra.Command {
 				}
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			images := cfg.Scan.ContainerImages.Dockerfiles(root)
+			td, err := checkTimeout("scan.timeout", cfg.Scan.Timeout)
+			if err != nil {
+				return err
+			}
+			// Cap derived from the trivy budget (same rule as cavet scan) so
+			// the budget is actually reachable; Ping and EnsureRunning ride
+			// along, both quick next to a full scan.
+			ctx, cancel := context.WithTimeout(context.Background(),
+				scanTimeout(len(images) > 0, td))
 			defer cancel()
 			if err := c.Ping(ctx); err != nil {
 				return fail("docker daemon unreachable: " + err.Error())
@@ -91,13 +100,9 @@ func newRebaselineCmd() *cobra.Command {
 			if err := c.EnsureRunning(ctx); err != nil {
 				return fail(err.Error())
 			}
-			if _, err := scan.Run(ctx, s, c, scan.Options{
-				Scope: scan.ScopeFull, Images: cfg.Scan.ContainerImages.Dockerfiles(root),
-				Checkov: cfg.Scanners.Checkov,
-				Actor:   events.ActorOperator, Phase: events.PhaseBuild,
-				Context: events.ContextPosture, Engine: ref,
-				VulnDB: readVulnDB(ctx, c),
-			}); err != nil {
+			o := baselineOptions(cfg, images, ref)
+			o.VulnDB = readVulnDB(ctx, c)
+			if _, err := scan.Run(ctx, s, c, o); err != nil {
 				return fail(err.Error())
 			}
 

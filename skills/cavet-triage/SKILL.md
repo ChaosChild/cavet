@@ -17,7 +17,9 @@ If `cavet` is not installed, invoke `cavet-install` and resume.
 
 **When to scan.** After a meaningful code change, before commit, on request, or when
 hook output has landed in your context (a hook result *is* a scan result — treat it
-as one, do not re-run it). Not after every keystroke.
+as one, do not re-run it). Not after every keystroke. In a very large repository a
+scan can be slow to the point of exhausting its time budget; `cavet scan --timeout
+90m` (or the `scan.timeout` config key) extends it.
 
 **Check before you scan.** Run `cavet log --since <recent>` first: if a scan for
 the same scope is already recorded, or hook output covering it is already in your

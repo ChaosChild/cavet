@@ -156,6 +156,7 @@ func TestTrivyDevDepsFlagAndRows(t *testing.T) {
 	// the scanner list.
 	wantCmd := "trivy fs --include-dev-deps --scanners vuln,misconfig,secret" +
 		" --skip-db-update --skip-check-update --offline-scan" +
+		" --skip-dirs /workspace/.cavet" +
 		" --format json --output /reports/trivy.json /scan/1"
 	gotCmd := ""
 	for _, c := range r.cmds {
@@ -231,6 +232,71 @@ func TestTrivyDevDepsFlagAndRows(t *testing.T) {
 		if row.Dev {
 			t.Error("no row may carry Dev when the knob is off")
 		}
+	}
+}
+
+// The trivy budget (Options.Timeout) rides both trivy invocations, and the fs
+// invocation additionally skips cavet's own state directory: scanning .cavet
+// logs, state and old reports is pure waste, and the 2026-10-04 field-test
+// timeout fired on a file inside it. The image command never carries the
+// skip: it reads a tar, not the workspace.
+func TestTrivyTimeoutAndCavetStateSkip(t *testing.T) {
+	s := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s.Root, "Dockerfile"))
+	mk := func() *fakeRunner {
+		return &fakeRunner{reports: map[string][]byte{
+			"/reports/gitleaks.sarif":      fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4),
+			"/reports/trivy.json":          fixtureTrivyJSON("CVE-2024-1", "requirements.txt", 2),
+			"/reports/opengrep.sarif":      fixtureSARIF("opengrep", "py.sql", "api/users.py", 8),
+			"/reports/trivy-image-0.sarif": fixtureImageSARIF("CVE-2024-9", "openssl", "3.0.15-r1", "HIGH"),
+		}}
+	}
+
+	r := mk()
+	if _, err := Run(context.Background(), s, r, Options{
+		Scope: ScopeFull, Images: imgs("Dockerfile"), Timeout: "90m",
+		Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var fsCmd, imgCmd string
+	for _, c := range r.cmds {
+		if strings.HasPrefix(c, "trivy fs") {
+			fsCmd = c
+		}
+		if strings.HasPrefix(c, "trivy image") {
+			imgCmd = c
+		}
+	}
+	wantFS := "trivy fs --scanners vuln,misconfig,secret" +
+		" --skip-db-update --skip-check-update --offline-scan" +
+		" --skip-dirs /workspace/.cavet --timeout 90m" +
+		" --format json --output /reports/trivy.json /workspace"
+	if fsCmd != wantFS {
+		t.Fatalf("trivy fs invocation:\n got: %s\nwant: %s", fsCmd, wantFS)
+	}
+	wantImg := "trivy image --input /scan/image-0.tar" +
+		" --offline-scan --skip-db-update --skip-check-update --timeout 90m" +
+		" --format sarif --output /reports/trivy-image-0.sarif"
+	if imgCmd != wantImg {
+		t.Fatalf("trivy image invocation:\n got: %s\nwant: %s", imgCmd, wantImg)
+	}
+
+	// No Timeout set: neither command carries --timeout (trivy's own built-in
+	// default applies), while the fs skip stays.
+	s2 := newTestStore(t)
+	seedDockerfile(t, filepath.Join(s2.Root, "Dockerfile"))
+	r2 := mk()
+	if _, err := Run(context.Background(), s2, r2, Options{
+		Scope: ScopeFull, Images: imgs("Dockerfile"), Engine: "ghcr.io/x@sha256:t",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if r2.ran("--timeout") {
+		t.Fatalf("unset budget must not pass --timeout, cmds: %v", r2.cmds)
+	}
+	if !r2.ran("--skip-dirs /workspace/.cavet") {
+		t.Fatalf("fs skip must hold without a budget, cmds: %v", r2.cmds)
 	}
 }
 

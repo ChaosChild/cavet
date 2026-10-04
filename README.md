@@ -256,6 +256,10 @@ Exit codes are informational, never gating: `0` clean (or nothing staged),
 `1` findings present, `2` error. `cavet --help` lists everything;
 `cavet describe --json` emits the machine contract for tooling that wants it.
 
+The trivy scan pass is bounded by `scan.timeout` in `config.yaml` (default
+`60m`); on a very large workspace raise it, for one run with
+`cavet scan --timeout 90m` or permanently via the config key.
+
 ### `cavet serve`
 
 ```sh

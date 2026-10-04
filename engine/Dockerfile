@@ -49,14 +49,15 @@ RUN git clone --depth 1 --branch "v${GITLEAKS_VERSION}" https://github.com/gitle
         -o /out/gitleaks .
 
 # Trivy (Apache-2.0), source-built like gitleaks above. CVE-2026-84304 (HIGH,
-# grpc, fixed in v1.83.1) sits in the v0.74.0 upstream release binary and
+# grpc, fixed in v1.83.1) and CVE-2026-84445 (HIGH, grpc, fixed in v1.83.2)
+# sit in the v0.74.0 upstream release binary and
 # v0.74.0 is still the latest release, so no fixed tarball exists to pin;
 # building the pinned tag with the grpc bump is the only clean path (a
 # dependency upgrade only, behaviour unchanged; go mod tidy prunes anything
 # unused). Supply chain: this replaces the release-tarball sha256 pins with the
 # pinned git tag plus go's own module-hash verification (checksum db), same as
 # the gitleaks stage. Flip back to the release tarball when upstream trivy
-# ships grpc >= 1.83.1. -ldflags injects the one version var upstream's
+# ships grpc >= 1.83.2. -ldflags injects the one version var upstream's
 # goreleaser/magefile set, so `trivy --version` still reports the tag, and
 # GOEXPERIMENT=jsonv2 mirrors upstream's release env (trivy imports the
 # experimental encoding/json/v2, gated behind it).
@@ -64,7 +65,7 @@ FROM golang:1.26-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f6003
 ARG TRIVY_VERSION
 RUN git clone --depth 1 --branch "v${TRIVY_VERSION}" https://github.com/aquasecurity/trivy /src \
     && cd /src \
-    && go get google.golang.org/grpc@v1.83.1 \
+    && go get google.golang.org/grpc@v1.83.2 \
     && go mod tidy \
     && CGO_ENABLED=0 GOEXPERIMENT=jsonv2 go build -trimpath \
         -ldflags "-s -w -X=github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY_VERSION}" \
@@ -78,7 +79,7 @@ ARG CHECKOV_VERSION
 COPY --from=gitleaks-build /out/gitleaks /usr/local/bin/gitleaks
 
 # Trivy (Apache-2.0): source-built above (trivy-build), not the release
-# tarball, until upstream ships grpc >= 1.83.1.
+# tarball, until upstream ships grpc >= 1.83.2.
 COPY --from=trivy-build /out/trivy /usr/local/bin/trivy
 
 # Opengrep (engine LGPL-2.1) — self-contained manylinux binary.
