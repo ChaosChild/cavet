@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -37,6 +38,10 @@ type Config struct {
 		DeepDefault     bool            `yaml:"deep_default"`
 		ContainerImages ContainerImages `yaml:"container_images"`
 		HookExit1       bool            `yaml:"hook_exit_1"`
+		// Timeout bounds trivy's scan pass, a Go duration string ("60m").
+		// The default sits well above trivy's own ~20m built-in cap so
+		// large workspaces finish (operator decision, v0.2.3).
+		Timeout string `yaml:"timeout"`
 	} `yaml:"scan"`
 	Scanners struct {
 		Checkov bool `yaml:"checkov"`
@@ -61,6 +66,7 @@ func Default() Config {
 	c.Engine.DB.AgeThresholds.Note = 5
 	c.Engine.DB.AgeThresholds.Suggest = 10
 	c.Engine.DB.AgeThresholds.Alert = 14
+	c.Scan.Timeout = "60m"
 	c.Scanners.DevDeps = true
 	return c
 }
@@ -253,6 +259,9 @@ func Load(path string) (Config, error) {
 	if t.Note <= 0 || t.Suggest <= 0 || t.Alert <= 0 || t.Note >= t.Suggest || t.Suggest >= t.Alert {
 		return Default(), fmt.Errorf("config.yaml: engine.db.age-thresholds must be positive with note < suggest < alert (got %d/%d/%d)",
 			t.Note, t.Suggest, t.Alert)
+	}
+	if d, err := time.ParseDuration(c.Scan.Timeout); err != nil || d <= 0 {
+		return Default(), fmt.Errorf("config.yaml: scan.timeout must be a positive duration (e.g. \"30m\", \"1h\"), got %q", c.Scan.Timeout)
 	}
 	return c, nil
 }

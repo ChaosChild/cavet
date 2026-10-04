@@ -626,7 +626,7 @@ func TestImageScanWarnsOnMissingDockerignore(t *testing.T) {
 		old := os.Stderr
 		os.Stderr = w
 		_, _, err = scanOneImage(context.Background(), s, &fakeRunner{reports: reports}, 0,
-			config.ImageEntry{Dockerfile: "Dockerfile"}, false)
+			config.ImageEntry{Dockerfile: "Dockerfile"}, false, "")
 		os.Stderr = old
 		w.Close()
 		if err != nil {

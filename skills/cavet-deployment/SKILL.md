@@ -50,6 +50,8 @@ Run `cavet-triage` with phase deploy. IaC scanning is in the default scanner set
 on staged and full scans alike. Dev dependencies are scanned by default
 (`scanners.dev-deps`, default on); findings in a dev dependency chain carry a `+`
 marker, and the operator can exclude them by setting `scanners.dev-deps: false`.
+In a very large repository a scan can be slow; `cavet scan --timeout 90m` (or the
+`scan.timeout` config key) extends the budget.
 
 Check the advisory db age before scanning (`cavet version` or `cavet engine
 status`): within thresholds, proceed; past note, mention it in passing; past

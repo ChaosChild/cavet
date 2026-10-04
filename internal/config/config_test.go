@@ -24,7 +24,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.Engine.Variant != "core" || c.Scan.DeepDefault || c.Scan.ContainerImages.Enabled() ||
-		c.Scanners.Checkov || c.Scan.HookExit1 {
+		c.Scanners.Checkov || c.Scan.HookExit1 || c.Scan.Timeout != "60m" {
 		t.Fatalf("bad defaults: %+v", c)
 	}
 }
@@ -93,6 +93,40 @@ func TestDBThresholdValidation(t *testing.T) {
 	for _, c := range cases {
 		if _, err := Load(writeConfig(t, c.body)); err == nil || !strings.Contains(err.Error(), "age-thresholds") {
 			t.Errorf("%s: want error naming age-thresholds, got %v", c.name, err)
+		}
+	}
+}
+
+// scan.timeout: explicit values load, and old configs inherit the 60m default
+// because Load decodes into Default() (operator decision, v0.2.3).
+func TestScanTimeoutLoadsAndInherits(t *testing.T) {
+	c, err := Load(writeConfig(t, "scan:\n  timeout: 90m\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Scan.Timeout != "90m" {
+		t.Fatalf("explicit timeout not loaded: %q", c.Scan.Timeout)
+	}
+	c, err = Load(writeConfig(t, "engine:\n  variant: core\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Scan.Timeout != "60m" {
+		t.Fatalf("old config without the key must inherit 60m, got %q", c.Scan.Timeout)
+	}
+}
+
+// Non-positive or unparseable scan.timeout fails loud naming the key.
+func TestScanTimeoutValidation(t *testing.T) {
+	for _, body := range []string{
+		"scan:\n  timeout: banana\n",
+		"scan:\n  timeout: 0m\n",
+		"scan:\n  timeout: -5m\n",
+		"scan:\n  timeout: \"\"\n",
+	} {
+		_, err := Load(writeConfig(t, body))
+		if err == nil || !strings.Contains(err.Error(), "scan.timeout") {
+			t.Fatalf("body %q: want error naming scan.timeout, got %v", body, err)
 		}
 	}
 }

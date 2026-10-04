@@ -214,12 +214,50 @@ func TestExcerpt(t *testing.T) {
 	}
 }
 
+// The run cap derives from the trivy budget so the budget is reachable: the
+// default 60m yields 75m, bigger budgets grow it, and the image phase keeps
+// the two-hour floor.
 func TestScanTimeout(t *testing.T) {
-	if got := scanTimeout(false); got != 30*time.Minute {
-		t.Fatalf("filesystem scan cap = %v, want 30m", got)
+	if got := scanTimeout(false, 60*time.Minute); got != 75*time.Minute {
+		t.Fatalf("filesystem scan cap = %v, want 75m", got)
 	}
-	if got := scanTimeout(true); got != 2*time.Hour {
+	if got := scanTimeout(true, 60*time.Minute); got != 2*time.Hour {
 		t.Fatalf("image scan cap = %v, want 2h", got)
+	}
+	if got := scanTimeout(false, 90*time.Minute); got != 105*time.Minute {
+		t.Fatalf("filesystem cap must grow with the budget: got %v, want 105m", got)
+	}
+	if got := scanTimeout(true, 3*time.Hour); got != 3*time.Hour+15*time.Minute {
+		t.Fatalf("image cap must grow past the floor: got %v", got)
+	}
+}
+
+// --timeout overrides scan.timeout for one run; the flag alone works, and
+// neither set falls back to the config default.
+func TestResolveTimeoutPrecedence(t *testing.T) {
+	if got := resolveTimeout("90m", "60m"); got != "90m" {
+		t.Fatalf("flag must win over config: got %q", got)
+	}
+	if got := resolveTimeout("90m", ""); got != "90m" {
+		t.Fatalf("flag alone must hold: got %q", got)
+	}
+	if got := resolveTimeout("", config.Default().Scan.Timeout); got != "60m" {
+		t.Fatalf("neither set must land on the 60m default: got %q", got)
+	}
+}
+
+// A timeout knob must parse as a positive duration or fail with exit 2
+// showing the expected format.
+func TestCheckTimeout(t *testing.T) {
+	if d, err := checkTimeout("--timeout", "30m"); err != nil || d != 30*time.Minute {
+		t.Fatalf("valid value: got %v, %v", d, err)
+	}
+	for _, v := range []string{"banana", "0s", "-5m", ""} {
+		_, err := checkTimeout("--timeout", v)
+		var ec *exitErr
+		if !errors.As(err, &ec) || ec.code != 2 || !strings.Contains(err.Error(), `"30m"`) {
+			t.Fatalf("value %q: want exit-2 error showing the format, got %v", v, err)
+		}
 	}
 }
 

@@ -41,6 +41,11 @@ type Options struct {
 	Deep    bool
 	Checkov bool // scanners.checkov: the opt-in second IaC scanner joins the filesystem tier
 	DevDeps bool // scanners.dev-deps: include dev dependency chains in the trivy fs scan
+	// Timeout is the trivy scan budget as a Go duration string ("90m"),
+	// resolved by the CLI (scan.timeout under the --timeout flag); empty
+	// leaves trivy's own built-in default. Passed verbatim: trivy parses Go
+	// durations.
+	Timeout string
 	Actor   events.Actor
 	Phase   events.Phase
 	Context events.SurfaceContext
@@ -211,7 +216,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	raw := map[string][]byte{}
 	if target != "" {
 		var err error
-		raw, err = runScanners(ctx, r, fsScanners, target, o.DevDeps)
+		raw, err = runScanners(ctx, r, fsScanners, target, o.DevDeps, o.Timeout)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +225,7 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	if len(images) > 0 {
 		// staged: the image phase joined a staged scan, so coverage credits
 		// index content while builds compile the working tree (image.go).
-		b, fs, err := scanImages(ctx, s, r, images, o.Scope == ScopeStaged)
+		b, fs, err := scanImages(ctx, s, r, images, o.Scope == ScopeStaged, o.Timeout)
 		if err != nil {
 			return nil, err
 		}
@@ -286,8 +291,13 @@ func Run(ctx context.Context, s *store.Store, r Runner, o Options) (*Result, err
 	return buildResult(merged, state, label, scanners, o), nil
 }
 
+// cavetStateDir skips cavet's own logs, state and old reports in workspace
+// scans: scanning them is pure waste, and the 2026-10-04 field-test timeout
+// fired on a file inside it. fs invocation only; the image scan reads a tar.
+const cavetStateDir = "/workspace/.cavet"
+
 // invocation builds each scanner's command per cli-spec §7.
-func invocation(scanner, target string, devDeps bool) []string {
+func invocation(scanner, target string, devDeps bool, timeout string) []string {
 	switch scanner {
 	case "gitleaks":
 		if target == "/workspace" {
@@ -304,7 +314,11 @@ func invocation(scanner, target string, devDeps bool) []string {
 		args := []string{"trivy", "fs",
 			"--scanners", "vuln,misconfig,secret",
 			"--skip-db-update", "--skip-check-update", "--offline-scan",
-			"--format", "json", "--output", "/reports/trivy.json", target}
+			"--skip-dirs", cavetStateDir}
+		if timeout != "" {
+			args = append(args, "--timeout", timeout)
+		}
+		args = append(args, "--format", "json", "--output", "/reports/trivy.json", target)
 		if devDeps {
 			args = append(args[:2:2], append([]string{"--include-dev-deps"}, args[2:]...)...)
 		}
@@ -313,9 +327,13 @@ func invocation(scanner, target string, devDeps bool) []string {
 		// target is the container-side tar the image phase copied in; the
 		// per-image ordinal rides it, so every image writes its own report
 		// file (see reportPath).
-		return []string{"trivy", "image", "--input", target,
-			"--offline-scan", "--skip-db-update", "--skip-check-update",
-			"--format", "sarif", "--output", reportPath("trivy-image", target)}
+		args := []string{"trivy", "image", "--input", target,
+			"--offline-scan", "--skip-db-update", "--skip-check-update"}
+		if timeout != "" {
+			args = append(args, "--timeout", timeout)
+		}
+		args = append(args, "--format", "sarif", "--output", reportPath("trivy-image", target))
+		return args
 	case "opengrep":
 		return []string{"opengrep", "scan", "--config", "/opt/opengrep-rules",
 			"--sarif", "--output", "/reports/opengrep.sarif", target}
@@ -358,10 +376,10 @@ func reportPath(scanner, target string) string {
 	return "/reports/" + scanner + ".sarif"
 }
 
-func runScanners(ctx context.Context, r Runner, scanners []string, target string, devDeps bool) (map[string][]byte, error) {
+func runScanners(ctx context.Context, r Runner, scanners []string, target string, devDeps bool, timeout string) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	for _, sc := range scanners {
-		res, err := r.Exec(ctx, invocation(sc, target, devDeps))
+		res, err := r.Exec(ctx, invocation(sc, target, devDeps, timeout))
 		if err != nil {
 			return nil, err
 		}

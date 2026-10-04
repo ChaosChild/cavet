@@ -72,6 +72,7 @@ scan:
   deep_default: false
   container_images: false
   hook_exit_1: false
+  timeout: 60m
 scanners:
   checkov: false
   dev-deps: true

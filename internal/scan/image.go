@@ -22,7 +22,7 @@ import (
 // (located at each Dockerfile, identity-bound to the Dockerfile path for the
 // img: fingerprint namespace). Any failure aborts the scan loudly, never a
 // silent skip.
-func scanImages(ctx context.Context, s *store.Store, r Runner, images []config.ImageEntry, staged bool) ([]byte, []projection.Finding, error) {
+func scanImages(ctx context.Context, s *store.Store, r Runner, images []config.ImageEntry, staged bool, timeout string) ([]byte, []projection.Finding, error) {
 	// CopyToContainer needs the destination directory to exist; a pure image
 	// scan never created a scan dir yet.
 	if res, err := r.Exec(ctx, []string{"mkdir", "-p", "/scan"}); err != nil || res.Code != 0 {
@@ -31,7 +31,7 @@ func scanImages(ctx context.Context, s *store.Store, r Runner, images []config.I
 	docs := make([][]byte, 0, len(images))
 	var findings []projection.Finding
 	for n, img := range images {
-		b, fs, err := scanOneImage(ctx, s, r, n, img, staged)
+		b, fs, err := scanOneImage(ctx, s, r, n, img, staged, timeout)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -49,7 +49,7 @@ func scanImages(ctx context.Context, s *store.Store, r Runner, images []config.I
 // parsed findings (located at the Dockerfile, identity-bound to the
 // Dockerfile path). The tar and the built image are transient: both are
 // removed on the way out, best-effort on error.
-func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, img config.ImageEntry, staged bool) ([]byte, []projection.Finding, error) {
+func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, img config.ImageEntry, staged bool, timeout string) ([]byte, []projection.Finding, error) {
 	dockerfile := img.Dockerfile
 	host := filepath.Join(s.Root, filepath.FromSlash(dockerfile))
 	if fi, err := os.Stat(host); err != nil || fi.IsDir() {
@@ -117,7 +117,7 @@ func scanOneImage(ctx context.Context, s *store.Store, r Runner, n int, img conf
 	if err := r.CopyToContainer(ctx, tarPath, in); err != nil {
 		return nil, nil, fmt.Errorf("copying %s into the engine: %w", filepath.ToSlash(tarPath), err)
 	}
-	raw, err := runScanners(ctx, r, []string{"trivy-image"}, in, false)
+	raw, err := runScanners(ctx, r, []string{"trivy-image"}, in, false, timeout)
 	if err != nil {
 		return nil, nil, err
 	}
