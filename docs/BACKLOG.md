@@ -11,11 +11,29 @@ Where an item touches cavet's determinism claim, it says so:
 engine-deliverable, boundary-ingested, or host-measured.
 
 When an item ships, move it below the line with the completion date and the
-version that carried it. Last updated: 2026-09-21.
+version that carried it. Last updated: 2026-10-04.
 
 ## Near-term
 
 ## Open
+
+### Copy the workspace into the engine for scanning on Windows hosts
+
+The next engine-side workstream. Docker Desktop's file-sharing layer makes
+metadata-heavy walks pathologically slow: field-measured 2026-10-04, a
+68k-file workspace exceeded trivy's built-in scan timeout through the bind
+mount while identical content scanned in ~12 seconds on the container's
+native ext4. The scan.timeout knob shipped in v0.2.3 is the stopgap, not
+the fix. Operator decisions: on Windows hosts the workspace is always
+copied to the engine container's native filesystem before scanning,
+regardless of repository size, with no machinery to evaluate repo size,
+complexity or gitignored files; the sequence is copy over, scan, report,
+discard. The copy must be safe, never a corrupted or partial tree:
+transfer verified, and scan-then-discard leaves no residue in the
+container. The scan-error stderr truncation that hid trivy's FATAL cause
+in the field test (pipeline.go's %.300s cap) is fixed in the same
+workstream. Classification: engine-deliverable; the copy itself is
+host-orchestrated.
 
 ### golang 1.27 for the engine source builds
 
