@@ -406,7 +406,11 @@ func stderrTail(b []byte) string {
 	if len(b) <= n {
 		return string(b)
 	}
-	tail := string(b[len(b)-n:])
+	start := len(b) - n
+	for i := 0; i < 3 && start < len(b) && b[start]&0xC0 == 0x80; i++ { // a multibyte rune can straddle the window start
+		start++
+	}
+	tail := string(b[start:])
 	if i := strings.IndexByte(tail, '\n'); i >= 0 && i < len(tail)-1 {
 		tail = tail[i+1:]
 	}

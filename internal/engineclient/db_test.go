@@ -341,6 +341,7 @@ func TestUpdateDBSwapLifecycle(t *testing.T) {
 		t.Fatalf("unstamped cache must read ErrNoStamp, got %v", err)
 	}
 
+	before := time.Now().UTC()
 	sw, err := c.UpdateDB(ctx, a, digest)
 	if err != nil {
 		t.Fatalf("UpdateDB: %v", err)
@@ -361,8 +362,13 @@ func TestUpdateDBSwapLifecycle(t *testing.T) {
 	if err := json.Unmarshal(mb, &live); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := time.Parse(time.RFC3339, live.DownloadedAt); err != nil {
-		t.Fatalf("live DownloadedAt must be a non-zero RFC3339 stamp, got %q (%s)", live.DownloadedAt, mb)
+	at, err := time.Parse(time.RFC3339, live.DownloadedAt)
+	if err != nil {
+		t.Fatalf("live DownloadedAt must be an RFC3339 stamp, got %q (%s)", live.DownloadedAt, mb)
+	}
+	// Parsing alone accepts the zero value; the stamp must postdate the test.
+	if !at.After(before) {
+		t.Fatalf("live DownloadedAt must be the swap's fetch moment, not the zero value, got %q", live.DownloadedAt)
 	}
 	if b, err := c.CopyOut(ctx, a.CachePath+"/trivy.db"); err != nil || string(b) != "DBBYTES" {
 		t.Fatalf("swapped db: %q %v", b, err)

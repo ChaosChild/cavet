@@ -109,6 +109,9 @@ func diffPaths(ctx context.Context, r Runner, ref string) ([]string, error) {
 // staged nothing, and still exited 0. xargs -0 eats git's NUL-separated
 // paths without re-parsing filenames, cp --parents preserves the tree, and
 // mkdir -p upfront keeps an empty diff a valid empty target for trivy.
+// The pipeline's exit status is xargs's (dash has no pipefail), so a failed
+// git diff would mask here; Run execs diffPaths on the same ref first and
+// errors loudly, which is the guard.
 func stageWorktree(ctx context.Context, r Runner, ref, scanDir string) error {
 	cmd := fmt.Sprintf(
 		`mkdir -p %[2]s && cd /workspace && git diff --name-only -z --diff-filter=ACMRT %[1]s | xargs -0 -r -I{} cp --parents -- {} %[2]s/`,

@@ -110,6 +110,13 @@ func TestScannerFailureShowsStderrTail(t *testing.T) {
 	if s := stderrTail([]byte("boom")); s != "boom" {
 		t.Fatalf("short stderr passes through, got %q", s)
 	}
+	// A multibyte rune straddling the window start is skipped whole instead
+	// of rendering as U+FFFD: 50 a's + a 2-byte rune + 299 suffix bytes puts
+	// the boundary inside the rune.
+	suffix := strings.Repeat("z", 291) + "ENDMARK\n"
+	if got := stderrTail([]byte(strings.Repeat("a", 50) + "é" + suffix)); got != suffix {
+		t.Fatalf("split rune at the window start must be skipped whole, got %q", got)
+	}
 	// Through the pipeline: gitleaks succeeds, trivy exits 1 with no report.
 	r := &fakeRunner{
 		stdout:  map[string]string{"git diff --cached": "auth/tokens.py\x00"},
