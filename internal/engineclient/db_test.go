@@ -341,12 +341,34 @@ func TestUpdateDBSwapLifecycle(t *testing.T) {
 		t.Fatalf("unstamped cache must read ErrNoStamp, got %v", err)
 	}
 
+	before := time.Now().UTC()
 	sw, err := c.UpdateDB(ctx, a, digest)
 	if err != nil {
 		t.Fatalf("UpdateDB: %v", err)
 	}
 	if sw.Digest != digest || !sw.UpdatedAt.Equal(time.Date(2026, 10, 4, 1, 0, 0, 0, time.UTC)) {
 		t.Fatalf("swap record wrong: %+v", sw)
+	}
+	// The live metadata.json is cavet's stamped re-marshal: upstream's zero
+	// DownloadedAt must not survive the swap (a manual trivy run without
+	// --skip-db-update would re-download).
+	mb, err := c.CopyOut(ctx, a.CachePath+"/metadata.json")
+	if err != nil {
+		t.Fatalf("copy out live metadata: %v", err)
+	}
+	var live struct {
+		DownloadedAt string `json:"DownloadedAt"`
+	}
+	if err := json.Unmarshal(mb, &live); err != nil {
+		t.Fatal(err)
+	}
+	at, err := time.Parse(time.RFC3339, live.DownloadedAt)
+	if err != nil {
+		t.Fatalf("live DownloadedAt must be an RFC3339 stamp, got %q (%s)", live.DownloadedAt, mb)
+	}
+	// Parsing alone accepts the zero value; the stamp must postdate the test.
+	if !at.After(before) {
+		t.Fatalf("live DownloadedAt must be the swap's fetch moment, not the zero value, got %q", live.DownloadedAt)
 	}
 	if b, err := c.CopyOut(ctx, a.CachePath+"/trivy.db"); err != nil || string(b) != "DBBYTES" {
 		t.Fatalf("swapped db: %q %v", b, err)
@@ -362,6 +384,39 @@ func TestUpdateDBSwapLifecycle(t *testing.T) {
 	// A second swap over the live one must succeed (rm -rf clears db.next).
 	if _, err := c.UpdateDB(ctx, a, digest); err != nil {
 		t.Fatalf("re-swap: %v", err)
+	}
+}
+
+// writeStampedMetadata must stamp a non-zero RFC3339 DownloadedAt over a
+// zero-value upstream input while preserving the fields trivy checks.
+func TestStagedMetadataStampsDownloadedAt(t *testing.T) {
+	dir := t.TempDir()
+	updated := time.Date(2026, 10, 4, 1, 0, 0, 0, time.UTC)
+	before := time.Now().UTC()
+	if err := writeStampedMetadata(dir, dbMetadata{Version: 2, UpdatedAt: updated}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw struct {
+		Version      int    `json:"Version"`
+		UpdatedAt    string `json:"UpdatedAt"`
+		DownloadedAt string `json:"DownloadedAt"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatal(err)
+	}
+	at, err := time.Parse(time.RFC3339, raw.DownloadedAt)
+	if err != nil {
+		t.Fatalf("DownloadedAt must be RFC3339, got %q (%s)", raw.DownloadedAt, b)
+	}
+	if at.Before(before) || at.After(time.Now().UTC().Add(time.Minute)) {
+		t.Fatalf("DownloadedAt must be the fetch moment, got %v", at)
+	}
+	if raw.Version != 2 || raw.UpdatedAt != updated.Format(time.RFC3339) {
+		t.Fatalf("staged metadata must keep Version and UpdatedAt, got %s", b)
 	}
 }
 
