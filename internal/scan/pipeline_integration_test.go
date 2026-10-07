@@ -269,6 +269,83 @@ func TestRealEngineCheckovStagedScan(t *testing.T) {
 	t.Fatalf("checkov finding must reach state with its scanner identity, findings: %+v", st.Findings)
 }
 
+// TestRealEngineDiffStaging runs the real stageWorktree command inside the
+// engine container, whose /bin/sh is dash: the 0.2.0 read -d '' loop died
+// there staging nothing while exiting 0 (the 0.2.0-0.2.3 --diff outage).
+// Real git, real dash, real NUL-delimited diff output. The fixture diff
+// carries a modified file in a nested directory, a filename with a space,
+// and a deletion; the staged tree must be exactly the two survivors with
+// their modified content. Skipped like the other real-engine tests without
+// a daemon or the dev image.
+func TestRealEngineDiffStaging(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(rel)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("nested/dir/modified.txt", "base")
+	write("file with space.txt", "base")
+	write("gone.txt", "base")
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"add", "-A"},
+		{"-c", "user.email=cavet@test", "-c", "user.name=cavet", "commit", "--quiet", "-m", "base"},
+	} {
+		if out, err := gitRun(root, args...); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	write("nested/dir/modified.txt", "modified")
+	write("file with space.txt", "modified")
+	if err := os.Remove(filepath.Join(root, "gone.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	c := engineclient.New("cavet-engine:dev", "", root, "core")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	t.Cleanup(func() {
+		cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer ccancel()
+		_ = c.Remove(cctx)
+	})
+	if err := c.Ping(ctx); err != nil {
+		t.Skipf("docker daemon unreachable: %v", err)
+	}
+	if err := c.ImagePresent(ctx); err != nil {
+		t.Skipf("dev image not built: %v", err)
+	}
+	if err := c.EnsureRunning(ctx); err != nil {
+		t.Fatalf("EnsureRunning: %v", err)
+	}
+
+	scanDir := c.NextScanDir()
+	if err := stageWorktree(ctx, c, "HEAD", scanDir); err != nil {
+		t.Fatalf("stageWorktree: %v", err)
+	}
+	res, err := c.Exec(ctx, []string{"sh", "-c", "cd "+scanDir+" && find . -type f | sort"})
+	if err != nil || res.Code != 0 {
+		t.Fatalf("find staged tree: code=%d err=%v stderr=%s", res.Code, err, res.Stderr)
+	}
+	want := "./file with space.txt\n./nested/dir/modified.txt\n"
+	if string(res.Stdout) != want {
+		t.Fatalf("staged tree must be exactly the two changed files (deletion absent):\n got: %q\nwant: %q", res.Stdout, want)
+	}
+	for rel, body := range map[string]string{
+		"file with space.txt":     "modified",
+		"nested/dir/modified.txt": "modified",
+	} {
+		if b, err := c.CopyOut(ctx, scanDir+"/"+rel); err != nil || string(b) != body {
+			t.Fatalf("staged %s = %q, %v; want %q", rel, b, err, body)
+		}
+	}
+}
+
 // seedWorktreeWithStagedSecret commits the fixture on a main checkout, links
 // a worktree, and stages the planted key inside the worktree — its index
 // lives at main/.git/worktrees/<name>, outside the worktree itself.

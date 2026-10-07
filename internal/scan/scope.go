@@ -103,11 +103,15 @@ func diffPaths(ctx context.Context, r Runner, ref string) ([]string, error) {
 }
 
 // stageWorktree copies current worktree content of changed files into the
-// scan dir; deleted files cannot contain findings and are skipped silently
-// (cli-spec §6).
+// scan dir; deleted files cannot contain findings and are excluded by the
+// diff filter (cli-spec §6). The consumer must stay POSIX sh: the engine's
+// /bin/sh is dash, where the 0.2.0 read -d '' loop was an illegal option,
+// staged nothing, and still exited 0. xargs -0 eats git's NUL-separated
+// paths without re-parsing filenames, cp --parents preserves the tree, and
+// mkdir -p upfront keeps an empty diff a valid empty target for trivy.
 func stageWorktree(ctx context.Context, r Runner, ref, scanDir string) error {
 	cmd := fmt.Sprintf(
-		`cd /workspace && git diff --name-only -z %[1]s | while IFS= read -r -d '' f; do if [ -f "$f" ]; then mkdir -p %[2]s/$(dirname "$f"); cp "$f" %[2]s/$f; fi; done`,
+		`mkdir -p %[2]s && cd /workspace && git diff --name-only -z --diff-filter=ACMRT %[1]s | xargs -0 -r -I{} cp --parents -- {} %[2]s/`,
 		shQuote(ref), scanDir)
 	res, err := r.Exec(ctx, []string{"sh", "-c", cmd})
 	if err != nil {

@@ -91,6 +91,38 @@ func TestPipelineWritesEventsStateAndReport(t *testing.T) {
 	}
 }
 
+// A scanner failure must print the tail of stderr, not the head: trivy's
+// FATAL line sits at the end behind a wall of INFO lines, and the head
+// truncation sent the operator down an offline rabbit-hole during the
+// 0.2.3 --diff incident. The tail keeps the last ~300 bytes, so the head
+// drops off wholesale while the end always renders.
+func TestScannerFailureShowsStderrTail(t *testing.T) {
+	stderr := "2026-10-07T10:00:00Z\tINFO\tfirst-line-of-the-noise-head\n" +
+		strings.Repeat("2026-10-07T10:00:00Z\tINFO\tverbose noise line padding\n", 40) +
+		"2026-10-07T10:00:05Z\tFATAL\tcache dir missing: stat /scan/1-1: no such file or directory\n"
+	got := stderrTail([]byte(stderr))
+	if !strings.Contains(got, "FATAL\tcache dir missing") {
+		t.Fatalf("tail must keep the FATAL end, got:\n%s", got)
+	}
+	if strings.Contains(got, "first-line-of-the-noise-head") {
+		t.Fatalf("tail must drop the INFO head, got:\n%s", got)
+	}
+	if s := stderrTail([]byte("boom")); s != "boom" {
+		t.Fatalf("short stderr passes through, got %q", s)
+	}
+	// Through the pipeline: gitleaks succeeds, trivy exits 1 with no report.
+	r := &fakeRunner{
+		stdout:  map[string]string{"git diff --cached": "auth/tokens.py\x00"},
+		stderr:  map[string]string{"trivy fs": stderr},
+		exit:    map[string]int{"trivy fs": 1},
+		reports: map[string][]byte{"/reports/gitleaks.sarif": fixtureSARIF("gitleaks", "generic-api-key", "auth/tokens.py", 4)},
+	}
+	_, err := Run(context.Background(), newTestStore(t), r, Options{Scope: ScopeStaged, Engine: "ghcr.io/x@sha256:t"})
+	if err == nil || !strings.Contains(err.Error(), "FATAL\tcache dir missing") {
+		t.Fatalf("scan error must carry the FATAL tail, got: %v", err)
+	}
+}
+
 func TestFullScanTargetsWorkspace(t *testing.T) {
 	s := newTestStore(t)
 	r := &fakeRunner{
