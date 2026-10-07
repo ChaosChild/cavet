@@ -12,36 +12,41 @@ import (
 	"github.com/ChaosChild/cavet/internal/store"
 )
 
-// newVersionCmd prints the local version story: cavet itself, the engine
-// image pin, and the advisory database state. Everything comes from the
-// binary, config and state: no container contact, no network. Outside an
-// initialised repository it still prints cavet and the default engine ref.
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print cavet, engine, and advisory database versions",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			fmt.Printf("cavet %s\n", resolveVersion())
-			cfg := config.Default()
-			var st store.DBState
-			if s, err := openStore(); err == nil {
-				c, err := config.Load(s.Cavet + string(os.PathSeparator) + "config.yaml")
-				if err != nil {
-					return fail(err.Error())
-				}
-				cfg = c
-				st, err = s.LoadDBState()
-				if err != nil {
-					return fail(err.Error())
-				}
-			}
-			fmt.Printf("engine %s\n", engineRef(cfg))
-			for _, line := range dbLines(cfg, st) {
-				fmt.Println(line)
-			}
-			return nil
+			return runVersion()
 		},
 	}
+}
+
+// runVersion is the one version story, rendered identically by `cavet
+// version` and the root --version/-v flag: cavet itself, the engine image
+// pin, and the advisory database state. Everything comes from the binary,
+// config and state: no container contact, no network. Outside an
+// initialised repository it still prints cavet and the default engine ref.
+func runVersion() error {
+	fmt.Printf("cavet %s\n", resolveVersion())
+	cfg := config.Default()
+	var st store.DBState
+	if s, err := openStore(); err == nil {
+		c, err := config.Load(s.Cavet + string(os.PathSeparator) + "config.yaml")
+		if err != nil {
+			return fail(err.Error())
+		}
+		cfg = c
+		st, err = s.LoadDBState()
+		if err != nil {
+			return fail(err.Error())
+		}
+	}
+	fmt.Printf("engine %s\n", engineRef(cfg))
+	for _, line := range dbLines(cfg, st) {
+		fmt.Println(line)
+	}
+	return nil
 }
 
 // dbLines renders the per-artifact advisory lines for `cavet version` and
