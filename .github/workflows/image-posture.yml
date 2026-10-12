@@ -61,6 +61,8 @@ jobs:
           {
             echo "Weekly scan of the shipped engine (rolling core/full tags) found $crit CRITICAL(s)."
             echo
+            echo "CVEs: $(grep -hoE 'CVE-[0-9]+-[0-9]+' posture-core.txt posture-full.txt | sort -u | tr '\n' ' ')"
+            echo
             echo '```'
             cat posture-core.txt posture-full.txt
             echo '```'
@@ -72,6 +74,7 @@ jobs:
             {
               head -c 57000 posture-body.md
               echo
+              echo '```'
               echo '...table trimmed to fit the issue body limit; full tables in the run log (collapsed group)'
               echo
               echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
