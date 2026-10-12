@@ -6,6 +6,8 @@ name: image-posture
 # cover what is being built; this is the posture backstop.
 # Findings update ONE tracked issue (new comment per run); zero findings stay
 # silent. The run itself stays green either way - the issue is the alarm.
+# Issue bodies are capped to GitHub's 65536-char limit (full tables stay in the
+# run log), so a large table can never wedge the alarm step.
 on:
   schedule:
     - cron: '0 3 * * 0' # Sunday 03:00 UTC, quiet hour
@@ -28,6 +30,7 @@ jobs:
           scan-type: image
           image-ref: ghcr.io/chaoschild/cavet-engine:core
           format: table
+          scanners: vuln # CVE alarm only; keeps the table bounded to severity-filtered advisories
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '0' # alarm via issue, never a red run
@@ -38,6 +41,7 @@ jobs:
           scan-type: image
           image-ref: ghcr.io/chaoschild/cavet-engine:full
           format: table
+          scanners: vuln # CVE alarm only; keeps the table bounded to severity-filtered advisories
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '0'
@@ -50,6 +54,10 @@ jobs:
             | awk '/^Total:/{for(i=1;i<NF;i++) if($i=="CRITICAL:") c+=$(i+1)} END{print c+0}')
           echo "criticals: $crit"
           [ "$crit" -gt 0 ] || { echo 'no criticals; staying silent'; exit 0; }
+          # Full tables stay retrievable in the run log even when the issue body is trimmed.
+          echo "##[group]Full scan tables (core + full)"
+          cat posture-core.txt posture-full.txt
+          echo "##[endgroup]"
           {
             echo "Weekly scan of the shipped engine (rolling core/full tags) found $crit CRITICAL(s)."
             echo
@@ -59,11 +67,25 @@ jobs:
             echo
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           } > posture-body.md
+          # GitHub caps issue bodies at 65536 chars; trim so the alarm is always deliverable.
+          if [ "$(wc -c < posture-body.md)" -gt 60000 ]; then
+            {
+              head -c 57000 posture-body.md
+              echo
+              echo '...table trimmed to fit the issue body limit; full tables in the run log (collapsed group)'
+              echo
+              echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            } > posture-body-trimmed.md
+            mv posture-body-trimmed.md posture-body.md
+          fi
           title='image-posture: new criticals in shipped engine'
           num=$(gh issue list --state open --json number,title \
             --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          # Delivery problems must not redden the run - the issue is the alarm, the run stays green.
           if [ -n "$num" ]; then
-            gh issue comment "$num" --body-file posture-body.md
+            gh issue comment "$num" --body-file posture-body.md \
+              || echo "::warning::posture alarm: failed to comment on issue #$num - see run log"
           else
-            gh issue create -t "$title" --body-file posture-body.md
+            gh issue create -t "$title" --body-file posture-body.md \
+              || echo "::warning::posture alarm: failed to create the alarm issue - see run log"
           fi
