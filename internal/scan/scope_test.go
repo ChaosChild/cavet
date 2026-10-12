@@ -17,6 +17,7 @@ import (
 type fakeRunner struct {
 	cmds    []string
 	stdout  map[string]string // command substring → stdout
+	stderr  map[string]string // command substring → stderr on its non-zero exit
 	exit    map[string]int    // command substring → non-zero exit code
 	reports map[string][]byte
 	scans   int
@@ -27,7 +28,7 @@ func (f *fakeRunner) Exec(_ context.Context, cmd []string) (engineclient.ExecRes
 	f.cmds = append(f.cmds, joined)
 	for sub, code := range f.exit {
 		if strings.Contains(joined, sub) {
-			return engineclient.ExecResult{Code: code}, nil
+			return engineclient.ExecResult{Code: code, Stderr: []byte(f.stderr[sub])}, nil
 		}
 	}
 	for sub, out := range f.stdout {
@@ -178,6 +179,47 @@ func fixtureTrivyJSON(ruleID, path string, line int) []byte {
 		`"Vulnerabilities":[{"VulnerabilityID":%q,"PkgID":"pkg@1.0.0","PkgName":"pkg",`+
 		`"InstalledVersion":"1.0.0","Severity":"HIGH","Title":"pkg vuln"}]}]}`, path, line, ruleID)
 	return []byte(doc)
+}
+
+// TestStageWorktreeCommand pins the diff staging pipeline: dash-safe (xargs
+// consumes git's NUL list, no read loop), deletions excluded at the git
+// level, scan dir created upfront so an empty diff still stages a valid empty
+// target. The ref rides shQuote so odd refs compose into one shell word.
+func TestStageWorktreeCommand(t *testing.T) {
+	r := &fakeRunner{}
+	if err := stageWorktree(context.Background(), r, "feature x", "/scan/1-1"); err != nil {
+		t.Fatal(err)
+	}
+	want := "sh -c mkdir -p /scan/1-1 && cd /workspace && " +
+		"git diff --name-only -z --diff-filter=ACMRT 'feature x' | " +
+		"xargs -0 -r -I{} cp --parents -- {} /scan/1-1/"
+	if len(r.cmds) != 1 || r.cmds[0] != want {
+		t.Fatalf("stageWorktree command:\n got: %v\nwant: %q", r.cmds, want)
+	}
+}
+
+// TestScopeCommandsAvoidDashBashisms is the static tripwire for the 0.2.x
+// --diff outage: the engine's /bin/sh is dash, and a `read -d` consumer
+// staged nothing while still exiting 0. String-pinned command tests cannot
+// catch shell portability, so grep the command builders' own source,
+// comments stripped (this file documents the bug in prose).
+func TestScopeCommandsAvoidDashBashisms(t *testing.T) {
+	b, err := os.ReadFile("scope.go")
+	if err != nil {
+		t.Skipf("scope.go not adjacent to test: %v", err)
+	}
+	var code []string
+	for _, ln := range strings.Split(string(b), "\n") {
+		if i := strings.Index(ln, "//"); i >= 0 {
+			ln = ln[:i]
+		}
+		code = append(code, ln)
+	}
+	for _, bashism := range []string{"read -r -d", "read -d"} {
+		if strings.Contains(strings.Join(code, "\n"), bashism) {
+			t.Fatalf("scope.go contains %q outside comments: dash rejects it, staging would silently no-op", bashism)
+		}
+	}
 }
 
 // fixtureSARIF builds a one-result document in each emitter's shape.

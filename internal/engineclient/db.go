@@ -98,7 +98,8 @@ var ErrNoStamp = errors.New("advisory db not stamped")
 // dbMetadata is the metadata.json subset trivy consults under
 // --skip-db-update: it demands exactly the expected schema Version and
 // refuses an empty db dir, which is why seeding must precede the first
-// offline scan. DownloadedAt may be zero and is accepted (W0 spike).
+// offline scan. DownloadedAt may be zero upstream and is accepted (W0
+// spike); update-db stamps it before staging (writeStampedMetadata).
 type dbMetadata struct {
 	Version      int       `json:"Version"`
 	NextUpdate   time.Time `json:"NextUpdate"`
@@ -153,6 +154,13 @@ func (c *Client) UpdateDB(ctx context.Context, a Artifact, digest string) (Swap,
 	if err != nil {
 		return sw, err
 	}
+	// Stamp the fetch moment over upstream's zero DownloadedAt: a manual trivy
+	// run without --skip-db-update treats the zero value as never-downloaded
+	// and re-downloads the whole DB (field report 2026-10-07). The staged
+	// metadata.json is cavet's re-marshal, not the verbatim upstream bytes.
+	if err := writeStampedMetadata(dir, md); err != nil {
+		return sw, err
+	}
 	sw = Swap{Digest: digest, UpdatedAt: md.UpdatedAt, SwappedAt: time.Now().UTC(), Bytes: size}
 	stamp, err := json.Marshal(DBStamp{
 		Artifact: a.Name, Digest: digest,
@@ -194,6 +202,17 @@ func (c *Client) UpdateDB(ctx context.Context, a Artifact, digest string) (Swap,
 		return sw, err
 	}
 	return sw, nil
+}
+
+// writeStampedMetadata rewrites the staged metadata.json with DownloadedAt
+// set to the fetch moment: upstream carries the zero value there.
+func writeStampedMetadata(dir string, md dbMetadata) error {
+	md.DownloadedAt = time.Now().UTC()
+	b, err := json.Marshal(md)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "metadata.json"), b, 0o644)
 }
 
 // verifySwap re-reads the live metadata.json and demands the staged values:

@@ -87,8 +87,12 @@ func newRoot() (*cobra.Command, error) {
 	}
 	root.SilenceUsage = true
 	root.SilenceErrors = true
-	root.Version = resolveVersion()
-	root.SetVersionTemplate("cavet {{.Version}}\n")
+	// --version is pre-defined (which suppresses cobra's auto version flag
+	// and template, so root.Version stays unset) and handled first in
+	// runPosture: it must render the full `cavet version` story, not a bare
+	// one-liner. -v is the shorthand cobra bound for it before. Local to the
+	// root command, never persistent onto subcommands.
+	root.Flags().BoolP("version", "v", false, "print cavet, engine, and advisory database versions")
 
 	root.AddCommand(
 		newInitCmd(),
@@ -205,8 +209,13 @@ func shortEngine(ref string) string {
 }
 
 // runPosture is the bare-cavet home view (cli-spec §5): coverage header from
-// the last scan, actionable-findings table, open items, baseline size.
-func runPosture(_ *cobra.Command, _ []string) error {
+// the last scan, actionable-findings table, open items, baseline size. The
+// --version flag short-circuits before any repository or store work: the
+// shared story renders with no side effects, like `cavet version`.
+func runPosture(cmd *cobra.Command, _ []string) error {
+	if v, _ := cmd.Flags().GetBool("version"); v {
+		return runVersion()
+	}
 	s, err := openStore()
 	if err != nil {
 		return err

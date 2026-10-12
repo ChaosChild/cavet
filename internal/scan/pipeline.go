@@ -390,11 +390,31 @@ func runScanners(ctx context.Context, r Runner, scanners []string, target string
 		// and reusing it would mis-attribute findings or mask the failure as
 		// clean. checkov's --soft-fail makes 0 the only success exit.
 		if cerr != nil || (sc == "trivy-image" || sc == "checkov") && res.Code != 0 {
-			return nil, fmt.Errorf("%s scan failed (exit %d): %.300s", sc, res.Code, res.Stderr)
+			return nil, fmt.Errorf("%s scan failed (exit %d): %s", sc, res.Code, stderrTail(res.Stderr))
 		}
 		out[sc] = b
 	}
 	return out, nil
+}
+
+// stderrTail keeps the last ~300 bytes of a scanner's stderr: the
+// actionable line (FATAL, panic) sits at the end, and a head slice spent its
+// whole budget on INFO lines during the 0.2.3 --diff incident. A leading
+// partial line is dropped at its first newline when a full line follows it.
+func stderrTail(b []byte) string {
+	const n = 300
+	if len(b) <= n {
+		return string(b)
+	}
+	start := len(b) - n
+	for i := 0; i < 3 && start < len(b) && b[start]&0xC0 == 0x80; i++ { // a multibyte rune can straddle the window start
+		start++
+	}
+	tail := string(b[start:])
+	if i := strings.IndexByte(tail, '\n'); i >= 0 && i < len(tail)-1 {
+		tail = tail[i+1:]
+	}
+	return tail
 }
 
 func parseAndMerge(scanners []string, raw map[string][]byte, target string, imageFindings []projection.Finding) ([]*projection.MergedFinding, error) {

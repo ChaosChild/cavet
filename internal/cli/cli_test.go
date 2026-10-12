@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -412,5 +413,93 @@ func TestVersionCommand(t *testing.T) {
 	root.SetArgs([]string{"version"})
 	if err := root.Execute(); err == nil {
 		t.Fatal("corrupt state/db.json must fail loud")
+	}
+}
+
+// captureStdout runs fn with os.Stdout swapped for a pipe and returns what
+// was printed; the version surfaces write straight to stdout.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stdout
+	os.Stdout = w
+	fn()
+	os.Stdout = old
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
+}
+
+// runCli executes a fresh root command with args and returns its stdout.
+func runCli(t *testing.T, args ...string) string {
+	t.Helper()
+	root, err := newRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.SetArgs(args)
+	out := captureStdout(t, func() {
+		if err := root.Execute(); err != nil {
+			t.Errorf("cavet %v: %v", args, err)
+		}
+	})
+	return out
+}
+
+// --version and -v must render byte-identically to `cavet version` (one code
+// path), with the bare "cavet <version>" first line intact for consumers
+// that parse it. Both the baked era (no repository, no recorded state) and a
+// stamped state are pinned.
+func TestVersionFlagMatchesSubcommand(t *testing.T) {
+	t.Chdir(t.TempDir()) // outside any repository: the baked-era story
+	sub := runCli(t, "version")
+	if first := strings.SplitN(sub, "\n", 2)[0]; first != "cavet "+resolveVersion() {
+		t.Fatalf("first line must stay the bare version line, got %q", first)
+	}
+	for _, flag := range []string{"--version", "-v"} {
+		if got := runCli(t, flag); got != sub {
+			t.Errorf("%s must byte-match `cavet version`:\n got %q\nwant %q", flag, got, sub)
+		}
+	}
+
+	dir := t.TempDir()
+	s, err := store.Init(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.WriteDBState(store.DBState{Artifacts: map[string]store.DBArtifact{
+		"vuln": {Digest: "sha256:deadbeef", UpdatedAt: time.Now().Add(-24 * time.Hour), SwappedAt: time.Now()},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	sub = runCli(t, "version")
+	if !strings.Contains(sub, "db vuln: sha256:deadbeef") {
+		t.Fatalf("stamped state must surface the digest, got %q", sub)
+	}
+	for _, flag := range []string{"--version", "-v"} {
+		if got := runCli(t, flag); got != sub {
+			t.Errorf("%s must byte-match `cavet version` with stamped state:\n got %q\nwant %q", flag, got, sub)
+		}
+	}
+}
+
+// --version works with no repository context at all: exit 0, story printed.
+func TestVersionFlagOutsideRepo(t *testing.T) {
+	t.Chdir(t.TempDir())
+	out := runCli(t, "--version")
+	if !strings.HasPrefix(out, "cavet ") {
+		t.Fatalf("--version outside a repository must still print the story, got %q", out)
+	}
+	if !strings.Contains(out, "\nengine ") {
+		t.Fatalf("--version must include the engine line, got %q", out)
 	}
 }
