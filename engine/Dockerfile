@@ -38,7 +38,7 @@ ENV GITLEAKS_CONFIG=/opt/gitleaks.toml
 # gore2regex + CGO_ENABLED=0 mirror the upstream release build (go-re2 is
 # pure-Go wazero, no cgo needed); -ldflags injects the version so
 # `gitleaks --version` still reports the tag.
-FROM golang:1.26-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS gitleaks-build
+FROM golang:1.26-bookworm@sha256:d9c68c2c51161e12fd77e4c6320687c9cd86e1af1e3ad6e6cd63ff970641453c AS gitleaks-build
 ARG GITLEAKS_VERSION
 RUN git clone --depth 1 --branch "v${GITLEAKS_VERSION}" https://github.com/gitleaks/gitleaks /src \
     && cd /src \
@@ -61,7 +61,7 @@ RUN git clone --depth 1 --branch "v${GITLEAKS_VERSION}" https://github.com/gitle
 # goreleaser/magefile set, so `trivy --version` still reports the tag, and
 # GOEXPERIMENT=jsonv2 mirrors upstream's release env (trivy imports the
 # experimental encoding/json/v2, gated behind it).
-FROM golang:1.26-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS trivy-build
+FROM golang:1.26-bookworm@sha256:d9c68c2c51161e12fd77e4c6320687c9cd86e1af1e3ad6e6cd63ff970641453c AS trivy-build
 ARG TRIVY_VERSION
 RUN git clone --depth 1 --branch "v${TRIVY_VERSION}" https://github.com/aquasecurity/trivy /src \
     && cd /src \
