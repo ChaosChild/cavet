@@ -197,7 +197,7 @@ for arm, loaded in arms.items():
                 misses.append({"id": s["id"], "verdict": v, "majority": m,
                                "step1": round(sum(step1_series(recs)) / len(step1_series(recs)), 3)})
         agree[corpus] = {"agree": ok, "n": n, "pct": round(100 * ok / n, 1) if n else None,
-                         "disagreements": misses}
+                         "misses": len(misses)}
     res["actionability"] = agree
 
     # per-corpus recall / precision on benchmark gold

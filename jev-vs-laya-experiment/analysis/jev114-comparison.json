@@ -17,25 +17,12 @@
     "cavet": {
      "agree": 88,
      "n": 98,
-     "pct": 89.8,
-     "disagreement_ids": [
-      "1754a4",
-      "3b1a85",
-      "43eb91",
-      "4a97d6",
-      "72a7ba",
-      "7d1ff0",
-      "9a6461",
-      "a8c81f",
-      "deb303",
-      "e26506"
-     ]
+     "pct": 89.8
     },
     "fragmt": {
      "agree": 40,
      "n": 40,
-     "pct": 100.0,
-     "disagreement_ids": []
+     "pct": 100.0
     }
    },
    "corpora": {
@@ -159,27 +146,12 @@
     "cavet": {
      "agree": 86,
      "n": 98,
-     "pct": 87.8,
-     "disagreement_ids": [
-      "1754a4",
-      "1d3780",
-      "221fa6",
-      "3b1a85",
-      "4a97d6",
-      "6e606e",
-      "72a7ba",
-      "9a6461",
-      "a8c81f",
-      "deb303",
-      "e26506",
-      "eb10af"
-     ]
+     "pct": 87.8
     },
     "fragmt": {
      "agree": 40,
      "n": 40,
-     "pct": 100.0,
-     "disagreement_ids": []
+     "pct": 100.0
     }
    },
    "corpora": {

@@ -155,7 +155,7 @@ def main():
                 if not good:
                     misses.append(s["id"])
             agree[corpus] = {"agree": ok, "n": n, "pct": round(100 * ok / n, 1) if n else None,
-                             "disagreement_ids": misses}
+                             "misses": len(misses)}
         res["actionability"] = agree
 
         corpus_res = {}
