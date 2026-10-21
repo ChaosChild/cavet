@@ -1,0 +1,124 @@
+{
+ "meta": {
+  "statistic": "A/A rerun control, paper 1 Section 3.3, re-measured on leak-free states",
+  "reps": [
+   "cleanfx(r1)",
+   "replay2",
+   "replay3",
+   "replay4",
+   "replay5"
+  ],
+  "sources": [
+   "batch-runs/similarity-40-cleanfx.json (rep 1)",
+   "runs/clean5-cavet-rep2..5.json (verbatim payload replays)"
+  ],
+  "verdict_line_counts": "cleanfx 0; published family clean1-10/final1-5: 196 per file"
+ },
+ "pairs": [
+  {
+   "pair": "cleanfx(r1)-replay2",
+   "n": 663,
+   "decision_flips": 4,
+   "decision_pct": 0.6,
+   "closure_only_flips": 2,
+   "any_status_flips": 6,
+   "any_status_pct": 0.9
+  },
+  {
+   "pair": "cleanfx(r1)-replay3",
+   "n": 663,
+   "decision_flips": 4,
+   "decision_pct": 0.6,
+   "closure_only_flips": 2,
+   "any_status_flips": 6,
+   "any_status_pct": 0.9
+  },
+  {
+   "pair": "cleanfx(r1)-replay4",
+   "n": 663,
+   "decision_flips": 4,
+   "decision_pct": 0.6,
+   "closure_only_flips": 4,
+   "any_status_flips": 8,
+   "any_status_pct": 1.21
+  },
+  {
+   "pair": "cleanfx(r1)-replay5",
+   "n": 663,
+   "decision_flips": 5,
+   "decision_pct": 0.75,
+   "closure_only_flips": 2,
+   "any_status_flips": 7,
+   "any_status_pct": 1.06
+  },
+  {
+   "pair": "replay2-replay3",
+   "n": 663,
+   "decision_flips": 4,
+   "decision_pct": 0.6,
+   "closure_only_flips": 0,
+   "any_status_flips": 4,
+   "any_status_pct": 0.6
+  },
+  {
+   "pair": "replay2-replay4",
+   "n": 663,
+   "decision_flips": 2,
+   "decision_pct": 0.3,
+   "closure_only_flips": 2,
+   "any_status_flips": 4,
+   "any_status_pct": 0.6
+  },
+  {
+   "pair": "replay2-replay5",
+   "n": 663,
+   "decision_flips": 5,
+   "decision_pct": 0.75,
+   "closure_only_flips": 0,
+   "any_status_flips": 5,
+   "any_status_pct": 0.75
+  },
+  {
+   "pair": "replay3-replay4",
+   "n": 663,
+   "decision_flips": 4,
+   "decision_pct": 0.6,
+   "closure_only_flips": 2,
+   "any_status_flips": 6,
+   "any_status_pct": 0.9
+  },
+  {
+   "pair": "replay3-replay5",
+   "n": 663,
+   "decision_flips": 1,
+   "decision_pct": 0.15,
+   "closure_only_flips": 0,
+   "any_status_flips": 1,
+   "any_status_pct": 0.15
+  },
+  {
+   "pair": "replay4-replay5",
+   "n": 663,
+   "decision_flips": 5,
+   "decision_pct": 0.75,
+   "closure_only_flips": 2,
+   "any_status_flips": 7,
+   "any_status_pct": 1.06
+  }
+ ],
+ "summary": {
+  "decision_pct_min": 0.15,
+  "decision_pct_max": 0.75,
+  "decision_pct_mean": 0.57,
+  "pooled_decision_pct": 0.57,
+  "any_status_pct_min": 0.15,
+  "any_status_pct_max": 1.21,
+  "any_status_pct_mean": 0.81,
+  "closure_only_total": 16
+ },
+ "published_provenance": {
+  "files": "clean1/clean2/clean3 (consistency.py family)",
+  "verdict_lines_per_file": 196,
+  "note": "published 0.75/1.06/1.21 matches the any-status flip rates of the three clean1-3 pairs; under the paper's decision-only definition those pairs give 0.75/0.90/1.06"
+ }
+}
