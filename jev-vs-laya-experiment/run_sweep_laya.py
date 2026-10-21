@@ -31,8 +31,18 @@ CHECKPOINTS = {
     "multilingual": {"path": HERE / "models" / "multilingual", "max_len": 8192},
 }
 
-s1q = harness.q_confirm("mv")
-s1q.update(harness.q_missing("mv"))
+SV_INSTRUCTION = (" Severity labels are not grounds for dismissal for manifest "
+                  "findings: the affected version is pinned in this project's "
+                  "dependency manifest, which the state establishes directly.")
+
+
+def s1q_for(rec):
+    """Step-1 questions; lockfile findings carry the severity-blind instruction."""
+    q = harness.q_confirm("mv")
+    q.update(harness.q_missing("mv"))
+    if rec.get("lockfile"):
+        q["is_confirmed"]["instructions"] += SV_INSTRUCTION
+    return q
 s2q = harness.q_closure("mv", harness.WORDINGS["r3"])
 
 
@@ -40,11 +50,16 @@ def key_of(rec):
     """Findings are keyed by corpus:id: 6-char id prefixes collide across corpora."""
     return f'{rec["corpus"]}:{rec["id"]}'
 
-states = [json.loads(line) for line in (HERE / "states.jsonl").read_text(encoding="utf-8").splitlines()]
+states = [json.loads(line) for line in (HERE / "states-v2.jsonl").read_text(encoding="utf-8").splitlines()]
 
 
 def fit_state(st, tk, budget):
-    """Apply the frozen truncation policy; returns (state, actions)."""
+    """Apply the frozen truncation policy; returns (state, actions).
+
+    Bounded: if the state cannot fit after lookup-drop and excerpt halving
+    (a huge finding description can exceed the budget alone), it ships as-is
+    and the runtime truncates the sequence at max_len.
+    """
     s = json.dumps(st, ensure_ascii=False)
     actions = []
     if len(tk(s)["input_ids"]) <= budget:
@@ -54,12 +69,16 @@ def fit_state(st, tk, budget):
         st.pop("cavet_lookup")
         actions.append("dropped cavet_lookup")
     mc = st.get("mechanical_context") or {}
-    while "source_excerpt" in mc and len(tk(json.dumps(st, ensure_ascii=False))["input_ids"]) > budget:
-        exc = mc["source_excerpt"]
-        mc["source_excerpt"] = exc[: max(len(exc) // 2, 200)]
+    for _ in range(6):
+        if len(tk(json.dumps(st, ensure_ascii=False))["input_ids"]) <= budget:
+            return st, actions
+        exc = mc.get("source_excerpt")
+        if not exc:
+            break
+        mc["source_excerpt"] = exc[: max(len(exc) // 2, 100)]
         actions.append("halved source_excerpt")
     if len(tk(json.dumps(st, ensure_ascii=False))["input_ids"]) > budget:
-        actions.append("STILL OVER BUDGET")
+        actions.append("STILL OVER BUDGET: shipped as-is, runtime truncates at max_len")
     return st, actions
 
 
@@ -93,7 +112,7 @@ def run_checkpoint(name, cfg):
         n = 0
         for rec, st in todo:
             ft0 = time.perf_counter()
-            r1 = agent.predict(st, s1q, max_len=cfg["max_len"])
+            r1 = agent.predict(st, s1q_for(rec), max_len=cfg["max_len"])
             a1 = r1["answers"]
             p_yes = a1["is_confirmed"]["noul"]
             out = {"corpus": rec["corpus"], "id": rec["id"], "fp": rec["fp"],

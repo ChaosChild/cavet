@@ -22,9 +22,19 @@ RUNS.mkdir(exist_ok=True)
 REPS = 3
 WORKERS = 6
 
-states = [json.loads(line) for line in (HERE / "states.jsonl").read_text(encoding="utf-8").splitlines()]
-s1q = harness.q_confirm("mv")
-s1q.update(harness.q_missing("mv"))
+states = [json.loads(line) for line in (HERE / "states-v2.jsonl").read_text(encoding="utf-8").splitlines()]
+SV_INSTRUCTION = (" Severity labels are not grounds for dismissal for manifest "
+                  "findings: the affected version is pinned in this project's "
+                  "dependency manifest, which the state establishes directly.")
+
+
+def s1q_for(rec):
+    """Step-1 questions; lockfile findings carry the severity-blind instruction."""
+    q = harness.q_confirm("mv")
+    q.update(harness.q_missing("mv"))
+    if rec.get("lockfile"):
+        q["is_confirmed"]["instructions"] += SV_INSTRUCTION
+    return q
 s2q = harness.q_closure("mv", harness.WORDINGS["r3"])
 
 
@@ -43,7 +53,7 @@ meta = {
 def run_finding(rec):
     st = rec["state"]
     t0 = time.perf_counter()
-    c1 = harness.call_jev(st, s1q)
+    c1 = harness.call_jev(st, s1q_for(rec))
     a1 = (c1.get("response") or {}).get("answers") or {}
     p_yes = (a1.get("is_confirmed") or {}).get("noul")
     out = {"corpus": rec["corpus"], "id": rec["id"], "fp": rec["fp"],

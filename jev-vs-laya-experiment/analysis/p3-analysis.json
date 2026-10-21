@@ -133,7 +133,7 @@
     }
    },
    "consistency": {
-    "unanimous_pct": 98.72,
+    "unanimous_pct": 98.94,
     "mean_step1_sd": 0.0059,
     "max_step1_sd": 0.0748
    },
@@ -147,9 +147,9 @@
     },
     "fragmt_eval": {
      "n": 40,
-     "brier": 0.0018,
-     "ece": 0.0413,
-     "nll": 0.0423,
+     "brier": 0.0108,
+     "ece": 0.082,
+     "nll": 0.0885,
      "auroc": null
     },
     "corpus-2": {
@@ -777,157 +777,157 @@
        "id": "19445c",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.578
+       "step1": 0.584
       },
       {
        "id": "2018df",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.586
+       "step1": 0.612
       },
       {
        "id": "280bf5",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.585
+       "step1": 0.584
       },
       {
        "id": "2894aa",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.591
+       "step1": 0.6
       },
       {
        "id": "28fe84",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.585
+       "step1": 0.59
       },
       {
        "id": "2d1819",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.588
+       "step1": 0.593
       },
       {
        "id": "2f1da4",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.574
+       "step1": 0.591
       },
       {
        "id": "32955e",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.599
+       "step1": 0.588
       },
       {
        "id": "392d11",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.599
+       "step1": 0.614
       },
       {
        "id": "3c6940",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.591
+       "step1": 0.583
       },
       {
        "id": "3d3db3",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.591
+       "step1": 0.593
       },
       {
        "id": "4c3cda",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.574
+       "step1": 0.597
       },
       {
        "id": "4e9e39",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.681
+       "step1": 0.68
       },
       {
        "id": "4ed8ff",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.623
+       "step1": 0.633
       },
       {
        "id": "5edcca",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.593
+       "step1": 0.599
       },
       {
        "id": "64722e",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.587
+       "step1": 0.589
       },
       {
        "id": "68a4ab",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.613
+       "step1": 0.611
       },
       {
        "id": "68f870",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.594
+       "step1": 0.585
       },
       {
        "id": "7558de",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.595
+       "step1": 0.589
       },
       {
        "id": "79fa12",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.553
+       "step1": 0.581
       },
       {
        "id": "7bf451",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.579
+       "step1": 0.6
       },
       {
        "id": "84c7b1",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.575
+       "step1": 0.59
       },
       {
        "id": "870a2b",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.589
+       "step1": 0.587
       },
       {
        "id": "8bd70c",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.591
+       "step1": 0.588
       },
       {
        "id": "9432dd",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.571
+       "step1": 0.582
       },
       {
        "id": "976ec3",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.639
+       "step1": 0.657
       },
       {
        "id": "9d5148",
@@ -939,79 +939,79 @@
        "id": "9f0a76",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.592
+       "step1": 0.591
       },
       {
        "id": "a3533a",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.577
+       "step1": 0.582
       },
       {
        "id": "a60c30",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.605
+       "step1": 0.64
       },
       {
        "id": "aa8d68",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.588
+       "step1": 0.589
       },
       {
        "id": "b09762",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.578
+       "step1": 0.577
       },
       {
        "id": "bab3ea",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.586
+       "step1": 0.588
       },
       {
        "id": "cd8176",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.585
+       "step1": 0.593
       },
       {
        "id": "cfce4c",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.555
+       "step1": 0.589
       },
       {
        "id": "d6feeb",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.58
+       "step1": 0.59
       },
       {
        "id": "da8e87",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.589
+       "step1": 0.588
       },
       {
        "id": "e583f2",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.588
+       "step1": 0.585
       },
       {
        "id": "e67574",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.575
+       "step1": 0.581
       },
       {
        "id": "fd9524",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.583
+       "step1": 0.586
       }
      ]
     }
@@ -1081,9 +1081,9 @@
     "fitted_temperature": 10.0,
     "fragmt_eval": {
      "n": 40,
-     "brier": 0.3484,
-     "ece": 0.5899,
-     "nll": 0.8927,
+     "brier": 0.3565,
+     "ece": 0.5967,
+     "nll": 0.9095,
      "auroc": null
     },
     "cavet_dev_fitted": {
@@ -1748,241 +1748,241 @@
        "id": "19445c",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.901
+       "step1": 0.918
       },
       {
        "id": "2018df",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.882
+       "step1": 0.918
       },
       {
        "id": "280bf5",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.888
+       "step1": 0.776
       },
       {
        "id": "2894aa",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.889
+       "step1": 0.849
       },
       {
        "id": "28fe84",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.94
+       "step1": 0.934
       },
       {
        "id": "2d1819",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.916
+       "step1": 0.902
       },
       {
        "id": "2f1da4",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.807
+       "step1": 0.798
       },
       {
        "id": "32955e",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.934
+       "step1": 0.936
       },
       {
        "id": "392d11",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.88
+       "step1": 0.921
       },
       {
        "id": "3c6940",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.968
+       "step1": 0.965
       },
       {
        "id": "3d3db3",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.965
+       "step1": 0.95
       },
       {
        "id": "4c3cda",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.902
+       "step1": 0.916
       },
       {
        "id": "4e9e39",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.864
+       "step1": 0.805
       },
       {
        "id": "4ed8ff",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.805
+       "step1": 0.769
       },
       {
        "id": "5edcca",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.947
+       "step1": 0.938
       },
       {
        "id": "64722e",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.938
+       "step1": 0.956
       },
       {
        "id": "68a4ab",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.946
+       "step1": 0.947
       },
       {
        "id": "68f870",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.925
+       "step1": 0.93
       },
       {
        "id": "7558de",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.907
+       "step1": 0.919
       },
       {
        "id": "79fa12",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.882
+       "step1": 0.848
       },
       {
        "id": "7bf451",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.911
+       "step1": 0.898
       },
       {
        "id": "84c7b1",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.848
+       "step1": 0.866
       },
       {
        "id": "870a2b",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.971
+       "step1": 0.964
       },
       {
        "id": "8bd70c",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.87
+       "step1": 0.882
       },
       {
        "id": "9432dd",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.939
+       "step1": 0.96
       },
       {
        "id": "976ec3",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.831
+       "step1": 0.879
       },
       {
        "id": "9d5148",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.914
+       "step1": 0.906
       },
       {
        "id": "9f0a76",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.836
+       "step1": 0.809
       },
       {
        "id": "a3533a",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.946
+       "step1": 0.916
       },
       {
        "id": "a60c30",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.867
+       "step1": 0.86
       },
       {
        "id": "aa8d68",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.963
+       "step1": 0.943
       },
       {
        "id": "b09762",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.966
+       "step1": 0.959
       },
       {
        "id": "bab3ea",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.915
+       "step1": 0.883
       },
       {
        "id": "cd8176",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.898
+       "step1": 0.73
       },
       {
        "id": "cfce4c",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.879
+       "step1": 0.924
       },
       {
        "id": "d6feeb",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.973
+       "step1": 0.988
       },
       {
        "id": "da8e87",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.965
+       "step1": 0.966
       },
       {
        "id": "e583f2",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.922
+       "step1": 0.918
       },
       {
        "id": "e67574",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.923
+       "step1": 0.912
       },
       {
        "id": "fd9524",
        "verdict": "dismissed",
        "majority": "confirmed",
-       "step1": 0.878
+       "step1": 0.897
       }
      ]
     }
@@ -2052,9 +2052,9 @@
     "fitted_temperature": 10.0,
     "fragmt_eval": {
      "n": 40,
-     "brier": 0.8256,
-     "ece": 0.9075,
-     "nll": 2.5121,
+     "brier": 0.8115,
+     "ece": 0.8988,
+     "nll": 2.4687,
      "auroc": null
     },
     "cavet_dev_fitted": {

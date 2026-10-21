@@ -15,5 +15,10 @@ p4/runs/
 p4/data/
 p4/models/
 p4/recipe-reference/
-# the paper stays local-only, same rule as the Jev paper
-PAPER.md
+# the papers stay local-only, same rule as the Jev paper
+PAPER*.md
+# finding-level caches and datasets stay local: excerpts + verdicts
+dataset.json
+details-cache*.json
+full-run.json
+states-fragmt-fixed.jsonl
