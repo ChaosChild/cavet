@@ -14,7 +14,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-go@v7
         with: { go-version-file: go.mod }
-      - uses: sigstore/cosign-installer@v4.1.2 # exact pin — repo has no mutable v4 major tag
+      - uses: sigstore/cosign-installer@v4.1.3 # exact pin — repo has no mutable v4 major tag
       - uses: anchore/sbom-action/download-syft@v0.24.3 # install-only: puts syft on PATH for goreleaser's SBOM pipe (exact pin, no mutable v0 tag dependency)
       - uses: goreleaser/goreleaser-action@v7
         with:
@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
-      - uses: sigstore/cosign-installer@v4.1.2 # exact pin — repo has no mutable v4 major tag
+      - uses: sigstore/cosign-installer@v4.1.3 # exact pin — repo has no mutable v4 major tag
       - name: Login to GHCR
         run: echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
       - name: Resolve engine mode
